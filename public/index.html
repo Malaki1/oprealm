@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="OPREALM is a safety-first AI game creation academy for kids across Roblox, Minecraft, web games, 2D games and AI story games."
+    />
+    <title>OPREALM | Safety-First AI Game Creation Academy For Kids</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css?v=magic-1" />
+    <script src="/app.js?v=magic-1" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <span></span>
+        </span>
+        <span>OPREALM</span>
+      </a>
+
+      <input class="menu-toggle" type="checkbox" id="mobile-menu-toggle" aria-label="Open menu" />
+      <label class="hamburger" for="mobile-menu-toggle" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </label>
+
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#courses">Courses</a>
+        <a href="#parents">For Parents</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">Resources</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="button button-ghost" href="#login">Log In</a>
+        <a class="button button-primary" href="#enrol">Start Safe Learning</a>
+      </div>
+
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#courses">Courses</a>
+        <a href="#parents">For Parents</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#faq">Resources</a>
+        <a href="#login">Log In</a>
+        <a class="button button-primary" href="#enrol">Start Safe Learning</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Online safety first. AI creativity next.</p>
+          <h1>The Safety-First <span>AI Game Creation</span> Academy For Kids</h1>
+          <p class="hero-text">
+            Kids learn to build games across Roblox, Minecraft, web games and more while mastering the online safety skills every young creator needs.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary button-large" href="#enrol">Start Safe Learning</a>
+            <a class="button button-secondary button-large" href="#courses">Explore Curriculum</a>
+          </div>
+          <div class="trust-line" aria-label="Trust indicators">
+            <span>Online safety required</span>
+            <span>Parent dashboard</span>
+            <span>AI Coach guided</span>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="OPREALM learning platform preview">
+          <div class="lua-rain" aria-hidden="true">
+            <span style="--x: 7%; --delay: -1s; --speed: 15s;">local coins = workspace.Coins<br />for _, coin in coins:GetChildren() do<br />coin.Touched:Connect(function(player)</span>
+            <span style="--x: 21%; --delay: -8s; --speed: 18s;">if checkpoint.Active then<br />player.RespawnLocation = checkpoint<br />print("Checkpoint saved")</span>
+            <span style="--x: 35%; --delay: -4s; --speed: 14s;">local score = leaderstats.Score<br />score.Value += 10<br />badgeService:AwardBadge(player.UserId)</span>
+            <span style="--x: 49%; --delay: -11s; --speed: 20s;">while gameRunning do<br />spawnObstacle()<br />task.wait(2)</span>
+            <span style="--x: 63%; --delay: -3s; --speed: 17s;">script.Parent.Touched:Connect(function(hit)<br />local humanoid = hit.Parent:FindFirstChild("Humanoid")<br />if humanoid then</span>
+            <span style="--x: 78%; --delay: -9s; --speed: 16s;">local door = workspace.SecretDoor<br />if playerHasKey then<br />door.Transparency = 0.5</span>
+            <span style="--x: 91%; --delay: -6s; --speed: 19s;">function levelComplete(player)<br />giveReward(player)<br />teleportToLobby(player)</span>
+          </div>
+          <div class="mascot-wrap" aria-label="Animated OPREALM AI Coach mascot">
+            <img class="mascot mascot-open" src="/assets/oprealm-ai-coach.png" alt="OPREALM floating AI Coach mascot" />
+            <img class="mascot mascot-blink" src="/assets/oprealm-ai-coach-blink.png" alt="" aria-hidden="true" />
+          </div>
+          <aside class="platform-panel reveal reveal-right">
+            <h2>Build Across Popular Platforms</h2>
+            <div class="platform-grid">
+              <a class="reveal-child" href="/courses/roblox.html"><span class="platform-icon roblox-icon"></span>Roblox</a>
+              <a class="reveal-child" href="/courses/minecraft.html"><span class="platform-icon minecraft-icon"></span>Minecraft</a>
+              <a class="reveal-child" href="/courses/web-games.html"><span class="platform-icon code-icon"></span>Web Games</a>
+              <a class="reveal-child" href="/courses/2d-games.html"><span class="platform-icon console-icon"></span>2D Game Builder</a>
+              <a class="reveal-child" href="/courses/ai-stories.html"><span class="platform-icon story-icon"></span>AI Story Games</a>
+              <a class="reveal-child" href="/safety.html"><span class="platform-icon safety-icon"></span>Game Safety</a>
+            </div>
+          </aside>
+        </div>
+
+        <div class="hero-strip reveal" id="how-it-works">
+          <span>
+            <svg class="strip-icon" viewBox="0 0 48 48" role="img" aria-label="Safety Academy First icon">
+              <defs>
+                <linearGradient id="stripGradientSafety" x1="6" y1="5" x2="42" y2="43" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#18d9ff" />
+                  <stop offset="0.52" stop-color="#3d7cff" />
+                  <stop offset="1" stop-color="#e032ff" />
+                </linearGradient>
+              </defs>
+              <path class="strip-icon-bg" d="M24 4l15 6v12c0 10-6.5 17-15 21C15.5 39 9 32 9 22V10l15-6z" />
+              <path class="strip-icon-main" d="M24 7.8l11.6 4.6v9.1c0 7.6-4.5 13.2-11.6 16.8-7.1-3.6-11.6-9.2-11.6-16.8v-9.1L24 7.8z" />
+              <path class="strip-icon-line" d="M17.2 23.8l4.5 4.5 9.8-10.6" />
+            </svg>
+            Safety Academy First
+          </span>
+          <span>
+            <svg class="strip-icon" viewBox="0 0 48 48" role="img" aria-label="Beginner Friendly icon">
+              <defs>
+                <linearGradient id="stripGradientBeginner" x1="7" y1="6" x2="43" y2="42" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#18d9ff" />
+                  <stop offset="0.5" stop-color="#3d7cff" />
+                  <stop offset="1" stop-color="#8b43ff" />
+                </linearGradient>
+              </defs>
+              <rect class="strip-icon-bg" x="7" y="7" width="34" height="34" rx="11" />
+              <path class="strip-icon-main" d="M16 30.5c1.9-4.1 4.7-6.2 8-6.2s6.1 2.1 8 6.2" />
+              <circle class="strip-icon-main" cx="24" cy="17.5" r="5.2" />
+              <path class="strip-icon-line" d="M34.5 14.5l2.2 2.2 4.1-5" />
+            </svg>
+            Beginner Friendly
+          </span>
+          <span>
+            <svg class="strip-icon" viewBox="0 0 48 48" role="img" aria-label="Real Projects icon">
+              <defs>
+                <linearGradient id="stripGradientProjects" x1="6" y1="7" x2="42" y2="41" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#18d9ff" />
+                  <stop offset="0.5" stop-color="#3d7cff" />
+                  <stop offset="1" stop-color="#e032ff" />
+                </linearGradient>
+              </defs>
+              <path class="strip-icon-bg" d="M24 5l15.5 9v18L24 41 8.5 32V14L24 5z" />
+              <path class="strip-icon-main" d="M24 10.2L35 16.6v12.8l-11 6.4-11-6.4V16.6l11-6.4z" />
+              <path class="strip-icon-line" d="M17.5 19.2L24 23l6.5-3.8M24 23v8.1" />
+              <path class="strip-icon-accent" d="M32.8 10.4l2.4-4.4 2.4 4.4 4.4 2.4-4.4 2.4-2.4 4.4-2.4-4.4-4.4-2.4 4.4-2.4z" />
+            </svg>
+            Real Projects
+          </span>
+          <span>
+            <svg class="strip-icon" viewBox="0 0 48 48" role="img" aria-label="Certificates icon">
+              <defs>
+                <linearGradient id="stripGradientCertificates" x1="7" y1="5" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#18d9ff" />
+                  <stop offset="0.45" stop-color="#3d7cff" />
+                  <stop offset="1" stop-color="#8b43ff" />
+                </linearGradient>
+              </defs>
+              <rect class="strip-icon-bg" x="8" y="7" width="32" height="34" rx="8" />
+              <path class="strip-icon-main" d="M16 17h16M16 23h11" />
+              <circle class="strip-icon-main" cx="31.5" cy="31" r="5.5" />
+              <path class="strip-icon-line" d="M28.8 31l1.9 1.9 3.6-4" />
+              <path class="strip-icon-accent" d="M28 35.3l-2.1 6 5.6-2.2 5.6 2.2-2.1-6" />
+            </svg>
+            Certificates
+          </span>
+        </div>
+      </section>
+
+      <section class="section path-section reveal-section" id="courses">
+        <div class="section-heading">
+          <p class="eyebrow dark">Choose a creator path</p>
+          <h2>Learning paths for curiosity, confidence and real game creation.</h2>
+        </div>
+        <div class="path-grid">
+          <a class="path-card reveal-card" href="/courses/roblox.html">
+            <div class="path-media path-cover roblox-cover"></div>
+            <h3>Roblox Creator</h3>
+            <p>Build 3D games and experiences in Roblox Studio with Lua basics.</p>
+            <span>Ages 8-16</span>
+          </a>
+          <a class="path-card reveal-card" href="/courses/minecraft.html">
+            <div class="path-media path-cover minecraft-cover"></div>
+            <h3>Minecraft Modding</h3>
+            <p>Use code to create custom mods, worlds and mini-game adventures.</p>
+            <span>Ages 8-16</span>
+          </a>
+          <a class="path-card reveal-card" href="/courses/web-games.html">
+            <div class="path-media path-cover web-cover"></div>
+            <h3>Web Game Dev</h3>
+            <p>Create browser games using JavaScript, HTML and playful logic.</p>
+            <span>Ages 10-16</span>
+          </a>
+          <a class="path-card reveal-card" href="/courses/2d-games.html">
+            <div class="path-media path-cover two-d-cover"></div>
+            <h3>2D Game Builder</h3>
+            <p>Drag, drop and code platformers, puzzles and arcade games.</p>
+            <span>Ages 7-14</span>
+          </a>
+          <a class="path-card reveal-card" href="/courses/ai-stories.html">
+            <div class="path-media path-cover story-cover"></div>
+            <h3>AI Story Games</h3>
+            <p>Use AI to craft characters, quests and interactive adventures.</p>
+            <span>Ages 8-16</span>
+          </a>
+          <a class="path-card reveal-card" href="/safety.html">
+            <div class="path-media path-cover game-safety-cover"></div>
+            <h3>Game Safety</h3>
+            <p>Learn online safety, digital citizenship and healthy gaming habits.</p>
+            <span>Ages 7-16</span>
+          </a>
+        </div>
+      </section>
+
+      <section class="section curriculum-section reveal-section">
+        <div class="section-heading center">
+          <p class="eyebrow dark">How learning unlocks</p>
+          <h2>A clear progression from safe setup to confident creator.</h2>
+        </div>
+        <div class="curriculum-track" aria-label="OPREALM curriculum unlock path">
+          <article class="unlock-card">
+            <span class="unlock-node">01</span>
+            <span class="unlock-icon">SHIELD</span>
+            <h3>Safety Academy</h3>
+            <p>Private information, safe chat, scams, reporting and healthy gaming habits.</p>
+          </article>
+          <article class="unlock-card">
+            <span class="unlock-node">02</span>
+            <span class="unlock-icon">SETUP</span>
+            <h3>Setup & Readiness</h3>
+            <p>Accounts, installs, screenshots, folders, audio checks and troubleshooting.</p>
+          </article>
+          <article class="unlock-card">
+            <span class="unlock-node">03</span>
+            <span class="unlock-icon">BUILD</span>
+            <h3>Creator Controls</h3>
+            <p>Move, orbit, build, resize, test and understand the creation workspace.</p>
+          </article>
+          <article class="unlock-card">
+            <span class="unlock-node">04</span>
+            <span class="unlock-icon">QUEST</span>
+            <h3>First Real Project</h3>
+            <p>Build a playable game with hazards, checkpoints, coins, sounds and feedback.</p>
+          </article>
+          <article class="unlock-card">
+            <span class="unlock-node">05</span>
+            <span class="unlock-icon">CERT</span>
+            <h3>Certificate</h3>
+            <p>Submit the final project and unlock an OPREALM creator milestone.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section safety-band reveal-section" id="parents">
+        <div>
+          <p class="eyebrow dark">Safety built into every lesson</p>
+          <h2>Before kids build online worlds, they learn how to stay safe inside them.</h2>
+          <p>
+            Every student begins with safety training covering private information, scam awareness, kind communication, reporting, blocking and healthy gaming habits.
+          </p>
+        </div>
+        <div class="safety-grid">
+          <article class="reveal-card">
+            <span class="mini-icon shield">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path class="mini-mark" d="M24 5l14 5.7v11.5c0 9.3-5.8 15.5-14 19.3-8.2-3.8-14-10-14-19.3V10.7L24 5z" />
+                <path class="mini-line" d="M24 14v18" />
+                <path class="mini-line" d="M17 21h14" />
+                <path class="mini-spark" d="M31.5 12.5l1.5-3 1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5z" />
+              </svg>
+            </span>
+            <h3>Privacy & Security</h3>
+            <p>Kids learn what never to share and how to protect accounts.</p>
+          </article>
+          <article class="reveal-card">
+            <span class="mini-icon chat">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path class="mini-mark" d="M9 13.5c0-4 3.1-7.2 7-7.2h16c3.9 0 7 3.2 7 7.2v10.3c0 4-3.1 7.2-7 7.2H21.3L12 39v-8.3c-1.9-1.2-3-3.3-3-6.9V13.5z" />
+                <path class="mini-line" d="M17 17h14M17 23h8" />
+                <path class="mini-heart" d="M32.2 35.8c-4.2-2.6-6.2-4.9-6.2-7.5 0-2 1.5-3.5 3.3-3.5 1.2 0 2.3.6 2.9 1.6.7-1 1.8-1.6 3-1.6 1.9 0 3.3 1.5 3.3 3.5 0 2.6-2.1 4.9-6.3 7.5z" />
+              </svg>
+            </span>
+            <h3>Kind Communication</h3>
+            <p>Respect, empathy and safe chat behaviour for multiplayer games.</p>
+          </article>
+          <article class="reveal-card">
+            <span class="mini-icon habits">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <rect class="mini-mark" x="10" y="14" width="28" height="18" rx="7" />
+                <path class="mini-line" d="M18 23h5M20.5 20.5v5" />
+                <circle class="mini-dot" cx="30.5" cy="21.5" r="1.8" />
+                <circle class="mini-dot" cx="34" cy="25.5" r="1.8" />
+                <path class="mini-line" d="M16 36h16" />
+                <path class="mini-spark" d="M34.5 8.5l1.6-3.2 1.6 3.2 3.2 1.6-3.2 1.6-1.6 3.2-1.6-3.2-3.2-1.6 3.2-1.6z" />
+              </svg>
+            </span>
+            <h3>Healthy Habits</h3>
+            <p>Balanced screen time, breaks and responsible play routines.</p>
+          </article>
+          <article class="reveal-card">
+            <span class="mini-icon lock">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <rect class="mini-mark" x="11" y="21" width="26" height="19" rx="6" />
+                <path class="mini-line" d="M17 21v-4.5C17 11.8 20.1 8 24 8s7 3.8 7 8.5V21" />
+                <path class="mini-line" d="M20 30.5l3 3 6-7" />
+                <path class="mini-spark" d="M36.5 17.5l1.3-2.6 1.3 2.6 2.6 1.3-2.6 1.3-1.3 2.6-1.3-2.6-2.6-1.3 2.6-1.3z" />
+              </svg>
+            </span>
+            <h3>Safe Creation</h3>
+            <p>Permissions, copyright and publishing responsibly.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section coach-section reveal-section">
+        <img src="/assets/oprealm-ai-coach-small.png" alt="OPREALM AI Coach mascot" />
+        <div class="coach-copy">
+          <p class="eyebrow dark">Meet your AI Coach</p>
+          <h2>A kid-friendly guide for learning, debugging and staying safe.</h2>
+          <ul>
+            <li>Explains concepts in simple terms</li>
+            <li>Helps debug code and project issues</li>
+            <li>Gives creative feedback without doing the work for them</li>
+            <li>Reinforces online safety in every step</li>
+          </ul>
+          <a class="button button-primary" href="/ai-coach.html">Chat with AI Coach</a>
+        </div>
+        <div class="chat-card" aria-label="AI Coach chat preview">
+          <div class="chat-top">
+            <strong>AI Coach</strong>
+            <span>Online</span>
+          </div>
+          <p class="bubble coach-bubble chat-sequence">Hi there. What do you want to build or learn today?</p>
+          <p class="bubble kid-bubble chat-sequence">Can you help me fix my checkpoint?</p>
+          <p class="bubble coach-bubble chat-sequence">Yes. First, let's check the part name and script together.</p>
+        </div>
+      </section>
+
+      <section class="section projects-section reveal-section">
+        <div class="magic-sparkles" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <div class="section-heading">
+          <p class="eyebrow dark">Projects kids can build</p>
+          <h2>Real projects. Real skills. Real confidence.</h2>
+        </div>
+        <div class="project-grid">
+          <article class="reveal-card"><div class="project-image project-cover obby-cover"></div><span class="project-badge">Roblox</span><h3>Obby Adventure</h3><p>Design obstacle courses and publish for friends.</p></article>
+          <article class="reveal-card"><div class="project-image project-cover dragon-cover"></div><span class="project-badge">Minecraft</span><h3>Dragon Realm</h3><p>Build fantasy worlds with quests and custom rules.</p></article>
+          <article class="reveal-card"><div class="project-image project-cover space-cover"></div><span class="project-badge">JavaScript</span><h3>Space Shooter</h3><p>Code a fast-paced shooter using JavaScript.</p></article>
+          <article class="reveal-card"><div class="project-image project-cover pixel-cover"></div><span class="project-badge">2D Builder</span><h3>Pixel Quest</h3><p>Create a retro platformer with levels and power-ups.</p></article>
+        </div>
+      </section>
+
+      <section class="section dashboard-section reveal-section">
+        <div class="dashboard-copy">
+          <p class="eyebrow dark">Parent dashboard</p>
+          <h2>Stay informed and involved every step of the way.</h2>
+          <ul>
+            <li>Track completed lessons and certificates</li>
+            <li>View time spent and weekly activity</li>
+            <li>See safety progress and learning highlights</li>
+            <li>Review projects your child has created</li>
+          </ul>
+          <a class="button button-secondary light" href="/parents.html">Learn More for Parents</a>
+        </div>
+        <div class="dashboard-card">
+          <div class="dashboard-sidebar">
+            <span class="active">Overview</span>
+            <span>Progress</span>
+            <span>Projects</span>
+            <span>Safety</span>
+            <span>Certificates</span>
+          </div>
+          <div class="dashboard-main">
+            <div class="dashboard-topbar">
+              <div>
+                <strong>Overview</strong>
+                <span>Student progress snapshot</span>
+              </div>
+              <div class="dashboard-parent">
+                <span class="parent-avatar"></span>
+                <span>Emma</span>
+              </div>
+            </div>
+            <div class="student-profile-card">
+              <div class="student-avatar" aria-hidden="true">A</div>
+              <div class="student-profile-copy">
+                <p>Alex Carter</p>
+                <strong>Roblox Creator Foundations</strong>
+                <span>Level 2: World Builder</span>
+              </div>
+              <div class="student-status">
+                <span>Safety Ready</span>
+              </div>
+              <div class="student-progress">
+                <div>
+                  <span>Course Progress</span>
+                  <strong>68%</strong>
+                </div>
+                <div class="progress-track"><span style="width: 68%"></span></div>
+              </div>
+              <div class="next-lesson">
+                <span>Next Lesson</span>
+                <strong>Checkpoints & Respawn</strong>
+              </div>
+            </div>
+            <div class="dash-row">
+              <article><strong><span class="count-up" data-count="24">0</span></strong><span>Lessons Complete</span></article>
+              <article><strong><span class="count-up" data-count="6">0</span></strong><span>Projects Built</span></article>
+              <article><strong><span class="count-up" data-count="4.5" data-suffix="h">0h</span></strong><span>This Week</span></article>
+            </div>
+            <div class="dash-list">
+              <p><span></span> Completed: Roblox Basics Part 3</p>
+              <p><span></span> Built project: Obby Adventure</p>
+              <p><span></span> Earned badge: Safe Explorer</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section pricing-section" id="pricing">
+        <div class="section-heading center">
+          <p class="eyebrow dark">Membership</p>
+          <h2>One OPREALM membership. Loads of creator value.</h2>
+          <p>Start free with safety, then unlock courses, AI creator credits, community support, and guided intensives as your child grows.</p>
+        </div>
+        <div class="membership-grid">
+          <article class="membership-card">
+            <p class="tier-kicker">Tier 1</p>
+            <h3>Explorer Pass</h3>
+            <strong class="membership-price">Free</strong>
+            <p>Entry-level trust builder for curious kids and cautious parents.</p>
+            <ul class="membership-features">
+              <li>Online Safety Academy</li>
+              <li>Roblox Studio setup lessons</li>
+              <li>Limited Discord access and showcase viewing</li>
+              <li>Intro to AI tools, starter certificate, and 10 one-time Creator credits</li>
+            </ul>
+            <a class="button button-secondary light" href="#enrol">Start Free</a>
+          </article>
+          <article class="membership-card">
+            <p class="tier-kicker">Tier 2</p>
+            <h3>Creator Membership</h3>
+            <strong class="membership-price">$29/mo</strong>
+            <p>Build, learn and create your first real games.</p>
+            <ul class="membership-features">
+              <li>Everything in Explorer Pass</li>
+              <li>One full course of choice</li>
+              <li>Full member Discord, challenges, feedback, showcase channels, and events</li>
+              <li>150 AI Creator credits for images, sprites, assets, music, sound effects, and trailers</li>
+            </ul>
+            <a class="button button-secondary light" href="#enrol">Choose Creator</a>
+          </article>
+          <article class="membership-card featured">
+            <p class="tier-kicker">Tier 3</p>
+            <h3>Creator Pro Membership</h3>
+            <strong class="membership-price">$49/mo</strong>
+            <p>Unlimited creativity for serious young game creators.</p>
+            <ul class="membership-features">
+              <li>All courses and all future courses included</li>
+              <li>400 AI Creator credits and priority AI generation</li>
+              <li>Advanced prompts, premium styles, and higher-quality trailers</li>
+              <li>Marketing Academy, competitions, portfolio badges, and advanced certificates</li>
+            </ul>
+            <a class="button button-primary" href="#enrol">Go Creator Pro</a>
+          </article>
+          <article class="membership-card">
+            <p class="tier-kicker">Tier 4</p>
+            <h3>Elite Creator Intensive</h3>
+            <strong class="membership-price">$499</strong>
+            <p class="tier-format">4-week guided cohort with limited seats every second month.</p>
+            <ul class="membership-features">
+              <li>Everything in Creator Pro</li>
+              <li>Live weekly sessions, workshops, feedback, Q&A, and project reviews</li>
+              <li>Advanced systems, monetization, launch strategy, and AI workflows</li>
+              <li>1,500 cohort Creator credits for intensive production</li>
+              <li>Playable game, portfolio project, trailer, certificate, and featured creator spotlight</li>
+            </ul>
+            <a class="button button-secondary light" href="#enrol">Apply for Elite</a>
+          </article>
+        </div>
+        <div class="tier-comparison">
+          <div class="comparison-top">
+            <div>
+              <p class="eyebrow">Compare tiers</p>
+              <h3>Pick the right level of support for your young creator.</h3>
+            </div>
+            <p>Explorer builds trust first. Creator unlocks a focused course. Pro gives full creative freedom. Elite adds live guidance and launch support.</p>
+          </div>
+          <div class="comparison-table-wrap">
+            <table class="comparison-table" aria-label="OPREALM membership tier comparison">
+              <thead>
+                <tr>
+                  <th>Included</th>
+                  <th>Explorer</th>
+                  <th>Creator</th>
+                  <th class="pro-column">Creator Pro</th>
+                  <th>Elite</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Monthly price</td>
+                  <td>Free</td>
+                  <td>$29/mo</td>
+                  <td class="pro-column">$49/mo</td>
+                  <td>$499 upfront</td>
+                </tr>
+                <tr>
+                  <td>Online Safety Academy</td>
+                  <td><span class="check-mark">Yes</span></td>
+                  <td><span class="check-mark">Yes</span></td>
+                  <td class="pro-column"><span class="check-mark">Yes</span></td>
+                  <td><span class="check-mark">Yes</span></td>
+                </tr>
+                <tr>
+                  <td>Course access</td>
+                  <td>Setup lessons</td>
+                  <td>1 full course</td>
+                  <td class="pro-column">All courses</td>
+                  <td>All courses + cohort</td>
+                </tr>
+                <tr>
+                  <td>AI Creator credits</td>
+                  <td>10</td>
+                  <td>150 / month</td>
+                  <td class="pro-column">400 / month</td>
+                  <td>1,500 cohort credits</td>
+                </tr>
+                <tr>
+                  <td>Discord community</td>
+                  <td>Limited</td>
+                  <td>Full access</td>
+                  <td class="pro-column">Priority support</td>
+                  <td>Private Elite channels</td>
+                </tr>
+                <tr>
+                  <td>Certificates</td>
+                  <td>Starter</td>
+                  <td>Course certificate</td>
+                  <td class="pro-column">Advanced certificates</td>
+                  <td>Elite completion certificate</td>
+                </tr>
+                <tr>
+                  <td>Marketing Academy</td>
+                  <td><span class="dash-mark">-</span></td>
+                  <td><span class="dash-mark">-</span></td>
+                  <td class="pro-column"><span class="check-mark">Included</span></td>
+                  <td><span class="check-mark">Included</span></td>
+                </tr>
+                <tr>
+                  <td>Live mentorship</td>
+                  <td><span class="dash-mark">-</span></td>
+                  <td><span class="dash-mark">-</span></td>
+                  <td><span class="dash-mark">-</span></td>
+                  <td>4-week guided intensive</td>
+                </tr>
+                <tr>
+                  <td>Best for</td>
+                  <td>Trying OPREALM safely</td>
+                  <td>One focused pathway</td>
+                  <td class="pro-column">Serious young creators</td>
+                  <td>Launching a real project</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section faq-section" id="faq">
+        <div class="section-heading center">
+          <p class="eyebrow dark">Frequently Asked Questions</p>
+          <h2>Everything parents usually ask before joining.</h2>
+          <p>Clear answers about safety, screen time, AI tools, community access, certificates, and what kids actually build.</p>
+        </div>
+        <div class="faq-accordion">
+          <details>
+            <summary>Is OPRealm beginner friendly?</summary>
+            <div>
+              <p>Yes. OPRealm was designed specifically for beginners aged 7-16.</p>
+              <p>Most students start with little to no coding experience. Lessons are taught step-by-step using fun, hands-on projects instead of overwhelming technical theory.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Does my child need coding experience before joining?</summary>
+            <div>
+              <p>No prior experience is required.</p>
+              <p>We start with online safety, Roblox Studio basics, beginner controls, simple game building, and beginner-friendly coding concepts. Students gradually progress into more advanced creation skills as their confidence grows.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Is this just more screen time?</summary>
+            <div>
+              <p>No. OPRealm focuses on turning passive screen time into creativity, problem solving, digital literacy, coding, design thinking, AI skills, and entrepreneurship.</p>
+              <p>Instead of only consuming games, students learn how to build, create, and publish their own.</p>
+            </div>
+          </details>
+          <details>
+            <summary>How is OPRealm different from YouTube tutorials?</summary>
+            <div>
+              <p>Most free tutorials are unstructured, overwhelming, outdated, unsafe, and difficult for kids to follow.</p>
+              <p>OPRealm provides structured learning paths, guided projects, moderated community spaces, AI creation tools, certificates, creator challenges, and beginner support. Everything is designed specifically for younger learners.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Is the Discord community safe for kids?</summary>
+            <div>
+              <p>Safety is one of our highest priorities.</p>
+              <p>Our community includes moderated channels, strict anti-bullying systems, filtered language moderation, age-appropriate spaces, controlled AI tool access, and private member-only areas. Students must complete the Safety Academy before accessing the broader creator community.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What devices are supported?</summary>
+            <div>
+              <p>Most students use Windows PCs, Macs, or laptops capable of running Roblox Studio or browser-based tools.</p>
+              <p>Some beginner content may work on tablets, but a computer is recommended for the best experience.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What will my child actually create?</summary>
+            <div>
+              <p>Depending on the course, students may create obstacle courses, adventure worlds, racing games, AI story games, mini-games, custom Minecraft experiences, trailers, game assets, soundtracks, and sound effects.</p>
+              <p>Advanced students may even publish and monetize their own games.</p>
+            </div>
+          </details>
+          <details>
+            <summary>How do the AI tools work?</summary>
+            <div>
+              <p>Members receive monthly Creator Credits that can be used inside our Discord community to generate game trailers, sound effects, music, thumbnails, characters, textures, sprites, and game assets.</p>
+              <p>The tools are designed to encourage creativity while remaining beginner-friendly and safe.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Can my child publish their own game?</summary>
+            <div>
+              <p>Yes. Students learn how publishing works, game thumbnails, beginner marketing, monetization basics, and sharing games responsibly online.</p>
+              <p>Elite Creator students receive additional publishing and launch guidance.</p>
+            </div>
+          </details>
+          <details>
+            <summary>How much time should my child spend each week?</summary>
+            <div>
+              <p>Most students spend 2-5 hours per week.</p>
+              <p>Because courses are self-paced, students can learn around school and family schedules.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Are lessons live or self-paced?</summary>
+            <div>
+              <p>The Creator Membership and Creator Pro tiers are primarily self-paced.</p>
+              <p>The Elite Creator Intensive includes live workshops, guided mentorship, project feedback, and cohort-based learning.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What if my child gets stuck?</summary>
+            <div>
+              <p>Students can access community help channels, AI Coach support, walkthrough lessons, and troubleshooting guides.</p>
+              <p>Creator Pro and Elite members receive additional support access.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Will my child receive certificates?</summary>
+            <div>
+              <p>Yes. Students can earn completion certificates, creator badges, achievement ranks, and community recognition.</p>
+              <p>These help motivate progress and celebrate milestones.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Is OPRealm educational?</summary>
+            <div>
+              <p>Yes. OPRealm develops coding fundamentals, logical thinking, creativity, storytelling, problem solving, AI literacy, digital citizenship, and entrepreneurial thinking.</p>
+              <p>All through project-based learning kids actually enjoy.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Can I cancel anytime?</summary>
+            <div>
+              <p>Yes. Memberships can be cancelled anytime directly from your account dashboard.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What age group is OPRealm designed for?</summary>
+            <div>
+              <p>Most courses are designed for ages 7-16.</p>
+              <p>Some beginner-friendly content is suitable for younger creators with parent guidance.</p>
+            </div>
+          </details>
+          <details>
+            <summary>Why teach kids AI tools?</summary>
+            <div>
+              <p>AI will become a major part of future careers and digital creativity.</p>
+              <p>We teach kids safe AI usage, creative prompting, responsible creation, and problem solving with AI. Instead of passively consuming technology, they learn how to use it creatively and responsibly.</p>
+            </div>
+          </details>
+          <details>
+            <summary>What makes OPRealm unique?</summary>
+            <div>
+              <p>OPRealm combines game development, AI creation tools, online safety education, moderated community, publishing guidance, and creative entrepreneurship into one platform built specifically for kids and teens.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <section class="final-cta" id="enrol">
+        <h2>Build the games they wish existed, safely.</h2>
+        <p>Join the early access list for OPREALM and be first to try the safety-first AI game creation academy.</p>
+        <form class="signup-form" name="early-access">
+          <label>
+            <span>Parent email</span>
+            <input type="email" placeholder="you@example.com" required />
+          </label>
+          <button class="button button-primary" type="submit">Join Early Access</button>
+        </form>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM</span>
+      </a>
+      <p>Safety-first AI game creation for young builders.</p>
+      <div>
+        <a href="/safety.html">Safety</a>
+        <a href="/parents.html">Parents</a>
+        <a href="/courses/roblox.html">Courses</a>
+        <a href="/ai-coach.html">AI Coach</a>
+        <a href="/child-safety.html">Child Safety</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/refund-policy.html">Refunds</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </footer>
+  </body>
+</html>

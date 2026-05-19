@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OPRealm Audio Library</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --deep: #050a18;
+        --navy: #071337;
+        --panel: rgba(12, 27, 62, 0.78);
+        --panel-strong: rgba(18, 39, 86, 0.9);
+        --line: rgba(157, 221, 255, 0.2);
+        --text: #f7fbff;
+        --muted: #9fb6d8;
+        --cyan: #20d7ff;
+        --blue: #4f7dff;
+        --purple: #8a5cff;
+        --green: #7cf6c1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        background:
+          radial-gradient(circle at 18% 0%, rgba(32, 215, 255, 0.22), transparent 34rem),
+          radial-gradient(circle at 85% 12%, rgba(138, 92, 255, 0.28), transparent 34rem),
+          linear-gradient(180deg, #050a18 0%, #071337 56%, #eef7ff 56%, #f7fbff 100%);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .shell {
+        width: min(1220px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 58px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        padding: 16px 0 38px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: #fff;
+        text-decoration: none;
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        box-shadow: 0 0 22px rgba(32, 215, 255, 0.35);
+      }
+
+      .topbar a:not(.brand) {
+        color: rgba(255, 255, 255, 0.78);
+        text-decoration: none;
+        font-size: 0.88rem;
+        font-weight: 800;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 460px);
+        gap: 28px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0;
+        max-width: 820px;
+        font-size: clamp(2.5rem, 6vw, 5.4rem);
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      .gradient-text {
+        display: block;
+        background: linear-gradient(90deg, var(--cyan), var(--purple));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero p {
+        margin: 18px 0 0;
+        max-width: 720px;
+        color: var(--muted);
+        font-size: 1.02rem;
+        line-height: 1.65;
+      }
+
+      .access-card,
+      .panel,
+      .asset-card {
+        border: 1px solid var(--line);
+        background: linear-gradient(145deg, rgba(15, 35, 76, 0.84), rgba(7, 17, 42, 0.88));
+        box-shadow: 0 26px 80px rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(18px);
+      }
+
+      .access-card {
+        border-radius: 22px;
+        padding: 20px;
+      }
+
+      .access-card label {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--muted);
+        font-weight: 800;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+      }
+
+      .login-copy {
+        margin: 12px 0 10px;
+        color: var(--muted);
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+
+      .discord-login {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        width: 100%;
+        border-radius: 12px;
+        color: white;
+        text-decoration: none;
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(157, 221, 255, 0.2);
+      }
+
+      input,
+      select,
+      button {
+        font: inherit;
+      }
+
+      .access-row,
+      .filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .access-card input,
+      .filters input,
+      .filters select {
+        min-height: 44px;
+        border: 1px solid rgba(157, 221, 255, 0.22);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        padding: 0 14px;
+        outline: none;
+      }
+
+      .access-card input {
+        flex: 1;
+        min-width: 180px;
+      }
+
+      .filters input {
+        flex: 1;
+        min-width: 220px;
+      }
+
+      option {
+        color: #071337;
+      }
+
+      button,
+      .pill {
+        border: 0;
+        border-radius: 12px;
+        color: white;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        font-weight: 900;
+        padding: 0 16px;
+        min-height: 44px;
+        cursor: pointer;
+        box-shadow: 0 14px 34px rgba(79, 125, 255, 0.26);
+      }
+
+      .panel {
+        border-radius: 24px;
+        padding: 18px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .tab {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(157, 221, 255, 0.18);
+        box-shadow: none;
+      }
+
+      .tab.active {
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+      }
+
+      .notice {
+        margin: 14px 0;
+        color: var(--muted);
+        min-height: 24px;
+      }
+
+      .asset-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .asset-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 18px;
+      }
+
+      .asset-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 20% 0%, rgba(32, 215, 255, 0.18), transparent 16rem),
+          linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent);
+        pointer-events: none;
+      }
+
+      .asset-card > * {
+        position: relative;
+      }
+
+      .asset-card h3 {
+        margin: 0 0 8px;
+        font-size: 1.08rem;
+      }
+
+      .meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+
+      .chip {
+        border: 1px solid rgba(157, 221, 255, 0.22);
+        border-radius: 999px;
+        padding: 6px 9px;
+        color: #dcecff;
+        background: rgba(255, 255, 255, 0.07);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      audio {
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .asset-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 0.9rem;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .actions a,
+      .actions button,
+      .moderation-actions button {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        border-radius: 12px;
+        color: white;
+        text-decoration: none;
+        font-weight: 900;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(157, 221, 255, 0.2);
+        box-shadow: none;
+      }
+
+      .moderation-actions {
+        flex-wrap: wrap;
+      }
+
+      .moderation-actions button {
+        min-width: calc(50% - 5px);
+        padding: 0 10px;
+        font-size: 0.82rem;
+      }
+
+      .empty {
+        padding: 36px 18px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+        }
+
+        .asset-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 620px) {
+        .asset-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <nav class="topbar">
+        <a class="brand" href="/">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>OPREALM</span>
+        </a>
+        <a href="/">Back to Home</a>
+      </nav>
+
+      <section class="hero">
+        <div>
+          <h1>Creator Audio <span class="gradient-text">Library</span></h1>
+          <p>
+            Search approved OPRealm sound effects and music assets for game projects. The shared library is designed for
+            Creator Pro and Elite members, with moderator review before assets appear here.
+          </p>
+        </div>
+        <form class="access-card" id="accessForm">
+          <label for="secret">Library access</label>
+          <div class="access-row">
+            <input id="secret" type="password" autocomplete="off" placeholder="Optional admin access token" />
+            <button type="submit">Admin Load</button>
+          </div>
+          <p class="login-copy" id="loginStatus">Creator Pro and Elite members can log in with Discord.</p>
+          <a class="discord-login" href="/api/auth/discord-start">Log in with Discord</a>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab active" type="button" data-type="sfx">Sound Effects</button>
+          <button class="tab" type="button" data-type="music">Music</button>
+        </div>
+
+        <form class="filters" id="filters">
+          <input id="search" type="search" placeholder="Search by title, prompt, tag, or course" />
+          <select id="category">
+            <option value="all">All categories</option>
+          </select>
+          <select id="review">
+            <option value="approved">Approved library</option>
+            <option value="featured">Featured</option>
+            <option value="pending">Pending review</option>
+            <option value="rejected">Rejected</option>
+            <option value="private">Private saved</option>
+            <option value="all">All statuses</option>
+          </select>
+          <button type="submit">Search</button>
+        </form>
+
+        <div id="notice" class="notice">Enter your access token to load the library.</div>
+        <div id="assets" class="asset-grid"></div>
+      </section>
+    </main>
+
+    <script>
+      const accessForm = document.querySelector("#accessForm");
+      const filters = document.querySelector("#filters");
+      const secretInput = document.querySelector("#secret");
+      const searchInput = document.querySelector("#search");
+      const categoryInput = document.querySelector("#category");
+      const reviewInput = document.querySelector("#review");
+      const notice = document.querySelector("#notice");
+      const assetsEl = document.querySelector("#assets");
+      const loginStatus = document.querySelector("#loginStatus");
+      const tabs = [...document.querySelectorAll(".tab")];
+
+      let type = "sfx";
+      let canModerate = false;
+      secretInput.value = localStorage.getItem("oprealmAudioLibrarySecret") || "";
+
+      accessForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        saveSecret();
+        loadLibrary();
+      });
+
+      filters.addEventListener("submit", (event) => {
+        event.preventDefault();
+        loadLibrary();
+      });
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((item) => item.classList.remove("active"));
+          tab.classList.add("active");
+          type = tab.dataset.type;
+          loadLibrary();
+        });
+      });
+
+      checkLogin();
+      if (secretInput.value) loadLibrary();
+
+      async function checkLogin() {
+        try {
+          const response = await fetch("/api/auth/me");
+          const data = await response.json();
+          canModerate = Boolean(data.canModerate);
+          if (data.canAccess) {
+            loginStatus.textContent = `Logged in as ${data.alias || "OPRealm member"} (${data.tier}).`;
+            loadLibrary();
+          } else if (data.authenticated) {
+            loginStatus.textContent = "Logged in, but the shared Audio Library requires Creator Pro or Elite.";
+          }
+        } catch (error) {
+          loginStatus.textContent = "Creator Pro and Elite members can log in with Discord.";
+        }
+      }
+
+      async function loadLibrary() {
+        const secret = secretInput.value.trim();
+        saveSecret();
+        showNotice("Loading audio library...");
+
+        const params = new URLSearchParams({
+          type,
+          q: searchInput.value.trim(),
+          category: categoryInput.value,
+          review: reviewInput.value,
+        });
+
+        try {
+          const response = await fetch(`/api/audio-library?${params}`, {
+            headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || "Library failed to load");
+          canModerate = Boolean(data.canModerate);
+          renderCategories(data.categories || []);
+          renderAssets(data);
+          showNotice(data.message || `${data.assets.length} ${type === "sfx" ? "sound effects" : "music tracks"} loaded.`);
+        } catch (error) {
+          assetsEl.innerHTML = "";
+          showNotice(error.message, true);
+        }
+      }
+
+      function renderCategories(categories) {
+        const current = categoryInput.value;
+        categoryInput.innerHTML =
+          '<option value="all">All categories</option>' +
+          categories
+            .map((item) => `<option value="${escapeHtml(item.category)}">${escapeHtml(item.category)} (${item.count})</option>`)
+            .join("");
+        categoryInput.value = [...categoryInput.options].some((option) => option.value === current) ? current : "all";
+      }
+
+      function renderAssets(data) {
+        if (!data.assets.length) {
+          assetsEl.innerHTML = `<div class="empty">${escapeHtml(data.message || "No approved audio assets found yet.")}</div>`;
+          return;
+        }
+
+        assetsEl.innerHTML = data.assets
+          .map((asset) => {
+            const audioUrl = `/api/audio-asset/${encodeURIComponent(asset.id)}`;
+            return `
+              <article class="asset-card">
+                <h3>${escapeHtml(asset.title)}</h3>
+                <p>${escapeHtml(asset.prompt)}</p>
+                <div class="meta">
+                  <span class="chip">${escapeHtml(asset.category)}</span>
+                  <span class="chip">${escapeHtml(asset.course || "General")}</span>
+                  <span class="chip">${escapeHtml(asset.review_status)}</span>
+                </div>
+                <audio controls preload="none" data-audio-id="${escapeHtml(asset.id)}"></audio>
+                <div class="actions">
+                  <button type="button" data-audio-load="${escapeHtml(asset.id)}">Load Audio</button>
+                  <a href="#" data-audio-download="${escapeHtml(asset.id)}" data-title="${escapeHtml(asset.title)}">Download</a>
+                </div>
+                <div class="actions moderation-actions" ${canModerate ? "" : "hidden"}>
+                  <button type="button" data-action="approve" data-id="${escapeHtml(asset.id)}">Approve</button>
+                  <button type="button" data-action="feature" data-id="${escapeHtml(asset.id)}">Feature</button>
+                  <button type="button" data-action="reject" data-id="${escapeHtml(asset.id)}">Reject</button>
+                  <button type="button" data-action="delete" data-id="${escapeHtml(asset.id)}">Delete</button>
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+
+        document.querySelectorAll(".moderation-actions button").forEach((button) => {
+          button.addEventListener("click", () => moderateAsset(button.dataset.id, button.dataset.action));
+        });
+        document.querySelectorAll("[data-audio-load]").forEach((button) => {
+          button.addEventListener("click", () => loadAudioAsset(button.dataset.audioLoad, false));
+        });
+        document.querySelectorAll("[data-audio-download]").forEach((link) => {
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            loadAudioAsset(link.dataset.audioDownload, true, link.dataset.title);
+          });
+        });
+      }
+
+      async function loadAudioAsset(id, download = false, title = "oprealm-audio") {
+        const secret = secretInput.value.trim();
+
+        try {
+          const url = secret
+            ? `/api/audio-asset/${encodeURIComponent(id)}?access=${encodeURIComponent(secret)}`
+            : `/api/audio-asset/${encodeURIComponent(id)}`;
+          const player = document.querySelector(`audio[data-audio-id="${CSS.escape(id)}"]`);
+          if (player) {
+            player.src = url;
+            if (!download) await player.play().catch(() => {});
+          }
+          if (download) {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${title || "oprealm-audio"}.mp3`;
+            document.body.append(a);
+            a.click();
+            a.remove();
+          }
+          showNotice(download ? "Download started." : "Audio loaded.");
+        } catch (error) {
+          showNotice(error.message, true);
+        }
+      }
+
+      async function moderateAsset(id, action) {
+        const secret = secretInput.value.trim();
+        if (!secret) {
+          showNotice("Enter your access token first.", true);
+          return;
+        }
+
+        const labels = {
+          approve: "approve",
+          feature: "feature",
+          reject: "reject",
+          delete: "delete",
+        };
+
+        if (action === "delete" && !confirm("Delete this library asset from public views?")) return;
+
+        showNotice(`Trying to ${labels[action] || action} this asset...`);
+
+        try {
+          const response = await fetch("/api/audio-library-moderate", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${secret}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ id, action, type }),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || "Moderation failed");
+          showNotice(`Asset ${action} complete.`);
+          loadLibrary();
+        } catch (error) {
+          showNotice(error.message, true);
+        }
+      }
+
+      function saveSecret() {
+        localStorage.setItem("oprealmAudioLibrarySecret", secretInput.value.trim());
+      }
+
+      function showNotice(text, isError = false) {
+        notice.textContent = text;
+        notice.style.color = isError ? "#ff9ab0" : "var(--muted)";
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </body>
+</html>

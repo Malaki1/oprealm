@@ -1,0 +1,12 @@
+node_modules/
+.npm-cache/
+.config/
+.wrangler/
+.dev.vars
+.env
+.env.*
+*.log
+server.out.log
+server.err.log
+Thumbs.db
+.DS_Store
