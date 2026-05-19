@@ -1,0 +1,15 @@
+{
+  "name": "oprealm-cloudflare-site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx wrangler pages dev public",
+    "start": "npx wrangler pages dev public",
+    "deploy": "npx wrangler pages deploy public --project-name oprealm",
+    "preview": "npx wrangler pages dev public",
+    "discord:register": "node scripts/register-discord-commands.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

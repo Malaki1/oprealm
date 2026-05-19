@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OPRealm AI Cost Dashboard</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #071024;
+        --panel: rgba(14, 28, 62, 0.82);
+        --panel-strong: rgba(21, 42, 88, 0.92);
+        --line: rgba(130, 183, 255, 0.22);
+        --text: #f7fbff;
+        --muted: #9db6d8;
+        --cyan: #20d7ff;
+        --purple: #8a5cff;
+        --green: #76f5b8;
+        --danger: #ff7290;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 18% 0%, rgba(32, 215, 255, 0.22), transparent 36rem),
+          radial-gradient(circle at 88% 10%, rgba(138, 92, 255, 0.25), transparent 34rem),
+          linear-gradient(180deg, #071024 0%, #09152d 58%, #f7fbff 58%, #f7fbff 100%);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 52px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 18px;
+        align-items: end;
+        grid-template-columns: 1fr auto;
+        padding: 24px 0 30px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 5vw, 4.6rem);
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+
+      .gradient-text {
+        background: linear-gradient(90deg, var(--cyan), var(--purple));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .hero p {
+        max-width: 720px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.02rem;
+        line-height: 1.6;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      input,
+      select,
+      button {
+        min-height: 44px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        background: rgba(4, 12, 30, 0.72);
+        color: var(--text);
+        padding: 0 14px;
+        font: inherit;
+      }
+
+      input {
+        min-width: min(360px, 100%);
+      }
+
+      button {
+        cursor: pointer;
+        border: 0;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        font-weight: 800;
+        box-shadow: 0 16px 36px rgba(32, 215, 255, 0.16);
+      }
+
+      .cards {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .card,
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(18px);
+      }
+
+      .card {
+        min-height: 126px;
+        border-radius: 18px;
+        padding: 18px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 700;
+      }
+
+      .value {
+        margin-top: 8px;
+        font-size: clamp(1.8rem, 3vw, 2.5rem);
+        font-weight: 900;
+      }
+
+      .hint {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1.2fr 0.8fr;
+        margin-top: 16px;
+      }
+
+      .panel {
+        border-radius: 20px;
+        padding: 18px;
+      }
+
+      .panel h2 {
+        margin: 0 0 14px;
+        font-size: 1.1rem;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        padding: 11px 8px;
+        border-bottom: 1px solid rgba(130, 183, 255, 0.14);
+        text-align: left;
+        color: #dceaff;
+        font-size: 0.9rem;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+      }
+
+      .bar-row {
+        display: grid;
+        gap: 8px;
+        margin: 12px 0;
+      }
+
+      .bar-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: #dceaff;
+        font-size: 0.9rem;
+      }
+
+      .bar {
+        height: 10px;
+        border-radius: 99px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+
+      .bar span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--cyan), var(--purple));
+      }
+
+      .notice {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid rgba(118, 245, 184, 0.26);
+        background: rgba(118, 245, 184, 0.08);
+        color: #dffdec;
+      }
+
+      .error {
+        border-color: rgba(255, 114, 144, 0.35);
+        background: rgba(255, 114, 144, 0.1);
+        color: #ffdbe3;
+      }
+
+      @media (max-width: 900px) {
+        .hero,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .controls {
+          justify-content: stretch;
+        }
+
+        .controls > * {
+          width: 100%;
+        }
+
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 560px) {
+        .cards {
+          grid-template-columns: 1fr;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4),
+        th:nth-child(5),
+        td:nth-child(5) {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <h1>AI Cost <span class="gradient-text">Dashboard</span></h1>
+          <p>
+            Track OPRealm Creator credits, generated assets, estimated provider units, and estimated OpenAI spend.
+            Keep this page private and use your admin secret to load the data.
+          </p>
+        </div>
+        <form class="controls" id="controls">
+          <input id="secret" type="password" autocomplete="off" placeholder="Admin secret" />
+          <select id="days" aria-label="Date range">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last 365 days</option>
+          </select>
+          <button type="submit">Load Dashboard</button>
+        </form>
+      </section>
+
+      <section class="cards" aria-label="AI usage summary">
+        <article class="card">
+          <div class="label">Estimated Spend</div>
+          <div class="value" id="cost">$0.00</div>
+          <div class="hint">Configured OpenAI estimate</div>
+        </article>
+        <article class="card">
+          <div class="label">Creator Credits Used</div>
+          <div class="value" id="credits">0</div>
+          <div class="hint">Internal student credit value</div>
+        </article>
+        <article class="card">
+          <div class="label">AI Requests</div>
+          <div class="value" id="requests">0</div>
+          <div class="hint">Commands completed/logged</div>
+        </article>
+        <article class="card">
+          <div class="label">Estimated Margin</div>
+          <div class="value" id="margin">$0.00</div>
+          <div class="hint">Credit value minus estimated cost</div>
+        </article>
+      </section>
+
+      <div id="message" class="notice">Enter your admin secret and load the dashboard.</div>
+
+      <section class="grid">
+        <div class="panel">
+          <h2>Usage By Tool</h2>
+          <div id="toolBars"></div>
+        </div>
+        <div class="panel">
+          <h2>Member Credit Pool</h2>
+          <table>
+            <tbody>
+              <tr>
+                <th>Total members</th>
+                <td id="members">0</td>
+              </tr>
+              <tr>
+                <th>Credits remaining</th>
+                <td id="remaining">0</td>
+              </tr>
+              <tr>
+                <th>Window</th>
+                <td id="window">30 days</td>
+              </tr>
+              <tr>
+                <th>Generated</th>
+                <td id="generated">-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top: 16px">
+        <h2>Recent AI Activity</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Tool</th>
+              <th>Credits</th>
+              <th>Cost</th>
+              <th>Prompt Preview</th>
+            </tr>
+          </thead>
+          <tbody id="recent"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <script>
+      const controls = document.querySelector("#controls");
+      const secretInput = document.querySelector("#secret");
+      const daysInput = document.querySelector("#days");
+      const message = document.querySelector("#message");
+
+      secretInput.value = localStorage.getItem("oprealmAdminSecret") || "";
+
+      controls.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const secret = secretInput.value.trim();
+        const days = daysInput.value;
+        if (!secret) {
+          showMessage("Add your admin secret first.", true);
+          return;
+        }
+
+        localStorage.setItem("oprealmAdminSecret", secret);
+        showMessage("Loading dashboard...");
+
+        try {
+          const response = await fetch(`/api/admin-ai-usage?days=${encodeURIComponent(days)}`, {
+            headers: { Authorization: `Bearer ${secret}` },
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || "Dashboard failed to load");
+          renderDashboard(data);
+          showMessage(data.notes.join(" "));
+        } catch (error) {
+          showMessage(error.message, true);
+        }
+      });
+
+      function renderDashboard(data) {
+        document.querySelector("#cost").textContent = money(data.summary.estimatedCostUsd);
+        document.querySelector("#credits").textContent = credits(data.summary.totalCreatorCredits);
+        document.querySelector("#requests").textContent = number(data.summary.totalRequests);
+        document.querySelector("#margin").textContent = money(data.summary.estimatedGrossMarginUsd);
+        document.querySelector("#members").textContent = number(data.members.totalMembers);
+        document.querySelector("#remaining").textContent = credits(data.members.creditsRemaining);
+        document.querySelector("#window").textContent = `${data.windowDays} days`;
+        document.querySelector("#generated").textContent = new Date(data.generatedAt).toLocaleString();
+
+        const maxCost = Math.max(...data.byTool.map((row) => Number(row.estimated_cost_usd || 0)), 0.01);
+        document.querySelector("#toolBars").innerHTML = data.byTool.length
+          ? data.byTool
+              .map((row) => {
+                const width = Math.max(4, (Number(row.estimated_cost_usd || 0) / maxCost) * 100);
+                const meta = [row.provider, row.model, row.quality].filter(Boolean).join(" / ") || "internal";
+                return `
+                  <div class="bar-row">
+                    <div class="bar-top">
+                      <strong>/${escapeHtml(row.tool)}</strong>
+                      <span>${money(row.estimated_cost_usd)} · ${credits(row.creator_credits)} credits · ${number(row.requests)} uses</span>
+                    </div>
+                    <div class="hint">${escapeHtml(meta)}</div>
+                    <div class="bar"><span style="width:${width}%"></span></div>
+                  </div>
+                `;
+              })
+              .join("")
+          : '<div class="hint">No AI usage in this window yet.</div>';
+
+        document.querySelector("#recent").innerHTML = data.recent.length
+          ? data.recent
+              .map(
+                (row) => `
+                  <tr>
+                    <td>${new Date(row.created_at).toLocaleString()}</td>
+                    <td>/${escapeHtml(row.tool)}</td>
+                    <td>${credits(row.credits_used)}</td>
+                    <td>${money(row.estimated_cost_usd)}</td>
+                    <td>${escapeHtml(row.prompt_preview || "")}</td>
+                  </tr>
+                `,
+              )
+              .join("")
+          : '<tr><td colspan="5">No recent AI usage yet.</td></tr>';
+      }
+
+      function showMessage(text, isError = false) {
+        message.textContent = text;
+        message.className = `notice${isError ? " error" : ""}`;
+      }
+
+      function money(value) {
+        return Number(value || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
+      }
+
+      function credits(value) {
+        return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+      }
+
+      function number(value) {
+        return Number(value || 0).toLocaleString();
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+    </script>
+  </body>
+</html>
