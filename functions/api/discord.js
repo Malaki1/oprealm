@@ -49,10 +49,10 @@ const TEXT_MODEL_OUTPUT_COST_PER_1M = 2;
 
 const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
-  image: 0.034,
-  image_pro: 0.053,
-  game_cover: 0.053,
-  sprite: 0.034,
+  image: 0.005,
+  image_pro: 0.005,
+  game_cover: 0.005,
+  sprite: 0.005,
   sound: 0.02,
   music: 0.08,
   trailer: 0.005,
@@ -1096,31 +1096,22 @@ function textToBytes(text) {
 }
 
 function imageModelForTool(tool) {
-  if (tool === "image_pro" || tool === "game_cover") return "gpt-image-2";
-  return "gpt-image-1.5";
+  return "gpt-image-1-mini";
 }
 
 function imageQualityForTool(tool) {
-  if (tool === "image_pro" || tool === "game_cover") return "medium";
-  return "medium";
+  return "low";
 }
 
 function imageGenerationSpecsForTool(tool) {
   if (tool === "image_pro" || tool === "game_cover") {
     return [
       {
-        model: "gpt-image-2",
-        quality: "medium",
+        model: "gpt-image-1-mini",
+        quality: "low",
         estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD[tool],
-        allowFallback: true,
-        fallback: false,
-      },
-      {
-        model: "gpt-image-1.5",
-        quality: "medium",
-        estimatedCostUsd: 0.034,
         allowFallback: false,
-        fallback: true,
+        fallback: false,
       },
     ];
   }
@@ -1128,36 +1119,22 @@ function imageGenerationSpecsForTool(tool) {
   if (tool === "sprite") {
     return [
       {
-        model: "gpt-image-1.5",
-        quality: "medium",
-        estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.sprite,
-        allowFallback: true,
-        fallback: false,
-      },
-      {
         model: "gpt-image-1-mini",
-        quality: "high",
-        estimatedCostUsd: 0.036,
+        quality: "low",
+        estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.sprite,
         allowFallback: false,
-        fallback: true,
+        fallback: false,
       },
     ];
   }
 
   return [
     {
-      model: "gpt-image-1.5",
-      quality: "medium",
-      estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.image,
-      allowFallback: true,
-      fallback: false,
-    },
-    {
       model: "gpt-image-1-mini",
-      quality: "high",
-      estimatedCostUsd: 0.036,
+      quality: "low",
+      estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.image,
       allowFallback: false,
-      fallback: true,
+      fallback: false,
     },
   ];
 }
