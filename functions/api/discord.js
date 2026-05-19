@@ -405,7 +405,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
       ].join("\n"),
       fullBriefBytes,
       `oprealm-${textToolAttachmentSlug(tool)}.txt`,
-      resultActionComponents(resultId, recommendedCourse),
+      resultActionComponents(resultId, recommendedCourse, tool),
       "text/plain",
     );
   } catch (error) {
@@ -514,7 +514,7 @@ async function generatePrivateImage(interaction, env, prompt, tool = "image") {
       ].join("\n"),
       image.bytes,
       filename,
-      resultActionComponents(resultId),
+      resultActionComponents(resultId, null, tool),
     );
 
     const attachment = message?.attachments?.[0];
@@ -638,7 +638,7 @@ async function generatePrivateElevenLabsAudio(interaction, env, prompt, tool) {
 
 async function handleResultComponent(interaction, env, waitUntil) {
   const customId = interaction.data?.custom_id || "";
-  const match = customId.match(/^oprealm_result:(dm|share|retry|submit_sfx|submit_music):([a-zA-Z0-9-]+)$/);
+  const match = customId.match(/^oprealm_result:(dm|share|retry|submit_sfx|submit_music|flow_[a-z_]+):([a-zA-Z0-9-]+)$/);
 
   if (!match) {
     return ephemeral("That OPRealm button is not supported yet.");
@@ -721,6 +721,11 @@ async function handleResultAction(interaction, env, action, resultId) {
       await retryAiResult(interaction, env, result);
       return;
     }
+
+    if (action.startsWith("flow_")) {
+      await createNextStepFromResult(interaction, env, result, action.slice("flow_".length));
+      return;
+    }
   } catch (error) {
     console.error(error);
     await editOriginalInteraction(interaction, env, "I could not complete that result action. Please try again or ask an OPRealm moderator.");
@@ -760,6 +765,100 @@ async function retryAiResult(interaction, env, result) {
   }
 
   await generatePrivateTextResult(interaction, env, prompt, tool);
+}
+
+async function createNextStepFromResult(interaction, env, result, nextStep) {
+  const tool = toolForFlowStep(nextStep);
+
+  if (!tool) {
+    await editOriginalInteraction(interaction, env, "That OPRealm next step is not supported yet.");
+    return;
+  }
+
+  if (isPremiumAiTool(tool)) {
+    const premiumBlocked = requirePremiumAiAccess(interaction, env);
+    if (premiumBlocked) {
+      await editOriginalInteraction(interaction, env, "That next step is a premium AI tool for Creator Pro, Elite, or AI Pro access members.");
+      return;
+    }
+  }
+
+  const creditCheck = await checkCredits(interaction, env, CREDIT_COSTS[tool]);
+  if (creditCheck) {
+    await editOriginalInteraction(interaction, env, `You need **${formatCredits(CREDIT_COSTS[tool])} Creator credits** for ${textToolLabel(tool)}.`);
+    return;
+  }
+
+  const prompt = buildFlowPrompt(result, tool);
+
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") {
+    if (!env.OPENAI_API_KEY) {
+      await editOriginalInteraction(interaction, env, "The OPRealm image generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
+      return;
+    }
+
+    await generatePrivateImage(interaction, env, prompt, tool);
+    return;
+  }
+
+  if (tool === "sound" || tool === "voice" || tool === "music") {
+    if (!env.ELEVENLABS_API_KEY) {
+      await editOriginalInteraction(interaction, env, "The OPRealm audio generator is not connected yet. Ask an OPRealm admin to add the ElevenLabs API key.");
+      return;
+    }
+
+    await generatePrivateElevenLabsAudio(interaction, env, prompt, tool);
+    return;
+  }
+
+  if (!env.OPENAI_API_KEY) {
+    await editOriginalInteraction(interaction, env, "The OPRealm AI Coach is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
+    return;
+  }
+
+  await generatePrivateTextResult(interaction, env, prompt, tool);
+}
+
+function toolForFlowStep(step) {
+  const tools = {
+    storyboard: "storyboard",
+    game_cover: "game_cover",
+    sprite: "sprite",
+    trailer: "trailer",
+    trailer_pro: "trailer_pro",
+    voice: "voice",
+    music: "music",
+    sound: "sound",
+  };
+
+  return tools[step] || null;
+}
+
+function buildFlowPrompt(result, nextTool) {
+  const source = [
+    `Source tool: ${result.tool || "unknown"}`,
+    `Original prompt: ${result.prompt || ""}`,
+    "",
+    "Saved result:",
+    result.content || "",
+  ].join("\n").slice(0, 8000);
+
+  const instructions = {
+    storyboard: "Turn this saved OPRealm game idea into a complete game storyboard. Preserve the core concept, tone, target course, and any named characters. Treat character consistency as paramount.",
+    game_cover: "Create one polished, kid-friendly game cover image based on this saved storyboard or idea. Preserve the main character's exact Character Bible details if present. No readable title text.",
+    sprite: "Create a clean 2x2 sprite sheet for the main character or most important playable object from this saved storyboard or idea. Preserve character consistency from the Character Bible if present.",
+    trailer: "Create a concise trailer storyboard based on this saved OPRealm project. Preserve the main character, world, and core objective.",
+    trailer_pro: "Create a premium trailer planning pack based on this saved OPRealm project. Preserve the Character Bible, visual continuity, and story arc.",
+    voice: "Create safe short narration text for a trailer or intro based on this saved OPRealm project. Keep it under 650 characters and suitable for children.",
+    music: "Create a short instrumental music prompt for this saved OPRealm project. Match the world, mood, and age-safe tone.",
+    sound: "Create one short game sound effect prompt for the most important interaction in this saved OPRealm project. Keep it safe, playful, and non-violent.",
+  };
+
+  return [
+    instructions[nextTool] || "Create the next OPRealm AI result from this saved project.",
+    "",
+    source,
+  ].join("\n");
 }
 
 async function generateOpenAIImage(env, prompt, tool = "image") {
@@ -1369,14 +1468,16 @@ function textToolAttachmentSlug(tool) {
 function resultActionComponents(resultId, recommendedCourse = null, tool = null) {
   if (!resultId) return [];
 
-  const buttons = [
+  const buttons = flowButtonsForTool(resultId, tool);
+
+  buttons.push(
     {
       type: 2,
       style: ButtonStyle.SECONDARY,
       label: "Send to my bot inbox",
       custom_id: `oprealm_result:dm:${resultId}`,
     },
-  ];
+  );
 
   if (recommendedCourse) {
     buttons.push({
@@ -1420,12 +1521,60 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
     },
   );
 
-  return [
-    {
-      type: 1,
-      components: buttons,
-    },
-  ];
+  return chunkButtons(buttons).map((components) => ({
+    type: 1,
+    components,
+  }));
+}
+
+function chunkButtons(buttons) {
+  const rows = [];
+
+  for (let index = 0; index < buttons.length; index += 5) {
+    rows.push(buttons.slice(index, index + 5));
+  }
+
+  return rows.slice(0, 5);
+}
+
+function flowButtonsForTool(resultId, tool) {
+  const flows = {
+    idea: [
+      ["Create Storyboard", "flow_storyboard", ButtonStyle.PRIMARY],
+    ],
+    storyboard: [
+      ["Create Game Cover", "flow_game_cover", ButtonStyle.PRIMARY],
+      ["Create Sprite", "flow_sprite", ButtonStyle.SECONDARY],
+      ["Create Trailer", "flow_trailer_pro", ButtonStyle.SECONDARY],
+    ],
+    game_cover: [
+      ["Create Trailer", "flow_trailer_pro", ButtonStyle.PRIMARY],
+    ],
+    image_pro: [
+      ["Create Trailer", "flow_trailer_pro", ButtonStyle.PRIMARY],
+    ],
+    sprite: [
+      ["Create Sound", "flow_sound", ButtonStyle.SECONDARY],
+      ["Create Music", "flow_music", ButtonStyle.SECONDARY],
+    ],
+    trailer: [
+      ["Create Voice", "flow_voice", ButtonStyle.PRIMARY],
+      ["Create Music", "flow_music", ButtonStyle.SECONDARY],
+      ["Create Sound", "flow_sound", ButtonStyle.SECONDARY],
+    ],
+    trailer_pro: [
+      ["Create Voice", "flow_voice", ButtonStyle.PRIMARY],
+      ["Create Music", "flow_music", ButtonStyle.SECONDARY],
+      ["Create Sound", "flow_sound", ButtonStyle.SECONDARY],
+    ],
+  };
+
+  return (flows[tool] || []).map(([label, action, style]) => ({
+    type: 2,
+    style,
+    label,
+    custom_id: `oprealm_result:${action}:${resultId}`,
+  }));
 }
 
 function recommendedCourseForIdea(content, prompt) {
