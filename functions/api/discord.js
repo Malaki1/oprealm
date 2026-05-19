@@ -32,10 +32,13 @@ const CREDIT_COSTS = {
   idea: 0.5,
   image: 4,
   image_pro: 20,
+  game_cover: 20,
   sprite: 8,
   sound: 8,
   music: 15,
   trailer: 10,
+  trailer_pro: 25,
+  storyboard: 12,
   voice: 3,
 };
 
@@ -48,10 +51,13 @@ const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
   image: 0.034,
   image_pro: 0.1,
+  game_cover: 0.1,
   sprite: 0.034,
   sound: 0.02,
   music: 0.08,
   trailer: 0.005,
+  trailer_pro: 0.02,
+  storyboard: 0.01,
   voice: 0.01,
 };
 
@@ -129,8 +135,8 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return handleTextAiTool(interaction, env, waitUntil, command);
     }
 
-    if (command === "image" || command === "image-pro" || command === "sprite") {
-      const tool = command === "image-pro" ? "image_pro" : command;
+    if (command === "image" || command === "image-pro" || command === "game-cover" || command === "sprite") {
+      const tool = command === "image-pro" ? "image_pro" : command === "game-cover" ? "game_cover" : command;
       const channelCheck = requireChannel(interaction, env, tool);
       if (channelCheck) return channelCheck;
       return handleImageTool(interaction, env, waitUntil, tool);
@@ -142,10 +148,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return handleElevenLabsAudioTool(interaction, env, waitUntil, command);
     }
 
-    if (command === "trailer") {
-      const channelCheck = requireChannel(interaction, env, command);
+    if (command === "trailer" || command === "trailer-pro" || command === "story-board") {
+      const tool = command === "trailer-pro" ? "trailer_pro" : command === "story-board" ? "storyboard" : command;
+      const channelCheck = requireChannel(interaction, env, tool);
       if (channelCheck) return channelCheck;
-      return handleTextAiTool(interaction, env, waitUntil, command);
+      return handleTextAiTool(interaction, env, waitUntil, tool);
     }
 
     if (command === "setup-help") {
@@ -326,6 +333,11 @@ async function handleTextAiTool(interaction, env, waitUntil, tool) {
   const blocked = requireSafety(interaction, env);
   if (blocked) return blocked;
 
+  if (isPremiumAiTool(tool)) {
+    const premiumBlocked = requirePremiumAiAccess(interaction, env);
+    if (premiumBlocked) return premiumBlocked;
+  }
+
   if (!env.OPENAI_API_KEY) {
     return ephemeral("The OPRealm AI tools are not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
   }
@@ -410,7 +422,7 @@ async function handleImageTool(interaction, env, waitUntil, tool = "image") {
   const blocked = requireSafety(interaction, env);
   if (blocked) return blocked;
 
-  if (tool === "image_pro") {
+  if (isPremiumAiTool(tool)) {
     const premiumBlocked = requirePremiumAiAccess(interaction, env);
     if (premiumBlocked) return premiumBlocked;
   }
@@ -464,8 +476,8 @@ async function handleElevenLabsAudioTool(interaction, env, waitUntil, tool) {
 }
 
 async function generatePrivateImage(interaction, env, prompt, tool = "image") {
-  const toolLabel = tool === "sprite" ? "sprite sheet" : tool === "image_pro" ? "premium image" : "image";
-  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : tool === "image_pro" ? "oprealm-premium-image.png" : "oprealm-image.png";
+  const toolLabel = tool === "sprite" ? "sprite sheet" : tool === "game_cover" ? "game cover" : tool === "image_pro" ? "premium image" : "image";
+  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : tool === "game_cover" ? "oprealm-game-cover.png" : tool === "image_pro" ? "oprealm-premium-image.png" : "oprealm-image.png";
 
   try {
     await editOriginalInteraction(interaction, env, [
@@ -983,6 +995,8 @@ function textToolSpecificInstruction(tool) {
     sound: "Create a sound effect design brief, not an audio file. Include: Sound Name, When It Plays, 3-Layer Sound Recipe, Safe Generation Prompt, and In-Game Use Tip.",
     music: "Create a loopable background music design brief, not an audio file. Include: Track Name, Mood, Tempo, Instruments, Loop Structure, Safe Generation Prompt, and In-Game Use Tip.",
     trailer: "Create a game trailer storyboard, not a video file. Include: Trailer Hook, 5 Shot Plan, On-Screen Text, Music/SFX Direction, Safe Video Prompt, and Next Step.",
+    trailer_pro: "Create a premium game trailer planning pack, not a video file. Include: Trailer Strategy, 8 Shot Storyboard, Voiceover Script, On-Screen Text, Music/SFX Direction, Asset Checklist, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
+    storyboard: "Create a game story-board for a beginner game project. Include: Story Premise, Main Character, World Setup, 8 Scene Beats, Player Choices, Quest Objectives, Dialogue Starters, Safety Boundaries, and First Build Steps.",
   };
 
   return instructions[tool] || instructions.idea;
@@ -999,7 +1013,8 @@ function buildTextToolInput(prompt, tool) {
 
 function maxOutputTokensForTextTool(tool) {
   if (tool === "idea") return 2600;
-  if (tool === "trailer") return 1300;
+  if (tool === "trailer_pro") return 2200;
+  if (tool === "trailer" || tool === "storyboard") return 1300;
   if (tool === "music") return 900;
   return 550;
 }
@@ -1046,12 +1061,12 @@ function textToBytes(text) {
 }
 
 function imageModelForTool(tool) {
-  if (tool === "image_pro") return "gpt-image-2";
+  if (tool === "image_pro" || tool === "game_cover") return "gpt-image-2";
   return "gpt-image-1.5";
 }
 
 function imageQualityForTool(tool) {
-  if (tool === "image_pro") return "high";
+  if (tool === "image_pro" || tool === "game_cover") return "high";
   return "medium";
 }
 
@@ -1072,10 +1087,14 @@ function buildSafeImagePrompt(prompt, tool = "image") {
     ].join("\n");
   }
 
-  if (tool === "image_pro") {
+  if (tool === "image_pro" || tool === "game_cover") {
+    const requestedOutput = tool === "game_cover"
+      ? "The result should look like polished game cover art: one strong focal subject, clear mood, clean composition, no readable title text."
+      : "The result should look polished enough for a course thumbnail, game concept pitch, or final creative showcase.";
+
     return [
       "Create a premium, production-quality, kid-friendly game development image for OPRealm.",
-      "The result should look polished enough for a course thumbnail, game concept pitch, or final creative showcase.",
+      requestedOutput,
       "Style: high-quality modern game art, strong composition, readable subject, bright friendly colors, suitable for children aged 7-16.",
       "Avoid: personal information, real children, usernames, school names, phone numbers, scary realism, gore, bullying, hate, weapons-focused imagery, private chat prompts, copyrighted characters, logos, and readable text.",
       "If the request is too broad, simplify it into one strong, safe game asset or scene.",
@@ -1125,6 +1144,10 @@ function requireSafety(interaction, env) {
   return null;
 }
 
+function isPremiumAiTool(tool) {
+  return tool === "image_pro" || tool === "game_cover" || tool === "trailer_pro";
+}
+
 function requirePremiumAiAccess(interaction, env) {
   const hasPremiumRole =
     hasRole(interaction, env.AI_PRO_ACCESS_ROLE_ID) ||
@@ -1140,12 +1163,15 @@ function requireChannel(interaction, env, command) {
   const allowedChannelId = {
     idea: env.AI_IDEA_CHANNEL_ID,
     image: env.AI_IMAGE_CHANNEL_ID,
-    image_pro: env.AI_PREMIUM_CHANNEL_ID || env.AI_IMAGE_PRO_CHANNEL_ID || env.AI_IMAGE_CHANNEL_ID,
+    image_pro: env.AI_IMAGE_PRO_CHANNEL_ID || env.AI_PREMIUM_CHANNEL_ID || env.AI_IMAGE_CHANNEL_ID,
+    game_cover: env.AI_GAME_COVER_CHANNEL_ID || env.AI_IMAGE_PRO_CHANNEL_ID || env.AI_IMAGE_CHANNEL_ID,
     sprite: env.AI_SPRITE_CHANNEL_ID,
     sound: env.AI_SOUND_CHANNEL_ID,
     voice: env.AI_VOICE_CHANNEL_ID || env.AI_SOUND_CHANNEL_ID,
     music: env.AI_MUSIC_CHANNEL_ID,
     trailer: env.AI_TRAILER_CHANNEL_ID,
+    trailer_pro: env.AI_TRAILER_PRO_CHANNEL_ID || env.AI_TRAILER_CHANNEL_ID,
+    storyboard: env.AI_STORY_BOARD_CHANNEL_ID || env.AI_TRAILER_CHANNEL_ID,
   }[command];
 
   if (!allowedChannelId || interaction.channel_id === allowedChannelId) {
@@ -1155,15 +1181,18 @@ function requireChannel(interaction, env, command) {
   const channelName = {
     idea: "ai-idea-lab",
     image: "ai-image-lab",
-    image_pro: env.AI_PREMIUM_CHANNEL_NAME || "ai-premium-lab",
+    image_pro: "ai-image-pro",
+    game_cover: "ai-game-cover",
     sprite: "ai-sprite-lab",
     sound: "ai-sound-lab",
     voice: "ai-sound-lab",
     music: "ai-music-lab",
     trailer: "ai-trailer-lab",
+    trailer_pro: "ai-trailer-pro",
+    storyboard: "ai-story-board",
   }[command];
 
-  const commandName = command === "image_pro" ? "image-pro" : command;
+  const commandName = command === "image_pro" ? "image-pro" : command === "game_cover" ? "game-cover" : command === "trailer_pro" ? "trailer-pro" : command === "storyboard" ? "story-board" : command;
   return ephemeral(`Please use /${commandName} inside **#${channelName}** so OPRealm AI tools stay organized and moderated.`);
 }
 
@@ -1173,6 +1202,8 @@ function defaultPromptForTextTool(tool) {
     sound: "a friendly game sound effect",
     music: "a loopable game music idea",
     trailer: "a short trailer for a beginner game",
+    trailer_pro: "a polished trailer plan for a finished beginner game",
+    storyboard: "a beginner-friendly game story with scenes, characters, and quest beats",
   };
 
   return prompts[tool] || prompts.idea;
@@ -1193,10 +1224,13 @@ function textToolLabel(tool) {
     idea: "game idea",
     image: "AI image",
     image_pro: "premium AI image",
+    game_cover: "game cover",
     sprite: "sprite sheet",
     sound: "sound effect",
     music: "music brief",
     trailer: "trailer storyboard",
+    trailer_pro: "premium trailer storyboard",
+    storyboard: "game storyboard",
     voice: "voice narration",
   };
 
@@ -1209,6 +1243,8 @@ function textToolMode(tool) {
     sound: "sound_effect_brief",
     music: "music_brief",
     trailer: "trailer_storyboard",
+    trailer_pro: "premium_trailer_storyboard",
+    storyboard: "game_storyboard",
   };
 
   return modes[tool] || "text_result";
@@ -1882,17 +1918,18 @@ function providerForTool(tool) {
 
 function modelForUsage(tool) {
   if (["idea", "sound", "music", "trailer"].includes(tool)) return TEXT_MODEL;
-  if (tool === "image" || tool === "image_pro" || tool === "sprite") return imageModelForTool(tool);
+  if (tool === "trailer_pro" || tool === "storyboard") return TEXT_MODEL;
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return imageModelForTool(tool);
   return null;
 }
 
 function qualityForUsage(tool) {
-  if (tool === "image" || tool === "image_pro" || tool === "sprite") return imageQualityForTool(tool);
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return imageQualityForTool(tool);
   return null;
 }
 
 function unitsForUsage(tool) {
-  if (tool === "image" || tool === "image_pro" || tool === "sprite") return 1;
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return 1;
   return 0;
 }
 

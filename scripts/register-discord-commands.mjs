@@ -146,12 +146,24 @@ const commands = [
   },
   {
     name: "image-pro",
-    description: "Create a premium safe AI image with OPRealm's best image model.",
+    description: "Create a premium safe AI image in ai-image-pro.",
     options: [
       {
         type: 3,
         name: "prompt",
         description: "Describe the premium image you need.",
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "game-cover",
+    description: "Create polished safe cover art for a game project.",
+    options: [
+      {
+        type: 3,
+        name: "prompt",
+        description: "Describe the game cover you need.",
         required: true,
       },
     ],
@@ -212,6 +224,30 @@ const commands = [
         type: 3,
         name: "prompt",
         description: "Describe the game and trailer style.",
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "trailer-pro",
+    description: "Create a premium trailer plan, script, and production prompt pack.",
+    options: [
+      {
+        type: 3,
+        name: "prompt",
+        description: "Describe the game and trailer goal.",
+        required: true,
+      },
+    ],
+  },
+  {
+    name: "story-board",
+    description: "Create a safe story-board for an OPRealm game project.",
+    options: [
+      {
+        type: 3,
+        name: "prompt",
+        description: "Describe the story, world, or game idea.",
         required: true,
       },
     ],
