@@ -50,8 +50,8 @@ const TEXT_MODEL_OUTPUT_COST_PER_1M = 2;
 const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
   image: 0.034,
-  image_pro: 0.1,
-  game_cover: 0.1,
+  image_pro: 0.211,
+  game_cover: 0.211,
   sprite: 0.034,
   sound: 0.02,
   music: 0.08,
@@ -486,8 +486,18 @@ async function generatePrivateImage(interaction, env, prompt, tool = "image") {
       "This can take a little while. Keep this result private until you choose to share finished work in an approved showcase channel.",
     ].join("\n"));
 
-    const imageBytes = await generateOpenAIImage(env, prompt, tool);
-    await deductCredits(interaction, env, CREDIT_COSTS[tool], tool, prompt);
+    const image = await generateOpenAIImage(env, prompt, tool);
+    await deductCredits(interaction, env, CREDIT_COSTS[tool], tool, prompt, {
+      provider: "openai",
+      model: image.model,
+      quality: image.quality,
+      providerUnits: image.usage?.total_tokens || image.usage?.totalTokens || 1,
+      estimatedCostUsd: image.estimatedCostUsd,
+      metadata: {
+        fallbackUsed: image.fallbackUsed,
+        usage: image.usage || null,
+      },
+    });
     const resultId = crypto.randomUUID();
 
     const message = await editOriginalInteraction(
@@ -500,7 +510,7 @@ async function generatePrivateImage(interaction, env, prompt, tool = "image") {
         "",
         `Credits used: **${formatCredits(CREDIT_COSTS[tool])}**`,
       ].join("\n"),
-      imageBytes,
+      image.bytes,
       filename,
       resultActionComponents(resultId),
     );
@@ -751,36 +761,59 @@ async function retryAiResult(interaction, env, result) {
 }
 
 async function generateOpenAIImage(env, prompt, tool = "image") {
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: imageModelForTool(tool),
-      prompt: buildSafeImagePrompt(prompt, tool),
-      size: "1024x1024",
-      quality: imageQualityForTool(tool),
-      n: 1,
-      output_format: "png",
-      moderation: "auto",
-    }),
-  });
+  const promptText = buildSafeImagePrompt(prompt, tool);
+  let lastError = null;
 
-  const data = await response.json();
+  for (const spec of imageGenerationSpecsForTool(tool)) {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: spec.model,
+        prompt: promptText,
+        size: "1024x1024",
+        quality: spec.quality,
+        n: 1,
+        output_format: "png",
+        moderation: "auto",
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI image generation failed: ${response.status} ${JSON.stringify(data).slice(0, 500)}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      lastError = new Error(`OpenAI image generation failed for ${spec.model}/${spec.quality}: ${response.status} ${JSON.stringify(data).slice(0, 500)}`);
+
+      if (spec.allowFallback && [400, 403, 404].includes(response.status)) {
+        console.warn(lastError.message);
+        continue;
+      }
+
+      throw lastError;
+    }
+
+    const base64 = data.data?.[0]?.b64_json;
+
+    if (!base64) {
+      lastError = new Error(`OpenAI image response did not include image data for ${spec.model}/${spec.quality}`);
+      if (spec.allowFallback) continue;
+      throw lastError;
+    }
+
+    return {
+      bytes: base64ToBytes(base64),
+      model: spec.model,
+      quality: spec.quality,
+      estimatedCostUsd: spec.estimatedCostUsd,
+      fallbackUsed: spec.fallback,
+      usage: data.usage || null,
+    };
   }
 
-  const base64 = data.data?.[0]?.b64_json;
-
-  if (!base64) {
-    throw new Error("OpenAI image response did not include image data");
-  }
-
-  return base64ToBytes(base64);
+  throw lastError || new Error("OpenAI image generation failed");
 }
 
 async function generateElevenLabsSound(env, prompt) {
@@ -1068,6 +1101,63 @@ function imageModelForTool(tool) {
 function imageQualityForTool(tool) {
   if (tool === "image_pro" || tool === "game_cover") return "high";
   return "medium";
+}
+
+function imageGenerationSpecsForTool(tool) {
+  if (tool === "image_pro" || tool === "game_cover") {
+    return [
+      {
+        model: "gpt-image-2",
+        quality: "high",
+        estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD[tool],
+        allowFallback: true,
+        fallback: false,
+      },
+      {
+        model: "gpt-image-1.5",
+        quality: "high",
+        estimatedCostUsd: 0.133,
+        allowFallback: false,
+        fallback: true,
+      },
+    ];
+  }
+
+  if (tool === "sprite") {
+    return [
+      {
+        model: "gpt-image-1.5",
+        quality: "medium",
+        estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.sprite,
+        allowFallback: true,
+        fallback: false,
+      },
+      {
+        model: "gpt-image-1-mini",
+        quality: "high",
+        estimatedCostUsd: 0.036,
+        allowFallback: false,
+        fallback: true,
+      },
+    ];
+  }
+
+  return [
+    {
+      model: "gpt-image-1.5",
+      quality: "medium",
+      estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.image,
+      allowFallback: true,
+      fallback: false,
+    },
+    {
+      model: "gpt-image-1-mini",
+      quality: "high",
+      estimatedCostUsd: 0.036,
+      allowFallback: false,
+      fallback: true,
+    },
+  ];
 }
 
 function buildSafeImagePrompt(prompt, tool = "image") {
