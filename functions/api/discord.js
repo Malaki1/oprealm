@@ -50,8 +50,8 @@ const TEXT_MODEL_OUTPUT_COST_PER_1M = 2;
 const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
   image: 0.034,
-  image_pro: 0.211,
-  game_cover: 0.211,
+  image_pro: 0.053,
+  game_cover: 0.053,
   sprite: 0.034,
   sound: 0.02,
   music: 0.08,
@@ -483,7 +483,9 @@ async function generatePrivateImage(interaction, env, prompt, tool = "image") {
     await editOriginalInteraction(interaction, env, [
       `Creating your OPRealm ${toolLabel} privately...`,
       "",
-      "This can take a little while. Keep this result private until you choose to share finished work in an approved showcase channel.",
+      isPremiumAiTool(tool)
+        ? "Premium images use the best available fast render path. If the model takes too long, try a simpler prompt while OPRealm's long-render queue is being prepared."
+        : "This can take a little while. Keep this result private until you choose to share finished work in an approved showcase channel.",
     ].join("\n"));
 
     const image = await generateOpenAIImage(env, prompt, tool);
@@ -1099,7 +1101,7 @@ function imageModelForTool(tool) {
 }
 
 function imageQualityForTool(tool) {
-  if (tool === "image_pro" || tool === "game_cover") return "high";
+  if (tool === "image_pro" || tool === "game_cover") return "medium";
   return "medium";
 }
 
@@ -1108,15 +1110,15 @@ function imageGenerationSpecsForTool(tool) {
     return [
       {
         model: "gpt-image-2",
-        quality: "high",
+        quality: "medium",
         estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD[tool],
         allowFallback: true,
         fallback: false,
       },
       {
         model: "gpt-image-1.5",
-        quality: "high",
-        estimatedCostUsd: 0.133,
+        quality: "medium",
+        estimatedCostUsd: 0.034,
         allowFallback: false,
         fallback: true,
       },
