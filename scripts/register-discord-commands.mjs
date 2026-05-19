@@ -145,6 +145,18 @@ const commands = [
     ],
   },
   {
+    name: "image-pro",
+    description: "Create a premium safe AI image with OPRealm's best image model.",
+    options: [
+      {
+        type: 3,
+        name: "prompt",
+        description: "Describe the premium image you need.",
+        required: true,
+      },
+    ],
+  },
+  {
     name: "sprite",
     description: "Request a safe sprite sheet concept.",
     options: [

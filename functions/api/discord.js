@@ -30,7 +30,8 @@ const TIER_CREDITS = {
 
 const CREDIT_COSTS = {
   idea: 0.5,
-  image: 2,
+  image: 4,
+  image_pro: 20,
   sprite: 8,
   sound: 8,
   music: 15,
@@ -45,7 +46,8 @@ const TEXT_MODEL_OUTPUT_COST_PER_1M = 2;
 
 const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
-  image: 0.005,
+  image: 0.034,
+  image_pro: 0.1,
   sprite: 0.034,
   sound: 0.02,
   music: 0.08,
@@ -127,10 +129,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return handleTextAiTool(interaction, env, waitUntil, command);
     }
 
-    if (command === "image" || command === "sprite") {
-      const channelCheck = requireChannel(interaction, env, command);
+    if (command === "image" || command === "image-pro" || command === "sprite") {
+      const tool = command === "image-pro" ? "image_pro" : command;
+      const channelCheck = requireChannel(interaction, env, tool);
       if (channelCheck) return channelCheck;
-      return handleImageTool(interaction, env, waitUntil, command);
+      return handleImageTool(interaction, env, waitUntil, tool);
     }
 
     if (command === "sound" || command === "voice" || command === "music") {
@@ -407,6 +410,11 @@ async function handleImageTool(interaction, env, waitUntil, tool = "image") {
   const blocked = requireSafety(interaction, env);
   if (blocked) return blocked;
 
+  if (tool === "image_pro") {
+    const premiumBlocked = requirePremiumAiAccess(interaction, env);
+    if (premiumBlocked) return premiumBlocked;
+  }
+
   if (!env.OPENAI_API_KEY) {
     return ephemeral("The OPRealm image generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
   }
@@ -456,8 +464,8 @@ async function handleElevenLabsAudioTool(interaction, env, waitUntil, tool) {
 }
 
 async function generatePrivateImage(interaction, env, prompt, tool = "image") {
-  const toolLabel = tool === "sprite" ? "sprite sheet" : "image";
-  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : "oprealm-image.png";
+  const toolLabel = tool === "sprite" ? "sprite sheet" : tool === "image_pro" ? "premium image" : "image";
+  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : tool === "image_pro" ? "oprealm-premium-image.png" : "oprealm-image.png";
 
   try {
     await editOriginalInteraction(interaction, env, [
@@ -1038,11 +1046,13 @@ function textToBytes(text) {
 }
 
 function imageModelForTool(tool) {
-  return tool === "sprite" ? "gpt-image-1.5" : "gpt-image-1-mini";
+  if (tool === "image_pro") return "gpt-image-2";
+  return "gpt-image-1.5";
 }
 
 function imageQualityForTool(tool) {
-  return tool === "sprite" ? "medium" : "low";
+  if (tool === "image_pro") return "high";
+  return "medium";
 }
 
 function buildSafeImagePrompt(prompt, tool = "image") {
@@ -1058,6 +1068,17 @@ function buildSafeImagePrompt(prompt, tool = "image") {
       "Use a plain light neutral background or transparent-looking checker-safe background. Do not use a black background.",
       "Do not include text, labels, logos, weapons, gore, scary realism, copyrighted characters, real children, usernames, school names, phone numbers, private chat prompts, bullying, hate, or personal information.",
       "If the request asks for something too complex, simplify it into a cute beginner-friendly sprite object or character.",
+      `Student request: ${prompt.slice(0, 900)}`,
+    ].join("\n");
+  }
+
+  if (tool === "image_pro") {
+    return [
+      "Create a premium, production-quality, kid-friendly game development image for OPRealm.",
+      "The result should look polished enough for a course thumbnail, game concept pitch, or final creative showcase.",
+      "Style: high-quality modern game art, strong composition, readable subject, bright friendly colors, suitable for children aged 7-16.",
+      "Avoid: personal information, real children, usernames, school names, phone numbers, scary realism, gore, bullying, hate, weapons-focused imagery, private chat prompts, copyrighted characters, logos, and readable text.",
+      "If the request is too broad, simplify it into one strong, safe game asset or scene.",
       `Student request: ${prompt.slice(0, 900)}`,
     ].join("\n");
   }
@@ -1104,10 +1125,22 @@ function requireSafety(interaction, env) {
   return null;
 }
 
+function requirePremiumAiAccess(interaction, env) {
+  const hasPremiumRole =
+    hasRole(interaction, env.AI_PRO_ACCESS_ROLE_ID) ||
+    hasRole(interaction, env.CREATOR_PRO_ROLE_ID) ||
+    hasRole(interaction, env.ELITE_ROLE_ID);
+
+  if (hasPremiumRole) return null;
+
+  return ephemeral("The premium AI image tool is for Creator Pro, Elite, or AI Pro access members.");
+}
+
 function requireChannel(interaction, env, command) {
   const allowedChannelId = {
     idea: env.AI_IDEA_CHANNEL_ID,
     image: env.AI_IMAGE_CHANNEL_ID,
+    image_pro: env.AI_PREMIUM_CHANNEL_ID || env.AI_IMAGE_PRO_CHANNEL_ID || env.AI_IMAGE_CHANNEL_ID,
     sprite: env.AI_SPRITE_CHANNEL_ID,
     sound: env.AI_SOUND_CHANNEL_ID,
     voice: env.AI_VOICE_CHANNEL_ID || env.AI_SOUND_CHANNEL_ID,
@@ -1122,6 +1155,7 @@ function requireChannel(interaction, env, command) {
   const channelName = {
     idea: "ai-idea-lab",
     image: "ai-image-lab",
+    image_pro: env.AI_PREMIUM_CHANNEL_NAME || "ai-premium-lab",
     sprite: "ai-sprite-lab",
     sound: "ai-sound-lab",
     voice: "ai-sound-lab",
@@ -1129,7 +1163,8 @@ function requireChannel(interaction, env, command) {
     trailer: "ai-trailer-lab",
   }[command];
 
-  return ephemeral(`Please use /${command} inside **#${channelName}** so OPRealm AI tools stay organized and moderated.`);
+  const commandName = command === "image_pro" ? "image-pro" : command;
+  return ephemeral(`Please use /${commandName} inside **#${channelName}** so OPRealm AI tools stay organized and moderated.`);
 }
 
 function defaultPromptForTextTool(tool) {
@@ -1157,6 +1192,7 @@ function textToolLabel(tool) {
   const labels = {
     idea: "game idea",
     image: "AI image",
+    image_pro: "premium AI image",
     sprite: "sprite sheet",
     sound: "sound effect",
     music: "music brief",
@@ -1846,17 +1882,17 @@ function providerForTool(tool) {
 
 function modelForUsage(tool) {
   if (["idea", "sound", "music", "trailer"].includes(tool)) return TEXT_MODEL;
-  if (tool === "image" || tool === "sprite") return imageModelForTool(tool);
+  if (tool === "image" || tool === "image_pro" || tool === "sprite") return imageModelForTool(tool);
   return null;
 }
 
 function qualityForUsage(tool) {
-  if (tool === "image" || tool === "sprite") return imageQualityForTool(tool);
+  if (tool === "image" || tool === "image_pro" || tool === "sprite") return imageQualityForTool(tool);
   return null;
 }
 
 function unitsForUsage(tool) {
-  if (tool === "image" || tool === "sprite") return 1;
+  if (tool === "image" || tool === "image_pro" || tool === "sprite") return 1;
   return 0;
 }
 
