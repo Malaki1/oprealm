@@ -383,7 +383,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
       },
     });
 
-    const recommendedCourse = tool === "idea" ? recommendedCourseForIdea(result.content, prompt) : null;
+    const recommendedCourse = tool === "idea" || tool === "storyboard" ? recommendedCourseForIdea(result.content, prompt) : null;
     const resultId = await saveAiResult(interaction, env, {
       tool,
       prompt,
@@ -404,7 +404,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
         `Credits used: **${formatCredits(CREDIT_COSTS[tool])}**`,
       ].join("\n"),
       fullBriefBytes,
-      `oprealm-${tool}-brief.txt`,
+      `oprealm-${textToolAttachmentSlug(tool)}.txt`,
       resultActionComponents(resultId, recommendedCourse),
       "text/plain",
     );
@@ -995,8 +995,8 @@ function buildTextToolInstructions(tool) {
     "Do not include copyrighted characters, copyrighted songs, real people, gore, hate, bullying, romance, dating, or unsafe instructions.",
     "Only mention OPRealm courses that currently exist: Roblox Creator, Minecraft Modding, Web Game Dev, 2D Game Builder, AI Story Games, and Game Safety.",
     "Do not recommend unavailable OPRealm courses, external course brands, Scratch, Godot, Unity, Unreal, or other platforms unless the student explicitly asks how the idea could be adapted outside OPRealm.",
-    tool === "idea"
-      ? "For game ideas, write a full design brief because the complete result will be attached as a text file."
+    tool === "idea" || tool === "storyboard"
+      ? "Write a complete, useful planning document because the complete result will be attached as a text file."
       : "Keep the output concise enough for a Discord private slash-command response.",
     "Use clear headings, short bullets, and an immediate next step.",
     textToolSpecificInstruction(tool),
@@ -1031,7 +1031,34 @@ function textToolSpecificInstruction(tool) {
     music: "Create a loopable background music design brief, not an audio file. Include: Track Name, Mood, Tempo, Instruments, Loop Structure, Safe Generation Prompt, and In-Game Use Tip.",
     trailer: "Create a game trailer storyboard, not a video file. Include: Trailer Hook, 5 Shot Plan, On-Screen Text, Music/SFX Direction, Safe Video Prompt, and Next Step.",
     trailer_pro: "Create a premium game trailer planning pack, not a video file. Include: Trailer Strategy, 8 Shot Storyboard, Voiceover Script, On-Screen Text, Music/SFX Direction, Asset Checklist, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
-    storyboard: "Create a game story-board for a beginner game project. Include: Story Premise, Main Character, World Setup, 8 Scene Beats, Player Choices, Quest Objectives, Dialogue Starters, Safety Boundaries, and First Build Steps.",
+    storyboard: [
+      "Create a complete game storyboard for a beginner OPRealm project.",
+      "Minimum length: 850 words.",
+      "Use Markdown formatting.",
+      "Use every section below, in this exact order, with bold section labels and no commas after labels:",
+      "**Title**",
+      "**One-Sentence Pitch**",
+      "**Best OPRealm Course Fit**",
+      "**Age Fit**",
+      "**Story Premise**",
+      "**Main Character**",
+      "**World Setup**",
+      "**Player Goal**",
+      "**8 Scene Storyboard**",
+      "**Playable Objectives**",
+      "**Choice Moments**",
+      "**Dialogue Starters**",
+      "**Asset List**",
+      "**Image Prompts**",
+      "**Safety Boundaries**",
+      "**First Build Steps**",
+      "The 8 Scene Storyboard must have exactly 8 numbered scenes. Each scene must include: Scene Goal, What the Player Sees, Player Action, Game Mechanic, and Build Tip.",
+      "Playable Objectives must include at least 5 objectives that can be built by a beginner.",
+      "Image Prompts must include 4 safe prompts: game cover, main character, key location, and collectible or item.",
+      "Best OPRealm Course Fit must choose exactly one from: Roblox Creator, Minecraft Modding, Web Game Dev, 2D Game Builder, AI Story Games, or Game Safety.",
+      "Do not include romance, dating, gore, horror realism, real people, copyrighted characters, private messages, usernames, school names, phone numbers, or off-platform contact.",
+      "Make the storyboard feel exciting but buildable in a first prototype.",
+    ].join(" "),
   };
 
   return instructions[tool] || instructions.idea;
@@ -1048,8 +1075,9 @@ function buildTextToolInput(prompt, tool) {
 
 function maxOutputTokensForTextTool(tool) {
   if (tool === "idea") return 2600;
+  if (tool === "storyboard") return 2600;
   if (tool === "trailer_pro") return 2200;
-  if (tool === "trailer" || tool === "storyboard") return 1300;
+  if (tool === "trailer") return 1300;
   if (tool === "music") return 900;
   return 550;
 }
@@ -1317,6 +1345,20 @@ function textToolMode(tool) {
   };
 
   return modes[tool] || "text_result";
+}
+
+function textToolAttachmentSlug(tool) {
+  const slugs = {
+    idea: "game-idea-brief",
+    trailer: "trailer-storyboard",
+    trailer_pro: "premium-trailer-plan",
+    storyboard: "game-storyboard",
+    sound: "sound-brief",
+    music: "music-brief",
+    voice: "voice-brief",
+  };
+
+  return slugs[tool] || `${tool}-brief`;
 }
 
 function resultActionComponents(resultId, recommendedCourse = null, tool = null) {

@@ -242,12 +242,12 @@ const commands = [
   },
   {
     name: "story-board",
-    description: "Create a safe story-board for an OPRealm game project.",
+    description: "Create a full safe game storyboard with scenes, objectives, and asset prompts.",
     options: [
       {
         type: 3,
         name: "prompt",
-        description: "Describe the story, world, or game idea.",
+        description: "Describe the game story, world, or quest idea.",
         required: true,
       },
     ],
