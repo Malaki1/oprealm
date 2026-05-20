@@ -836,15 +836,16 @@ function toolForFlowStep(step) {
 
 function buildFlowPrompt(result, nextTool) {
   const source = [
-    `Source tool: ${result.tool || "unknown"}`,
-    `Original prompt: ${result.prompt || ""}`,
+    `Target next tool: ${nextTool}`,
+    `Source result tool: ${result.tool || "unknown"}`,
+    `Source original prompt: ${result.prompt || ""}`,
     "",
     "Saved result:",
     result.content || "",
   ].join("\n").slice(0, 8000);
 
   const instructions = {
-    storyboard: "Turn this saved OPRealm game idea into a complete game storyboard. Preserve the core concept, tone, target course, and any named characters. Treat character consistency as paramount.",
+    storyboard: "Turn this saved OPRealm game idea into a complete game storyboard. Do not regenerate or reformat the idea brief. Preserve the core concept, tone, target course, and any named characters. Treat character consistency as paramount. Output the storyboard sections exactly.",
     game_cover: "Create one polished, kid-friendly game cover image based on this saved storyboard or idea. Preserve the main character's exact Character Bible details if present. No readable title text.",
     sprite: "Create a clean 2x2 sprite sheet for the main character or most important playable object from this saved storyboard or idea. Preserve character consistency from the Character Bible if present.",
     trailer: "Create a concise trailer storyboard based on this saved OPRealm project. Preserve the main character, world, and core objective.",
@@ -1132,6 +1133,7 @@ function textToolSpecificInstruction(tool) {
     trailer_pro: "Create a premium game trailer planning pack, not a video file. Include: Trailer Strategy, 8 Shot Storyboard, Voiceover Script, On-Screen Text, Music/SFX Direction, Asset Checklist, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
     storyboard: [
       "Create a complete game storyboard for a beginner OPRealm project.",
+      "Do not create another game idea brief. Do not use the game idea brief section list.",
       "Minimum length: 850 words.",
       "Use Markdown formatting.",
       "Use every section below, in this exact order, with bold section labels and no commas after labels:",
@@ -1170,11 +1172,14 @@ function textToolSpecificInstruction(tool) {
 
 function buildTextToolInput(prompt, tool) {
   return [
-    `Tool: ${tool}`,
+    `Target tool: ${tool}`,
+    tool === "storyboard"
+      ? "Output must be a storyboard document, not another game idea brief. Use the Storyboard sections from the system instructions exactly."
+      : null,
     `Student request: ${prompt.slice(0, 900)}`,
     "",
     "Make it creative but realistic for a young beginner building a game project.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function maxOutputTokensForTextTool(tool) {
