@@ -513,16 +513,11 @@ h1 span {
   .button-primary[href="#enrol"]::after,
   .button-primary[href="/ai-coach.html"]::after,
   .final-cta .button-primary::after,
-  .circuit-electron,
-  .circuit-path-energy {
+  .creator-particles span {
     animation: none;
     opacity: 1;
     transform: none;
     transition: none;
-  }
-
-  .circuit-scroll-rail {
-    display: none;
   }
 }
 
@@ -799,132 +794,97 @@ h1 span {
   line-height: 1.6;
 }
 
-.circuit-scroll-rail {
-  --circuit-dash: 1200;
-  --circuit-offset: 1200;
-  position: fixed;
-  top: 104px;
-  right: clamp(8px, 1.6vw, 24px);
-  z-index: 24;
-  width: clamp(74px, 7vw, 126px);
-  height: min(74vh, 720px);
-  pointer-events: none;
-  opacity: 0.9;
-  transform: translateZ(0);
+
+.creator-atmosphere {
+  position: relative;
+  overflow: hidden;
 }
 
-.circuit-map {
+.creator-atmosphere > *:not(.creator-particles) {
+  position: relative;
+  z-index: 1;
+}
+
+.creator-atmosphere::before {
+  content: "";
   position: absolute;
   inset: 0;
-  overflow: visible;
-}
-
-.circuit-path,
-.circuit-branch-line {
-  fill: none;
-  vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.circuit-path-base {
-  stroke: rgba(24, 217, 255, 0.24);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 10px rgba(24, 217, 255, 0.18));
-}
-
-.circuit-path-energy {
-  stroke: rgba(168, 239, 255, 0.78);
-  stroke-width: 2.5;
-  stroke-dasharray: var(--circuit-dash);
-  stroke-dashoffset: var(--circuit-offset);
-  filter:
-    drop-shadow(0 0 9px rgba(24, 217, 255, 0.55))
-    drop-shadow(0 0 18px rgba(139, 67, 255, 0.28));
-  transition: stroke-dashoffset 130ms linear;
-}
-
-.circuit-branch-line {
-  stroke: rgba(139, 67, 255, 0.34);
-  stroke-width: 1.5;
-  filter: drop-shadow(0 0 8px rgba(139, 67, 255, 0.22));
-}
-
-.circuit-node {
-  fill: #071337;
-  stroke: rgba(168, 239, 255, 0.78);
-  stroke-width: 1.5;
-  filter:
-    drop-shadow(0 0 8px rgba(24, 217, 255, 0.5))
-    drop-shadow(0 0 14px rgba(139, 67, 255, 0.22));
-}
-
-.circuit-electron {
-  position: absolute;
-  left: 80%;
-  top: 0%;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
   background:
-    radial-gradient(circle, #ffffff 0 18%, #a8efff 24%, #18d9ff 46%, rgba(139, 67, 255, 0.24) 72%, transparent 73%);
-  box-shadow:
-    0 0 16px rgba(24, 217, 255, 0.96),
-    0 0 34px rgba(139, 67, 255, 0.62),
-    0 0 56px rgba(24, 217, 255, 0.3);
-  transform: translate(-50%, -50%);
-  transition:
-    left 130ms linear,
-    top 130ms linear;
+    radial-gradient(circle at 14% 24%, rgba(7, 16, 58, 0.07), transparent 26%),
+    radial-gradient(circle at 86% 18%, rgba(61, 124, 255, 0.08), transparent 24%),
+    radial-gradient(circle at 72% 82%, rgba(139, 67, 255, 0.07), transparent 28%),
+    linear-gradient(rgba(7, 16, 58, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(7, 16, 58, 0.032) 1px, transparent 1px);
+  background-size: auto, auto, auto, 52px 52px, 52px 52px;
+  mask-image: linear-gradient(180deg, transparent 0%, #000 12%, #000 88%, transparent 100%);
 }
 
-.circuit-electron::before {
+.creator-atmosphere::after {
   content: "";
   position: absolute;
-  left: 50%;
-  bottom: 12px;
-  width: 2px;
-  height: 48px;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(7, 16, 58, 0.22) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgba(61, 124, 255, 0.16) 0 1px, transparent 1.5px);
+  background-position: 18px 22px, 64px 74px;
+  background-size: 92px 92px, 128px 128px;
+  opacity: 0.42;
+}
+
+.creator-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.creator-particles span {
+  position: absolute;
+  left: var(--particle-x);
+  top: var(--particle-y);
+  display: inline-grid;
+  place-items: center;
+  min-width: 38px;
+  min-height: 24px;
+  padding: 0 9px;
+  color: rgba(7, 16, 58, 0.24);
+  border: 1px solid rgba(7, 16, 58, 0.08);
   border-radius: 999px;
-  background: linear-gradient(0deg, rgba(24, 217, 255, 0.54), transparent);
-  filter: blur(0.5px);
-  transform: translateX(-50%) rotate(-14deg);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 10px 30px rgba(33, 50, 94, 0.05);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  transform: translate3d(-50%, -50%, 0);
+  animation: creatorParticleDrift 8s ease-in-out infinite;
+  animation-delay: var(--particle-delay);
 }
 
-.circuit-electron::after {
-  content: "";
-  position: absolute;
-  inset: -14px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(24, 217, 255, 0.18), transparent 62%);
-  animation: electronPulse 1.8s ease-in-out infinite;
+.creator-particles span:nth-child(2n) {
+  color: rgba(61, 124, 255, 0.22);
+  border-color: rgba(61, 124, 255, 0.1);
 }
 
-.circuit-electron span {
-  position: absolute;
-  inset: 5px;
-  z-index: 1;
-  border-radius: 50%;
-  background: #ffffff;
+.creator-particles span:nth-child(3n) {
+  color: rgba(139, 67, 255, 0.22);
+  border-color: rgba(139, 67, 255, 0.1);
 }
 
-.scrolling-up .circuit-electron::before {
-  top: 12px;
-  bottom: auto;
-  background: linear-gradient(180deg, rgba(24, 217, 255, 0.54), transparent);
-  transform: translateX(-50%) rotate(14deg);
-}
-
-@keyframes electronPulse {
+@keyframes creatorParticleDrift {
   0%,
   100% {
-    opacity: 0.42;
-    transform: scale(0.86);
+    opacity: 0.2;
+    transform: translate3d(-50%, -50%, 0) rotate(-2deg);
   }
 
   50% {
-    opacity: 0.9;
-    transform: scale(1.14);
+    opacity: 0.52;
+    transform: translate3d(calc(-50% + var(--particle-drift)), calc(-50% - 14px), 0) rotate(2deg);
   }
 }
 
@@ -2338,11 +2298,6 @@ h1 span {
 
   .module-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .circuit-scroll-rail {
-    right: 10px;
-    width: 54px;
   }
 
   .safety-band,

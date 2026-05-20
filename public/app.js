@@ -2,31 +2,32 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 const animatedItems = document.querySelectorAll(
   ".reveal, .reveal-section, .platform-panel, .hero-strip"
 );
-let lastScrollY = window.scrollY;
-let scrollDirection = 1;
-let circuitFrame = 0;
+const atmosphereSections = document.querySelectorAll(
+  ".path-section, .curriculum-section, .coach-section, .dashboard-section, .pricing-section, .faq-section"
+);
+const creatorMarks = ["AI", "LUA", "{ }", "RGB", "SFX", "PNG", "</>", "3D"];
 
-function createCircuitRail() {
-  const rail = document.createElement("div");
-  rail.className = "circuit-scroll-rail";
-  rail.setAttribute("aria-hidden", "true");
-  rail.innerHTML = `
-    <svg class="circuit-map" viewBox="0 0 120 720" preserveAspectRatio="none" focusable="false">
-      <path class="circuit-path circuit-path-base" d="M96 0 V86 C96 124 36 120 36 164 V226 C36 268 96 252 96 310 V386 C96 436 28 424 28 478 V548 C28 604 96 590 96 650 V720" />
-      <path class="circuit-path circuit-path-energy" d="M96 0 V86 C96 124 36 120 36 164 V226 C36 268 96 252 96 310 V386 C96 436 28 424 28 478 V548 C28 604 96 590 96 650 V720" />
-      <path class="circuit-branch-line" d="M36 180 H14 M96 330 H116 M28 502 H8 M96 632 H116" />
-      <circle class="circuit-node node-a" cx="36" cy="180" r="5" />
-      <circle class="circuit-node node-b" cx="96" cy="330" r="5" />
-      <circle class="circuit-node node-c" cx="28" cy="502" r="5" />
-      <circle class="circuit-node node-d" cx="96" cy="632" r="5" />
-    </svg>
-    <span class="circuit-electron"><span></span></span>
-  `;
-  document.body.appendChild(rail);
-  return rail;
-}
+atmosphereSections.forEach((section, sectionIndex) => {
+  section.classList.add("creator-atmosphere");
 
-const circuitRail = reduceMotion ? null : createCircuitRail();
+  if (section.querySelector(":scope > .creator-particles")) return;
+
+  const layer = document.createElement("div");
+  layer.className = "creator-particles";
+  layer.setAttribute("aria-hidden", "true");
+
+  creatorMarks.forEach((mark, markIndex) => {
+    const particle = document.createElement("span");
+    particle.textContent = mark;
+    particle.style.setProperty("--particle-x", `${8 + ((markIndex * 19 + sectionIndex * 11) % 84)}%`);
+    particle.style.setProperty("--particle-y", `${10 + ((markIndex * 23 + sectionIndex * 17) % 76)}%`);
+    particle.style.setProperty("--particle-delay", `${-1 * ((markIndex + sectionIndex) % 6)}s`);
+    particle.style.setProperty("--particle-drift", `${18 + ((markIndex + sectionIndex) % 5) * 5}px`);
+    layer.appendChild(particle);
+  });
+
+  section.prepend(layer);
+});
 
 function animateCounter(element) {
   if (element.dataset.counted === "true") return;
@@ -62,35 +63,6 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function updateCircuitRail() {
-  circuitFrame = 0;
-  if (!circuitRail) return;
-
-  const scrollable = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
-  const progress = clamp(window.scrollY / scrollable, 0, 1);
-  const eased = 1 - Math.pow(1 - progress, 1.35);
-  const path = circuitRail.querySelector(".circuit-path-base");
-  const electron = circuitRail.querySelector(".circuit-electron");
-
-  if (path && electron) {
-    const length = path.getTotalLength();
-    const point = path.getPointAtLength(length * eased);
-
-    electron.style.left = `${point.x / 120 * 100}%`;
-    electron.style.top = `${point.y / 720 * 100}%`;
-    circuitRail.style.setProperty("--circuit-dash", `${length}`);
-    circuitRail.style.setProperty("--circuit-offset", `${length * (1 - eased)}`);
-  }
-
-  circuitRail.style.setProperty("--circuit-progress", progress.toFixed(4));
-  circuitRail.classList.toggle("scrolling-up", scrollDirection < 0);
-}
-
-function requestCircuitUpdate() {
-  if (circuitFrame) return;
-  circuitFrame = window.requestAnimationFrame(updateCircuitRail);
-}
-
 if (reduceMotion || !("IntersectionObserver" in window)) {
   animatedItems.forEach((item) => item.classList.add("is-visible"));
   document.querySelectorAll(".count-up").forEach((item) => {
@@ -115,18 +87,4 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
   );
 
   animatedItems.forEach((item) => observer.observe(item));
-
-  window.addEventListener(
-    "scroll",
-    () => {
-      const currentScrollY = window.scrollY;
-      scrollDirection = currentScrollY >= lastScrollY ? 1 : -1;
-      lastScrollY = currentScrollY;
-      requestCircuitUpdate();
-    },
-    { passive: true }
-  );
-
-  window.addEventListener("resize", requestCircuitUpdate);
-  requestCircuitUpdate();
 }
