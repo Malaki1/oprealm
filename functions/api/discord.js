@@ -391,7 +391,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
     });
 
     const fullBriefBytes = textToBytes(result.content);
-    const preview = truncateDiscordMessage(result.content, 1450);
+    const preview = truncateDiscordMessage(result.content, 1100);
 
     await editOriginalInteraction(
       interaction,
@@ -1469,6 +1469,7 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
   if (!resultId) return [];
 
   const buttons = flowButtonsForTool(resultId, tool);
+  const rows = [];
 
   buttons.push(
     {
@@ -1478,15 +1479,6 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
       custom_id: `oprealm_result:dm:${resultId}`,
     },
   );
-
-  if (recommendedCourse) {
-    buttons.push({
-      type: 2,
-      style: ButtonStyle.LINK,
-      label: "Start Course",
-      url: courseUrl(recommendedCourse),
-    });
-  }
 
   if (tool === "sound") {
     buttons.push({
@@ -1521,7 +1513,20 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
     },
   );
 
-  return chunkButtons(buttons).map((components) => ({
+  rows.push(...chunkButtons(buttons));
+
+  if (recommendedCourse) {
+    rows.push([
+      {
+        type: 2,
+        style: ButtonStyle.LINK,
+        label: "Start Course",
+        url: courseUrl(recommendedCourse),
+      },
+    ]);
+  }
+
+  return rows.slice(0, 5).map((components) => ({
     type: 1,
     components,
   }));
