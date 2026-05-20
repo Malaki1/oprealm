@@ -2538,6 +2538,20 @@ h1 span {
     display: none;
   }
 
+  .curriculum-track {
+    gap: 18px;
+  }
+
+  .unlock-card {
+    min-height: auto;
+    padding: 84px 22px 24px;
+  }
+
+  .unlock-card,
+  .is-visible .unlock-card {
+    transform: none;
+  }
+
   .coach-section,
   .final-cta {
     margin-inline: 20px;
