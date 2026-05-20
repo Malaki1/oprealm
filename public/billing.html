@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Choose an OPREALM membership with secure Stripe or PayPal checkout." />
+    <title>OPREALM Membership Billing</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=2" />
+    <script src="/billing.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Billing</span>
+      </a>
+      <nav aria-label="Billing navigation">
+        <a href="/login">Log In</a>
+        <a href="/studio">Creator Studio</a>
+        <a href="/library">Library</a>
+      </nav>
+    </header>
+
+    <main class="studio-shell">
+      <section class="studio-hero">
+        <div>
+          <p class="eyebrow">Secure checkout</p>
+          <h1>Choose the creator power your child needs.</h1>
+          <p>Stripe handles credit card checkout. PayPal checkout is available once live PayPal credentials are connected.</p>
+        </div>
+        <aside class="credits-card">
+          <span>Payment options</span>
+          <strong>2</strong>
+          <p>Stripe card checkout and PayPal order checkout are wired through secure server endpoints.</p>
+        </aside>
+      </section>
+
+      <section class="builder-grid billing-grid" id="billingGrid">
+        <article class="builder-card billing-card" data-tier="creator">
+          <p class="eyebrow">Creator</p>
+          <h3>Creator Membership</h3>
+          <p class="price-line">$29/mo</p>
+          <p>400 Creator credits, one focused creation path, safe community and guided AI tools.</p>
+          <div class="payment-actions">
+            <button class="button button-primary" type="button" data-provider="stripe" data-tier="creator">Pay By Card</button>
+            <button class="button button-secondary" type="button" data-provider="paypal" data-tier="creator">PayPal</button>
+          </div>
+        </article>
+
+        <article class="builder-card billing-card" data-tier="pro">
+          <p class="eyebrow">Creator Pro</p>
+          <h3>Creator Pro Membership</h3>
+          <p class="price-line">$49/mo</p>
+          <p>1,000 Creator credits, all creation paths, priority AI generation and advanced publishing support.</p>
+          <div class="payment-actions">
+            <button class="button button-primary" type="button" data-provider="stripe" data-tier="pro">Pay By Card</button>
+            <button class="button button-secondary" type="button" data-provider="paypal" data-tier="pro">PayPal</button>
+          </div>
+        </article>
+
+        <article class="builder-card billing-card" data-tier="intensive">
+          <p class="eyebrow">Elite</p>
+          <h3>Elite Creator Intensive</h3>
+          <p class="price-line">$499</p>
+          <p>3,000 Creator credits, live support, project review, publishing guidance and creator spotlight options.</p>
+          <div class="payment-actions">
+            <button class="button button-primary" type="button" data-provider="stripe" data-tier="intensive">Pay By Card</button>
+            <button class="button button-secondary" type="button" data-provider="paypal" data-tier="intensive">PayPal</button>
+          </div>
+        </article>
+      </section>
+
+      <p class="form-note billing-status" id="billingStatus"></p>
+    </main>
+  </body>
+</html>

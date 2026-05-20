@@ -675,6 +675,63 @@ select option {
   box-shadow: 0 28px 82px rgba(4, 11, 31, 0.28);
 }
 
+.auth-shell {
+  max-width: 1220px;
+}
+
+.auth-hero {
+  align-items: stretch;
+}
+
+.auth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.account-card h2 {
+  margin-bottom: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.turnstile-slot {
+  min-height: 70px;
+}
+
+.turnstile-missing {
+  display: grid;
+  place-items: center;
+  min-height: 54px;
+  border: 1px dashed rgba(160, 218, 255, 0.28);
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.billing-card {
+  min-height: 310px;
+}
+
+.price-line {
+  color: var(--white) !important;
+  font-size: 2.3rem;
+  font-weight: 900;
+}
+
+.payment-actions {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.billing-status {
+  margin-top: 18px;
+  color: var(--ink);
+}
+
 .publish-section {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(320px, 1fr);
@@ -725,6 +782,10 @@ select option {
   }
 
   .builder-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-grid {
     grid-template-columns: 1fr;
   }
 

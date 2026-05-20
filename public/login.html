@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Log in to OPREALM with human verification and account recovery." />
+    <title>OPREALM Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=2" />
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" defer></script>
+    <script src="/login.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Login</span>
+      </a>
+      <nav aria-label="Account navigation">
+        <a href="/studio">Creator Studio</a>
+        <a href="/billing">Memberships</a>
+        <a href="/library">Library</a>
+      </nav>
+    </header>
+
+    <main class="studio-shell auth-shell">
+      <section class="studio-hero auth-hero">
+        <div>
+          <p class="eyebrow">Member access</p>
+          <h1>Safe sign-in for creators and parents.</h1>
+          <p>Use a verified OPREALM account to access the web studio, manage membership and submit creations for review.</p>
+        </div>
+        <aside class="credits-card">
+          <span>Human checked</span>
+          <strong>✓</strong>
+          <p>Cloudflare Turnstile helps keep automated abuse away from child-friendly tools.</p>
+        </aside>
+      </section>
+
+      <section class="auth-grid">
+        <form class="publish-form account-card" id="loginForm">
+          <div>
+            <p class="eyebrow">Sign in</p>
+            <h2>Welcome Back</h2>
+          </div>
+          <label>
+            Email
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="current-password" required />
+          </label>
+          <div class="turnstile-slot" data-turnstile="login"></div>
+          <button class="button button-primary" type="submit">Log In</button>
+          <button class="text-button" type="button" data-panel="reset">Forgot password?</button>
+          <p class="form-note" id="loginStatus"></p>
+        </form>
+
+        <form class="publish-form account-card" id="registerForm">
+          <div>
+            <p class="eyebrow">Create account</p>
+            <h2>Start Safely</h2>
+          </div>
+          <label>
+            Creator display name
+            <input name="displayName" maxlength="48" autocomplete="nickname" required />
+          </label>
+          <label>
+            Parent or member email
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Parent email
+            <input name="parentEmail" type="email" autocomplete="email" />
+          </label>
+          <label>
+            Age group
+            <select name="ageBand">
+              <option value="8-10">8-10</option>
+              <option value="11-13">11-13</option>
+              <option value="14-16">14-16</option>
+              <option value="parent">Parent / guardian</option>
+            </select>
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+          </label>
+          <div class="turnstile-slot" data-turnstile="register"></div>
+          <button class="button button-primary" type="submit">Create Account</button>
+          <p class="form-note" id="registerStatus"></p>
+        </form>
+
+        <form class="publish-form account-card reset-card" id="resetRequestForm">
+          <div>
+            <p class="eyebrow">Recovery</p>
+            <h2>Reset Password</h2>
+          </div>
+          <label>
+            Account email
+            <input name="email" type="email" autocomplete="email" required />
+          </label>
+          <div class="turnstile-slot" data-turnstile="reset"></div>
+          <button class="button button-secondary" type="submit">Send Reset Link</button>
+          <p class="form-note" id="resetRequestStatus"></p>
+        </form>
+
+        <form class="publish-form account-card reset-card" id="resetPasswordForm" hidden>
+          <div>
+            <p class="eyebrow">Secure reset</p>
+            <h2>Choose New Password</h2>
+          </div>
+          <label>
+            New password
+            <input name="password" type="password" autocomplete="new-password" minlength="10" required />
+          </label>
+          <button class="button button-primary" type="submit">Update Password</button>
+          <p class="form-note" id="resetPasswordStatus"></p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
