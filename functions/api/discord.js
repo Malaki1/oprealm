@@ -835,6 +835,10 @@ function toolForFlowStep(step) {
 }
 
 function buildFlowPrompt(result, nextTool) {
+  if (nextTool === "storyboard" && result.tool === "idea") {
+    return buildStoryboardPromptFromIdea(result);
+  }
+
   const source = [
     `Target next tool: ${nextTool}`,
     `Source result tool: ${result.tool || "unknown"}`,
@@ -860,6 +864,18 @@ function buildFlowPrompt(result, nextTool) {
     "",
     source,
   ].join("\n");
+}
+
+function buildStoryboardPromptFromIdea(result) {
+  return [
+    "Create a complete game storyboard from the saved OPRealm game idea below.",
+    "IMPORTANT: Do not create another game idea brief. Do not use these sections: Core Game Loop, Main Mechanics, Starter Assets Needed, AI Prompts To Try, Safe Multiplayer Rules, Easy Upgrade Ideas, or First 60-Minute Mission.",
+    "You must output a storyboard document with exactly these sections: Title, One-Sentence Pitch, Best OPRealm Course Fit, Age Fit, Story Premise, Main Character, Character Bible, World Setup, Player Goal, 8 Scene Storyboard, Character Continuity Checks, Playable Objectives, Choice Moments, Dialogue Starters, Asset List, Image Prompts, Safety Boundaries, First Build Steps.",
+    "Character consistency is paramount. Preserve any character details from the idea and expand them into a fixed Character Bible.",
+    "",
+    "Saved game idea to transform into a storyboard:",
+    result.content || result.prompt || "",
+  ].join("\n").slice(0, 8000);
 }
 
 async function generateOpenAIImage(env, prompt, tool = "image") {
@@ -1510,13 +1526,16 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
       label: "Share to showcase",
       custom_id: `oprealm_result:share:${resultId}`,
     },
-    {
+  );
+
+  if (tool !== "idea") {
+    buttons.push({
       type: 2,
       style: ButtonStyle.PRIMARY,
       label: "Create another variation",
       custom_id: `oprealm_result:retry:${resultId}`,
-    },
-  );
+    });
+  }
 
   rows.push(...chunkButtons(buttons));
 
