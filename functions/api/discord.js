@@ -740,7 +740,7 @@ async function generatePrivateElevenLabsAudio(interaction, env, prompt, tool) {
 
 async function handleResultComponent(interaction, env, waitUntil) {
   const customId = interaction.data?.custom_id || "";
-  const match = customId.match(/^oprealm_result:(dm|share|retry|save_character|submit_sfx|submit_music|flow_[a-z_]+):([a-zA-Z0-9-]+)$/);
+  const match = customId.match(/^oprealm_result:(dm|share|retry|save_idea|save_character|submit_sfx|submit_music|flow_[a-z_]+):([a-zA-Z0-9-]+)$/);
 
   if (!match) {
     return ephemeral("That OPRealm button is not supported yet.");
@@ -794,6 +794,17 @@ async function handleResultAction(interaction, env, action, resultId) {
 
       await shareResultToShowcase(interaction, env, result, channelId);
       await editOriginalInteraction(interaction, env, `Shared to <#${channelId}> for moderator-safe community viewing.`);
+      return;
+    }
+
+    if (action === "save_idea") {
+      if (result.tool !== "idea") {
+        await editOriginalInteraction(interaction, env, "Only OPRealm idea results can be saved as ideas.");
+        return;
+      }
+
+      await saveIdeaReference(interaction, env, result);
+      await editOriginalInteraction(interaction, env, "Idea saved. Future storyboard tools can use it as story reference.");
       return;
     }
 
@@ -1792,6 +1803,15 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
     });
   }
 
+  if (tool === "idea") {
+    buttons.push({
+      type: 2,
+      style: ButtonStyle.SECONDARY,
+      label: "Save Idea",
+      custom_id: `oprealm_result:save_idea:${resultId}`,
+    });
+  }
+
   if (canOfferSaveCharacterButton(tool)) {
     buttons.push({
       type: 2,
@@ -2280,6 +2300,46 @@ async function saveCharacterReference(interaction, env, result) {
   return id;
 }
 
+async function saveIdeaReference(interaction, env, result) {
+  if (!env.OPREALM_DB) {
+    throw new Error("OPRealm database is not connected");
+  }
+
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id || env.DISCORD_GUILD_ID || "unknown";
+  const id = crypto.randomUUID();
+  const title = titleFromPrompt(result.content || result.prompt || "Saved Idea", "Saved Idea");
+
+  await env.OPREALM_DB.prepare(
+    `
+      INSERT INTO saved_ideas (
+        id,
+        discord_user_id,
+        guild_id,
+        source_result_id,
+        title,
+        prompt,
+        content,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `,
+  )
+    .bind(
+      id,
+      discordUserId,
+      guildId,
+      result.id || null,
+      title.slice(0, 100),
+      (result.prompt || "").slice(0, 1500),
+      (result.content || "").slice(0, 9000),
+    )
+    .run();
+
+  return id;
+}
+
 function buildCharacterBibleFromResult(result) {
   const source = `${result.prompt || ""}\n\n${result.content || ""}`.replace(/\s+/g, " ").trim();
 
@@ -2366,6 +2426,27 @@ async function getLatestIdeaResult(interaction, env) {
 
   const discordUserId = interaction.member?.user?.id || interaction.user?.id;
   const guildId = interaction.guild_id || env.DISCORD_GUILD_ID || "unknown";
+
+  const savedIdea = await env.OPREALM_DB.prepare(
+    `
+      SELECT
+        id,
+        discord_user_id,
+        guild_id,
+        'idea' AS tool,
+        prompt,
+        content,
+        created_at
+      FROM saved_ideas
+      WHERE discord_user_id = ? AND guild_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  )
+    .bind(discordUserId, guildId)
+    .first();
+
+  if (savedIdea) return savedIdea;
 
   return env.OPREALM_DB.prepare(
     `
