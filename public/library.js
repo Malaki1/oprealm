@@ -8,18 +8,21 @@ const fallbackCreations = [
     title: "Pixel Moon Quest",
     type: "pixel_game",
     description: "A sample 2D platform adventure showing how OPREALM creations will appear after review.",
+    thumbnail_url: "/assets/project-pixel-quest-cover.png",
     media_url: "",
   },
   {
     title: "Dragon Realm Trailer Pack",
     type: "trailer",
     description: "A sample trailer concept with scenes, music direction and a safe showcase plan.",
+    thumbnail_url: "/assets/project-dragon-realm-cover.png",
     media_url: "",
   },
   {
     title: "Cosmic Coin Loop",
     type: "music",
     description: "A sample upbeat game music loop slot for future approved member creations.",
+    thumbnail_url: "/assets/project-space-shooter-cover.png",
     media_url: "",
   },
 ];
@@ -43,7 +46,15 @@ function renderLibrary() {
     ? filtered
         .map(
           (creation) => `
-            <article class="builder-card">
+            <article class="builder-card library-card">
+              <div class="library-cover">
+                ${
+                  creation.thumbnail_url
+                    ? `<img src="${creation.thumbnail_url}" alt="${creation.title} cover" loading="lazy" />`
+                    : `<div class="cover-placeholder" aria-hidden="true">${typeLabel(creation.type).slice(0, 2).toUpperCase()}</div>`
+                }
+              </div>
+              <div class="library-card-body">
               <p class="eyebrow">${typeLabel(creation.type)}</p>
               <h3>${creation.title}</h3>
               <p>${creation.description}</p>
@@ -52,6 +63,7 @@ function renderLibrary() {
                   ? `<a class="button button-secondary" href="${creation.media_url}" target="_blank" rel="noopener">Open Creation</a>`
                   : ""
               }
+              </div>
             </article>
           `,
         )
