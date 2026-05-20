@@ -1271,10 +1271,10 @@ function textToolSpecificInstruction(tool) {
   const normalizedTool = tool === "storyboard_from_idea" ? "storyboard" : tool;
   const instructions = {
     idea: [
-      "Create one original, comprehensive beginner-friendly game design brief.",
-      "Minimum length: 700 words.",
+      "Create one original beginner-friendly game idea brief.",
+      "Keep it focused enough to finish quickly inside Discord.",
+      "Target length: 350-500 words.",
       "Use Markdown formatting.",
-      "Do not stop after the first few sections.",
       "Use every section below, in this exact order, with bold section labels and no commas after labels:",
       "**Title**",
       "**One-Sentence Pitch**",
@@ -1283,14 +1283,11 @@ function textToolSpecificInstruction(tool) {
       "**Core Game Loop**",
       "**Main Mechanics**",
       "**First Build Steps**",
-      "**Starter Assets Needed**",
-      "**AI Prompts To Try**",
       "**Safe Multiplayer Rules**",
-      "**Easy Upgrade Ideas**",
-      "**First 60-Minute Mission**",
-      "Every section must contain useful detail. Core Game Loop, Main Mechanics, First Build Steps, AI Prompts To Try, and First 60-Minute Mission must each include at least 4 bullets.",
+      "**Next Step**",
+      "Core Game Loop, Main Mechanics, and First Build Steps must each include 3 bullets.",
       "For Best OPRealm Course Fit, choose exactly one from: Roblox Creator, Minecraft Modding, Web Game Dev, 2D Game Builder, AI Story Games, or Game Safety.",
-      "Make it practical enough that a child could start building immediately.",
+      "Make it practical enough that a child can click Create Storyboard next.",
     ].join(" "),
     sound: "Create a sound effect design brief, not an audio file. Include: Sound Name, When It Plays, 3-Layer Sound Recipe, Safe Generation Prompt, and In-Game Use Tip.",
     music: "Create a loopable background music design brief, not an audio file. Include: Track Name, Mood, Tempo, Instruments, Loop Structure, Safe Generation Prompt, and In-Game Use Tip.",
@@ -1352,7 +1349,7 @@ function buildTextToolInput(prompt, tool) {
 }
 
 function maxOutputTokensForTextTool(tool) {
-  if (tool === "idea") return 2600;
+  if (tool === "idea") return 1200;
   if (tool === "storyboard" || tool === "storyboard_from_idea") return 2600;
   if (tool === "trailer_pro") return 2200;
   if (tool === "trailer") return 1300;
