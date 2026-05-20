@@ -1162,7 +1162,7 @@ async function repairTextResultIfNeeded(env, result, originalPrompt, tool) {
     "**Character Bible**",
     "**World Setup**",
     "**Player Goal**",
-    "**8 Scene Storyboard**",
+    "**6 Scene Storyboard**",
     "**Character Continuity Checks**",
     "**Playable Objectives**",
     "**Choice Moments**",
@@ -1173,7 +1173,7 @@ async function repairTextResultIfNeeded(env, result, originalPrompt, tool) {
     "**First Build Steps**",
     "",
     "Do not include these idea-brief sections: Core Game Loop, Main Mechanics, Starter Assets Needed, AI Prompts To Try, Safe Multiplayer Rules, Easy Upgrade Ideas, First 60-Minute Mission.",
-    "The 8 Scene Storyboard must include exactly 8 numbered scenes. Each scene must include Scene Goal, Character Continuity, What the Player Sees, Player Action, Game Mechanic, and Build Tip.",
+    "The 6 Scene Storyboard must include exactly 6 numbered scenes. Each scene must include Scene Goal, Character Continuity, Player Action, and Build Tip.",
     "Character consistency is paramount.",
     "",
     "Original source material:",
@@ -1200,7 +1200,7 @@ function isValidStoryboardContent(content = "") {
   const text = content.toLowerCase();
   const required = [
     "character bible",
-    "8 scene storyboard",
+    "6 scene storyboard",
     "character continuity checks",
     "dialogue starters",
     "image prompts",
@@ -1272,9 +1272,9 @@ function textToolSpecificInstruction(tool) {
     trailer: "Create a game trailer storyboard, not a video file. Include: Trailer Hook, 5 Shot Plan, On-Screen Text, Music/SFX Direction, Safe Video Prompt, and Next Step.",
     trailer_pro: "Create a premium game trailer planning pack, not a video file. Include: Trailer Strategy, 8 Shot Storyboard, Voiceover Script, On-Screen Text, Music/SFX Direction, Asset Checklist, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
     storyboard: [
-      "Create a complete game storyboard for a beginner OPRealm project.",
+      "Create a compact game storyboard for a beginner OPRealm project.",
       "Do not create another game idea brief. Do not use the game idea brief section list.",
-      "Minimum length: 850 words.",
+      "Target length: 450-650 words so it finishes quickly inside Discord.",
       "Use Markdown formatting.",
       "Use every section below, in this exact order, with bold section labels and no commas after labels:",
       "**Title**",
@@ -1286,21 +1286,19 @@ function textToolSpecificInstruction(tool) {
       "**Character Bible**",
       "**World Setup**",
       "**Player Goal**",
-      "**8 Scene Storyboard**",
+      "**6 Scene Storyboard**",
       "**Character Continuity Checks**",
       "**Playable Objectives**",
-      "**Choice Moments**",
-      "**Dialogue Starters**",
       "**Asset List**",
       "**Image Prompts**",
       "**Safety Boundaries**",
       "**First Build Steps**",
       "Character consistency is paramount. The main character must keep the same name, species or role, silhouette, outfit, color palette, signature item, personality traits, and ability limits across every scene.",
-      "The Character Bible must include: fixed character name, age range or creature type, silhouette, outfit, color palette, face or expression notes, signature prop, core personality, special ability, ability limits, and things that must never change.",
-      "The 8 Scene Storyboard must have exactly 8 numbered scenes. Each scene must include: Scene Goal, Character Continuity, What the Player Sees, Player Action, Game Mechanic, and Build Tip.",
-      "Character Continuity Checks must list 8 short checks, one per scene, confirming what stays visually and behaviorally consistent.",
-      "Playable Objectives must include at least 5 objectives that can be built by a beginner.",
-      "Image Prompts must include 4 safe prompts: game cover, main character, key location, and collectible or item. The main character and game cover prompts must repeat the exact Character Bible details so image tools can preserve consistency.",
+      "The Character Bible must include: fixed character name, species or role, silhouette, outfit, color palette, signature prop, personality, ability, and things that must never change.",
+      "The 6 Scene Storyboard must have exactly 6 numbered scenes. Each scene must include: Scene Goal, Character Continuity, Player Action, and Build Tip.",
+      "Character Continuity Checks must list 6 short checks, one per scene.",
+      "Playable Objectives must include 4 objectives that can be built by a beginner.",
+      "Image Prompts must include 3 safe prompts: game cover, main character, and key location. The main character and game cover prompts must repeat the exact Character Bible details.",
       "Best OPRealm Course Fit must choose exactly one from: Roblox Creator, Minecraft Modding, Web Game Dev, 2D Game Builder, AI Story Games, or Game Safety.",
       "Do not include romance, dating, gore, horror realism, real people, copyrighted characters, private messages, usernames, school names, phone numbers, or off-platform contact.",
       "Make the storyboard feel exciting but buildable in a first prototype.",
@@ -1324,7 +1322,7 @@ function buildTextToolInput(prompt, tool) {
 
 function maxOutputTokensForTextTool(tool) {
   if (tool === "idea") return 1200;
-  if (tool === "storyboard") return 2600;
+  if (tool === "storyboard") return 1500;
   if (tool === "trailer_pro") return 2200;
   if (tool === "trailer") return 1300;
   if (tool === "music") return 900;
