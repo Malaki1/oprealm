@@ -514,7 +514,7 @@ h1 span {
   .button-primary[href="/ai-coach.html"]::after,
   .final-cta .button-primary::after,
   .circuit-electron,
-  .circuit-track::after {
+  .circuit-path-energy {
     animation: none;
     opacity: 1;
     transform: none;
@@ -800,100 +800,69 @@ h1 span {
 }
 
 .circuit-scroll-rail {
-  --electron-y: 0%;
+  --circuit-dash: 1200;
+  --circuit-offset: 1200;
   position: fixed;
-  top: 112px;
-  right: clamp(14px, 2.4vw, 36px);
+  top: 104px;
+  right: clamp(8px, 1.6vw, 24px);
   z-index: 24;
-  width: 82px;
-  height: min(68vh, 640px);
+  width: clamp(74px, 7vw, 126px);
+  height: min(74vh, 720px);
   pointer-events: none;
   opacity: 0.9;
   transform: translateZ(0);
 }
 
-.circuit-track {
+.circuit-map {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  border-radius: 999px;
-  background:
-    linear-gradient(180deg, transparent 0%, rgba(24, 217, 255, 0.3) 12%, rgba(139, 67, 255, 0.36) 50%, rgba(24, 217, 255, 0.28) 88%, transparent 100%);
-  box-shadow:
-    0 0 16px rgba(24, 217, 255, 0.22),
-    0 0 32px rgba(139, 67, 255, 0.16);
+  inset: 0;
+  overflow: visible;
 }
 
-.circuit-track::after {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 0;
-  width: 1px;
-  height: calc(var(--electron-y) + 10px);
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(24, 217, 255, 0.05), rgba(168, 239, 255, 0.82));
-  box-shadow: 0 0 20px rgba(24, 217, 255, 0.38);
+.circuit-path,
+.circuit-branch-line {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.circuit-branch {
-  position: absolute;
-  left: calc(50% - 1px);
-  width: 34px;
-  height: 2px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(168, 239, 255, 0.7), rgba(139, 67, 255, 0.05));
-  box-shadow: 0 0 14px rgba(24, 217, 255, 0.2);
+.circuit-path-base {
+  stroke: rgba(24, 217, 255, 0.24);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px rgba(24, 217, 255, 0.18));
 }
 
-.branch-top {
-  top: 18%;
+.circuit-path-energy {
+  stroke: rgba(168, 239, 255, 0.78);
+  stroke-width: 2.5;
+  stroke-dasharray: var(--circuit-dash);
+  stroke-dashoffset: var(--circuit-offset);
+  filter:
+    drop-shadow(0 0 9px rgba(24, 217, 255, 0.55))
+    drop-shadow(0 0 18px rgba(139, 67, 255, 0.28));
+  transition: stroke-dashoffset 130ms linear;
 }
 
-.branch-mid {
-  top: 50%;
-  width: 42px;
-  transform: translateX(-40px);
-  background: linear-gradient(270deg, rgba(168, 239, 255, 0.7), rgba(139, 67, 255, 0.05));
-}
-
-.branch-bottom {
-  top: 78%;
+.circuit-branch-line {
+  stroke: rgba(139, 67, 255, 0.34);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 8px rgba(139, 67, 255, 0.22));
 }
 
 .circuit-node {
-  position: absolute;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  border: 1px solid rgba(168, 239, 255, 0.72);
-  border-radius: 50%;
-  background: #071337;
-  box-shadow:
-    0 0 12px rgba(24, 217, 255, 0.42),
-    inset 0 0 8px rgba(24, 217, 255, 0.28);
-  transform: translate(-50%, -50%);
-}
-
-.node-top {
-  top: 18%;
-}
-
-.node-mid {
-  top: 50%;
-}
-
-.node-bottom {
-  top: 78%;
+  fill: #071337;
+  stroke: rgba(168, 239, 255, 0.78);
+  stroke-width: 1.5;
+  filter:
+    drop-shadow(0 0 8px rgba(24, 217, 255, 0.5))
+    drop-shadow(0 0 14px rgba(139, 67, 255, 0.22));
 }
 
 .circuit-electron {
   position: absolute;
-  left: 50%;
-  top: var(--electron-y);
+  left: 80%;
+  top: 0%;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -904,7 +873,9 @@ h1 span {
     0 0 34px rgba(139, 67, 255, 0.62),
     0 0 56px rgba(24, 217, 255, 0.3);
   transform: translate(-50%, -50%);
-  transition: top 130ms linear;
+  transition:
+    left 130ms linear,
+    top 130ms linear;
 }
 
 .circuit-electron::before {
@@ -913,11 +884,11 @@ h1 span {
   left: 50%;
   bottom: 12px;
   width: 2px;
-  height: 54px;
+  height: 48px;
   border-radius: 999px;
   background: linear-gradient(0deg, rgba(24, 217, 255, 0.54), transparent);
   filter: blur(0.5px);
-  transform: translateX(-50%);
+  transform: translateX(-50%) rotate(-14deg);
 }
 
 .circuit-electron::after {
@@ -941,6 +912,7 @@ h1 span {
   top: 12px;
   bottom: auto;
   background: linear-gradient(180deg, rgba(24, 217, 255, 0.54), transparent);
+  transform: translateX(-50%) rotate(14deg);
 }
 
 @keyframes electronPulse {

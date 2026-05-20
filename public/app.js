@@ -11,13 +11,15 @@ function createCircuitRail() {
   rail.className = "circuit-scroll-rail";
   rail.setAttribute("aria-hidden", "true");
   rail.innerHTML = `
-    <span class="circuit-track"></span>
-    <span class="circuit-branch branch-top"></span>
-    <span class="circuit-branch branch-mid"></span>
-    <span class="circuit-branch branch-bottom"></span>
-    <span class="circuit-node node-top"></span>
-    <span class="circuit-node node-mid"></span>
-    <span class="circuit-node node-bottom"></span>
+    <svg class="circuit-map" viewBox="0 0 120 720" preserveAspectRatio="none" focusable="false">
+      <path class="circuit-path circuit-path-base" d="M96 0 V86 C96 124 36 120 36 164 V226 C36 268 96 252 96 310 V386 C96 436 28 424 28 478 V548 C28 604 96 590 96 650 V720" />
+      <path class="circuit-path circuit-path-energy" d="M96 0 V86 C96 124 36 120 36 164 V226 C36 268 96 252 96 310 V386 C96 436 28 424 28 478 V548 C28 604 96 590 96 650 V720" />
+      <path class="circuit-branch-line" d="M36 180 H14 M96 330 H116 M28 502 H8 M96 632 H116" />
+      <circle class="circuit-node node-a" cx="36" cy="180" r="5" />
+      <circle class="circuit-node node-b" cx="96" cy="330" r="5" />
+      <circle class="circuit-node node-c" cx="28" cy="502" r="5" />
+      <circle class="circuit-node node-d" cx="96" cy="632" r="5" />
+    </svg>
     <span class="circuit-electron"><span></span></span>
   `;
   document.body.appendChild(rail);
@@ -67,8 +69,19 @@ function updateCircuitRail() {
   const scrollable = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
   const progress = clamp(window.scrollY / scrollable, 0, 1);
   const eased = 1 - Math.pow(1 - progress, 1.35);
+  const path = circuitRail.querySelector(".circuit-path-base");
+  const electron = circuitRail.querySelector(".circuit-electron");
 
-  circuitRail.style.setProperty("--electron-y", `${eased * 100}%`);
+  if (path && electron) {
+    const length = path.getTotalLength();
+    const point = path.getPointAtLength(length * eased);
+
+    electron.style.left = `${point.x / 120 * 100}%`;
+    electron.style.top = `${point.y / 720 * 100}%`;
+    circuitRail.style.setProperty("--circuit-dash", `${length}`);
+    circuitRail.style.setProperty("--circuit-offset", `${length * (1 - eased)}`);
+  }
+
   circuitRail.style.setProperty("--circuit-progress", progress.toFixed(4));
   circuitRail.classList.toggle("scrolling-up", scrollDirection < 0);
 }
