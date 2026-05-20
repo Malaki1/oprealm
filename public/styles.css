@@ -512,11 +512,16 @@ h1 span {
   .final-cta .button-primary,
   .button-primary[href="#enrol"]::after,
   .button-primary[href="/ai-coach.html"]::after,
-  .final-cta .button-primary::after {
+  .final-cta .button-primary::after,
+  .glass-edge-glint {
     animation: none;
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .glass-edge-glint {
+    display: none;
   }
 }
 
@@ -791,6 +796,70 @@ h1 span {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.glass-glint-ready {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.glass-edge-glint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: block;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(118deg, transparent 0 32%, rgba(255, 255, 255, 0.06) 39%, rgba(168, 239, 255, 0.95) 47%, rgba(240, 141, 255, 0.78) 53%, rgba(255, 255, 255, 0.08) 61%, transparent 70%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(24, 217, 255, 0.04));
+  background-size: 240% 240%, 100% 100%;
+  transform: translate3d(-38%, -28%, 0);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter:
+    drop-shadow(0 0 10px rgba(24, 217, 255, 0.4))
+    drop-shadow(0 0 18px rgba(139, 67, 255, 0.22));
+}
+
+.is-glinting > .glass-edge-glint,
+.is-visible .is-glinting > .glass-edge-glint {
+  animation: glassEdgeGlint 1.65s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+
+.glint-complete > .glass-edge-glint {
+  opacity: 0;
+}
+
+@keyframes glassEdgeGlint {
+  0% {
+    opacity: 0;
+    background-position: 0% 0%, 0 0;
+    transform: translate3d(-42%, -30%, 0);
+  }
+
+  18% {
+    opacity: 0.95;
+  }
+
+  72% {
+    opacity: 0.8;
+  }
+
+  100% {
+    opacity: 0;
+    background-position: 100% 100%, 0 0;
+    transform: translate3d(42%, 30%, 0);
+  }
 }
 
 .path-card {
@@ -2203,6 +2272,10 @@ h1 span {
 
   .module-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .glass-edge-glint {
+    background-size: 210% 210%, 100% 100%;
   }
 
   .safety-band,
