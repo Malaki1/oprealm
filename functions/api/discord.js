@@ -39,6 +39,7 @@ const CREDIT_COSTS = {
   trailer: 10,
   trailer_pro: 25,
   storyboard: 12,
+  storyboard_from_idea: 12,
   voice: 3,
 };
 
@@ -58,6 +59,7 @@ const ESTIMATED_OPENAI_COSTS_USD = {
   trailer: 0.005,
   trailer_pro: 0.02,
   storyboard: 0.01,
+  storyboard_from_idea: 0.01,
   voice: 0.01,
 };
 
@@ -362,6 +364,7 @@ async function handleTextAiTool(interaction, env, waitUntil, tool) {
 
 async function generatePrivateTextResult(interaction, env, prompt, tool) {
   const label = textToolLabel(tool);
+  const savedTool = tool === "storyboard_from_idea" ? "storyboard" : tool;
 
   try {
     await editOriginalInteraction(interaction, env, [
@@ -385,7 +388,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
 
     const recommendedCourse = tool === "idea" || tool === "storyboard" || tool === "storyboard_from_idea" ? recommendedCourseForIdea(result.content, prompt) : null;
     const resultId = await saveAiResult(interaction, env, {
-      tool,
+      tool: savedTool,
       prompt,
       content: result.content,
     });
@@ -405,7 +408,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
       ].join("\n"),
       fullBriefBytes,
       `oprealm-${textToolAttachmentSlug(tool)}.txt`,
-      resultActionComponents(resultId, recommendedCourse, tool),
+      resultActionComponents(resultId, recommendedCourse, savedTool),
       "text/plain",
     );
   } catch (error) {
