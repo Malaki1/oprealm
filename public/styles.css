@@ -325,12 +325,13 @@ h1 {
   max-width: 710px;
   margin-bottom: 22px;
   font-size: clamp(43px, 5vw, 76px);
-  line-height: 0.98;
+  line-height: 1.04;
   font-weight: 800;
 }
 
 h1 span {
   display: block;
+  padding-bottom: 0.08em;
   color: transparent;
   background: linear-gradient(100deg, #a8efff 0%, #67dcff 32%, #a76bff 74%, #f08dff 100%);
   background-clip: text;
