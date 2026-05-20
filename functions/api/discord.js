@@ -57,7 +57,7 @@ const ESTIMATED_OPENAI_COSTS_USD = {
   music: 0.08,
   trailer: 0.005,
   trailer_pro: 0.02,
-  storyboard: 0.011,
+  storyboard: 0.015,
   voice: 0.01,
 };
 
@@ -937,7 +937,7 @@ async function generateOpenAIImage(env, prompt, tool = "image") {
       body: JSON.stringify({
         model: spec.model,
         prompt: promptText,
-        size: "1024x1024",
+        size: imageSizeForTool(tool),
         quality: spec.quality,
         n: 1,
         output_format: "png",
@@ -1384,13 +1384,18 @@ function imageQualityForTool(tool) {
   return "low";
 }
 
+function imageSizeForTool(tool) {
+  if (tool === "storyboard") return "1536x1024";
+  return "1024x1024";
+}
+
 function imageGenerationSpecsForTool(tool) {
   if (tool === "image_pro" || tool === "game_cover" || tool === "storyboard") {
     return [
       {
         model: "gpt-image-1-mini",
         quality: tool === "storyboard" ? "medium" : "low",
-        estimatedCostUsd: tool === "storyboard" ? 0.011 : ESTIMATED_OPENAI_COSTS_USD[tool],
+        estimatedCostUsd: tool === "storyboard" ? ESTIMATED_OPENAI_COSTS_USD.storyboard : ESTIMATED_OPENAI_COSTS_USD[tool],
         allowFallback: tool === "storyboard",
         fallback: false,
       },
@@ -1449,7 +1454,11 @@ function buildSafeImagePrompt(prompt, tool = "image") {
   if (tool === "storyboard") {
     return [
       "Create a kid-friendly visual storyboard sheet for OPRealm.",
-      "Use a strict 2x3 grid with exactly 6 panels. The image must clearly read as one storyboard sheet.",
+      "Use a wide landscape storyboard layout, not a square composition.",
+      "Create exactly 6 equal square panels arranged evenly across the landscape canvas.",
+      "Preferred layout: 3 panels across the top row and 3 panels across the bottom row, with consistent gutters and margins.",
+      "Each individual panel must be square and evenly sized. Do not stretch panels, crop them unevenly, or merge panels together.",
+      "The image must clearly read as one polished storyboard sheet.",
       "Each panel must show a different moment from the same game story: beginning, discovery, challenge, helping action, magical or creative solution, cheerful ending.",
       "Character consistency is paramount. Keep the same main character in every panel with the same silhouette, outfit, color palette, face style, signature prop, and personality.",
       "Do not change the character species, clothing, colors, age, body shape, or signature item between panels.",
