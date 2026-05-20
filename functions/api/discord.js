@@ -49,7 +49,7 @@ const TEXT_MODEL_OUTPUT_COST_PER_1M = 2;
 
 const ESTIMATED_OPENAI_COSTS_USD = {
   idea: 0.001,
-  image: 0.005,
+  image: 0.011,
   image_pro: 0.005,
   game_cover: 0.005,
   sprite: 0.005,
@@ -1437,10 +1437,17 @@ function imageGenerationSpecsForTool(tool) {
   return [
     {
       model: "gpt-image-1-mini",
-      quality: "low",
+      quality: "medium",
       estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.image,
-      allowFallback: false,
+      allowFallback: true,
       fallback: false,
+    },
+    {
+      model: "gpt-image-1-mini",
+      quality: "low",
+      estimatedCostUsd: 0.005,
+      allowFallback: false,
+      fallback: true,
     },
   ];
 }
