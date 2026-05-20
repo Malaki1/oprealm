@@ -2538,6 +2538,10 @@ h1 span {
     display: none;
   }
 
+  .creator-particles {
+    display: none;
+  }
+
   .curriculum-track {
     gap: 18px;
   }
