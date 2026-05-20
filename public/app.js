@@ -31,7 +31,7 @@ atmosphereSections.forEach((section, sectionIndex) => {
     particle.style.setProperty("--particle-x", `${8 + ((markIndex * 19 + sectionIndex * 11) % 84)}%`);
     particle.style.setProperty("--particle-y", `${10 + ((markIndex * 23 + sectionIndex * 17) % 76)}%`);
     particle.style.setProperty("--particle-delay", `${-1 * ((markIndex + sectionIndex) % 6)}s`);
-    particle.style.setProperty("--particle-drift", `${18 + ((markIndex + sectionIndex) % 5) * 5}px`);
+    particle.style.setProperty("--particle-drift", `${34 + ((markIndex + sectionIndex) % 5) * 9}px`);
     layer.appendChild(particle);
   });
 
