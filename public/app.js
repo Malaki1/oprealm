@@ -5,7 +5,16 @@ const animatedItems = document.querySelectorAll(
 const atmosphereSections = document.querySelectorAll(
   ".path-section, .curriculum-section, .coach-section, .dashboard-section, .pricing-section, .faq-section"
 );
-const creatorMarks = ["AI", "LUA", "{ }", "RGB", "SFX", "PNG", "</>", "3D"];
+const creatorStickers = [
+  '<svg viewBox="0 0 48 48"><path d="M25 7c7 3 11 10 11 19l-7 7h-8l-7-7c0-9 4-16 11-19z"/><path d="M19 33l-4 7 7-4M31 33l4 7-7-4"/><circle cx="25" cy="20" r="4"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M30 6l12 12-24 24H6v-12L30 6z"/><path d="M25 11l12 12M11 31l6 6"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M24 5l16 12-6 22H14L8 17 24 5z"/><path d="M8 17h32M17 17l7 22 7-22"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M18 8h12v10l8 14c2 4-1 8-5 8H15c-4 0-7-4-5-8l8-14V8z"/><path d="M17 29h14"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M14 18h20c5 0 8 4 8 9s-3 9-8 9H14c-5 0-8-4-8-9s3-9 8-9z"/><path d="M16 24v8M12 28h8M31 26h.1M36 31h.1"/></svg>',
+  '<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="15"/><path d="M24 13v22M17 18c3-3 11-3 14 0M17 30c3 3 11 3 14 0"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M12 8l24 16-11 3-5 11-8-30z"/><path d="M25 27l9 9"/></svg>',
+  '<svg viewBox="0 0 48 48"><path d="M14 34l20-20"/><path d="M30 10l8-4-4 8 4 8-8-4-8 4 4-8-4-8 8 4z"/><path d="M10 38l-2 6M16 40l3 5M7 32l-5 2"/></svg>'
+];
 
 atmosphereSections.forEach((section, sectionIndex) => {
   section.classList.add("creator-atmosphere");
@@ -16,9 +25,9 @@ atmosphereSections.forEach((section, sectionIndex) => {
   layer.className = "creator-particles";
   layer.setAttribute("aria-hidden", "true");
 
-  creatorMarks.forEach((mark, markIndex) => {
+  creatorStickers.forEach((sticker, markIndex) => {
     const particle = document.createElement("span");
-    particle.textContent = mark;
+    particle.innerHTML = sticker;
     particle.style.setProperty("--particle-x", `${8 + ((markIndex * 19 + sectionIndex * 11) % 84)}%`);
     particle.style.setProperty("--particle-y", `${10 + ((markIndex * 23 + sectionIndex * 17) % 76)}%`);
     particle.style.setProperty("--particle-delay", `${-1 * ((markIndex + sectionIndex) % 6)}s`);
