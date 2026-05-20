@@ -39,7 +39,6 @@ const CREDIT_COSTS = {
   trailer: 10,
   trailer_pro: 25,
   storyboard: 12,
-  storyboard_from_idea: 12,
   voice: 3,
 };
 
@@ -59,7 +58,6 @@ const ESTIMATED_OPENAI_COSTS_USD = {
   trailer: 0.005,
   trailer_pro: 0.02,
   storyboard: 0.01,
-  storyboard_from_idea: 0.01,
   voice: 0.01,
 };
 
@@ -364,7 +362,6 @@ async function handleTextAiTool(interaction, env, waitUntil, tool) {
 
 async function generatePrivateTextResult(interaction, env, prompt, tool) {
   const label = textToolLabel(tool);
-  const savedTool = tool === "storyboard_from_idea" ? "storyboard" : tool;
 
   try {
     await editOriginalInteraction(interaction, env, [
@@ -388,9 +385,9 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
       },
     });
 
-    const recommendedCourse = tool === "idea" || tool === "storyboard" || tool === "storyboard_from_idea" ? recommendedCourseForIdea(finalResult.content, prompt) : null;
+    const recommendedCourse = tool === "idea" || tool === "storyboard" ? recommendedCourseForIdea(finalResult.content, prompt) : null;
     const resultId = await saveAiResult(interaction, env, {
-      tool: savedTool,
+      tool,
       prompt,
       content: finalResult.content,
     });
@@ -410,7 +407,7 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
       ].join("\n"),
       fullBriefBytes,
       `oprealm-${textToolAttachmentSlug(tool)}.txt`,
-      resultActionComponents(resultId, recommendedCourse, savedTool),
+      resultActionComponents(resultId, recommendedCourse, tool),
       "text/plain",
     );
   } catch (error) {
@@ -826,7 +823,6 @@ async function createNextStepFromResult(interaction, env, result, nextStep) {
 
 function toolForFlowStep(step) {
   const tools = {
-    storyboard: "storyboard_from_idea",
     game_cover: "game_cover",
     sprite: "sprite",
     trailer: "trailer",
@@ -840,10 +836,6 @@ function toolForFlowStep(step) {
 }
 
 function buildFlowPrompt(result, nextTool) {
-  if (nextTool === "storyboard_from_idea" && result.tool === "idea") {
-    return buildStoryboardPromptFromIdea(result);
-  }
-
   if (nextTool === "game_cover" || nextTool === "sprite" || nextTool === "image_pro" || nextTool === "image") {
     return buildCompactImageFlowPrompt(result, nextTool);
   }
@@ -858,7 +850,6 @@ function buildFlowPrompt(result, nextTool) {
   ].join("\n").slice(0, 8000);
 
   const instructions = {
-    storyboard_from_idea: "Turn this saved OPRealm game idea into a complete game storyboard. Do not regenerate or reformat the idea brief. Preserve the core concept, tone, target course, and any named characters. Treat character consistency as paramount. Output the storyboard sections exactly.",
     storyboard: "Turn this saved OPRealm project into a complete game storyboard. Preserve the core concept, tone, target course, and any named characters. Treat character consistency as paramount.",
     game_cover: "Create one polished, kid-friendly game cover image based on this saved storyboard or idea. Preserve the main character's exact Character Bible details if present. No readable title text.",
     sprite: "Create a clean 2x2 sprite sheet for the main character or most important playable object from this saved storyboard or idea. Preserve character consistency from the Character Bible if present.",
@@ -921,18 +912,6 @@ function extractSection(content, sectionName, stopSectionNames = []) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function buildStoryboardPromptFromIdea(result) {
-  return [
-    "Create a complete game storyboard from the saved OPRealm game idea below.",
-    "IMPORTANT: Do not create another game idea brief. Do not use these sections: Core Game Loop, Main Mechanics, Starter Assets Needed, AI Prompts To Try, Safe Multiplayer Rules, Easy Upgrade Ideas, or First 60-Minute Mission.",
-    "You must output a storyboard document with exactly these sections: Title, One-Sentence Pitch, Best OPRealm Course Fit, Age Fit, Story Premise, Main Character, Character Bible, World Setup, Player Goal, 8 Scene Storyboard, Character Continuity Checks, Playable Objectives, Choice Moments, Dialogue Starters, Asset List, Image Prompts, Safety Boundaries, First Build Steps.",
-    "Character consistency is paramount. Preserve any character details from the idea and expand them into a fixed Character Bible.",
-    "",
-    "Saved game idea to transform into a storyboard:",
-    result.content || result.prompt || "",
-  ].join("\n").slice(0, 8000);
 }
 
 async function generateOpenAIImage(env, prompt, tool = "image") {
@@ -1214,7 +1193,7 @@ async function repairTextResultIfNeeded(env, result, originalPrompt, tool) {
 }
 
 function isStoryboardTool(tool) {
-  return tool === "storyboard" || tool === "storyboard_from_idea";
+  return tool === "storyboard";
 }
 
 function isValidStoryboardContent(content = "") {
@@ -1268,7 +1247,6 @@ function buildTextToolInstructions(tool) {
 }
 
 function textToolSpecificInstruction(tool) {
-  const normalizedTool = tool === "storyboard_from_idea" ? "storyboard" : tool;
   const instructions = {
     idea: [
       "Create one original beginner-friendly game idea brief.",
@@ -1287,7 +1265,7 @@ function textToolSpecificInstruction(tool) {
       "**Next Step**",
       "Core Game Loop, Main Mechanics, and First Build Steps must each include 3 bullets.",
       "For Best OPRealm Course Fit, choose exactly one from: Roblox Creator, Minecraft Modding, Web Game Dev, 2D Game Builder, AI Story Games, or Game Safety.",
-      "Make it practical enough that a child can click Create Storyboard next.",
+      "Make it practical enough that a child can keep building from the idea.",
     ].join(" "),
     sound: "Create a sound effect design brief, not an audio file. Include: Sound Name, When It Plays, 3-Layer Sound Recipe, Safe Generation Prompt, and In-Game Use Tip.",
     music: "Create a loopable background music design brief, not an audio file. Include: Track Name, Mood, Tempo, Instruments, Loop Structure, Safe Generation Prompt, and In-Game Use Tip.",
@@ -1329,20 +1307,16 @@ function textToolSpecificInstruction(tool) {
     ].join(" "),
   };
 
-  return instructions[normalizedTool] || instructions.idea;
+  return instructions[tool] || instructions.idea;
 }
 
 function buildTextToolInput(prompt, tool) {
-  const normalizedTool = tool === "storyboard_from_idea" ? "storyboard" : tool;
   return [
-    `Target tool: ${normalizedTool}`,
-    tool === "storyboard_from_idea"
-      ? "Transform mode: convert a saved OPRealm idea brief into a storyboard. Ignore the source brief's format completely."
-      : null,
-    normalizedTool === "storyboard"
+    `Target tool: ${tool}`,
+    tool === "storyboard"
       ? "Output must be a storyboard document, not another game idea brief. Use the Storyboard sections from the system instructions exactly."
       : null,
-    `Student request: ${prompt.slice(0, tool === "storyboard_from_idea" ? 3000 : 900)}`,
+    `Student request: ${prompt.slice(0, 900)}`,
     "",
     "Make it creative but realistic for a young beginner building a game project.",
   ].filter(Boolean).join("\n");
@@ -1350,7 +1324,7 @@ function buildTextToolInput(prompt, tool) {
 
 function maxOutputTokensForTextTool(tool) {
   if (tool === "idea") return 1200;
-  if (tool === "storyboard" || tool === "storyboard_from_idea") return 2600;
+  if (tool === "storyboard") return 2600;
   if (tool === "trailer_pro") return 2200;
   if (tool === "trailer") return 1300;
   if (tool === "music") return 900;
@@ -1576,7 +1550,6 @@ function defaultPromptForTextTool(tool) {
     trailer: "a short trailer for a beginner game",
     trailer_pro: "a polished trailer plan for a finished beginner game",
     storyboard: "a beginner-friendly game story with scenes, characters, and quest beats",
-    storyboard_from_idea: "a beginner-friendly game story with scenes, characters, and quest beats",
   };
 
   return prompts[tool] || prompts.idea;
@@ -1604,7 +1577,6 @@ function textToolLabel(tool) {
     trailer: "trailer storyboard",
     trailer_pro: "premium trailer storyboard",
     storyboard: "game storyboard",
-    storyboard_from_idea: "game storyboard",
     voice: "voice narration",
   };
 
@@ -1619,7 +1591,6 @@ function textToolMode(tool) {
     trailer: "trailer_storyboard",
     trailer_pro: "premium_trailer_storyboard",
     storyboard: "game_storyboard",
-    storyboard_from_idea: "game_storyboard",
   };
 
   return modes[tool] || "text_result";
@@ -1631,7 +1602,6 @@ function textToolAttachmentSlug(tool) {
     trailer: "trailer-storyboard",
     trailer_pro: "premium-trailer-plan",
     storyboard: "game-storyboard",
-    storyboard_from_idea: "game-storyboard",
     sound: "sound-brief",
     music: "music-brief",
     voice: "voice-brief",
@@ -1722,9 +1692,6 @@ function chunkButtons(buttons) {
 
 function flowButtonsForTool(resultId, tool) {
   const flows = {
-    idea: [
-      ["Create Storyboard", "flow_storyboard", ButtonStyle.PRIMARY],
-    ],
     storyboard: [
       ["Create Game Cover", "flow_game_cover", ButtonStyle.PRIMARY],
       ["Create Sprite", "flow_sprite", ButtonStyle.SECONDARY],
@@ -2366,7 +2333,7 @@ function providerForTool(tool) {
 
 function modelForUsage(tool) {
   if (["idea", "sound", "music", "trailer"].includes(tool)) return TEXT_MODEL;
-  if (tool === "trailer_pro" || tool === "storyboard" || tool === "storyboard_from_idea") return TEXT_MODEL;
+  if (tool === "trailer_pro" || tool === "storyboard") return TEXT_MODEL;
   if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return imageModelForTool(tool);
   return null;
 }
