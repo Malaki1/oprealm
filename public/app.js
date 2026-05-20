@@ -5,6 +5,10 @@ const animatedItems = document.querySelectorAll(
 const glintItems = document.querySelectorAll(
   ".path-card, .module-grid article, .unlock-card, .safety-grid article, .chat-card, .project-grid article, .dashboard-card, .pricing-card, .membership-card"
 );
+const activeGlintItems = new Set();
+let lastScrollY = window.scrollY;
+let scrollDirection = 1;
+let glintFrame = 0;
 
 glintItems.forEach((item) => {
   item.classList.add("glass-glint-ready");
@@ -47,6 +51,37 @@ function animateCounter(element) {
   requestAnimationFrame(render);
 }
 
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function updateScrollGlints() {
+  glintFrame = 0;
+
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+  activeGlintItems.forEach((item) => {
+    const rect = item.getBoundingClientRect();
+    const progress = clamp((viewportHeight - rect.top) / (viewportHeight + rect.height), 0, 1);
+    const centerDistance = Math.abs(rect.top + rect.height / 2 - viewportHeight / 2);
+    const proximity = 1 - clamp(centerDistance / (viewportHeight * 0.62), 0, 1);
+    const opacity = clamp(0.18 + proximity * 0.82, 0, 1);
+    const diagonal = scrollDirection >= 0 ? progress : 1 - progress;
+    const cross = 1 - Math.abs(progress - 0.5) * 2;
+
+    item.style.setProperty("--glint-x", `${-44 + diagonal * 88}%`);
+    item.style.setProperty("--glint-y", `${-38 + progress * 76}%`);
+    item.style.setProperty("--glint-bg-x", `${diagonal * 100}%`);
+    item.style.setProperty("--glint-bg-y", `${progress * 100}%`);
+    item.style.setProperty("--glint-opacity", (opacity * (0.38 + cross * 0.62)).toFixed(3));
+  });
+}
+
+function requestGlintUpdate() {
+  if (glintFrame) return;
+  glintFrame = window.requestAnimationFrame(updateScrollGlints);
+}
+
 if (reduceMotion || !("IntersectionObserver" in window)) {
   animatedItems.forEach((item) => item.classList.add("is-visible"));
   glintItems.forEach((item) => item.classList.add("glint-complete"));
@@ -57,16 +92,20 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
   const glintObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-
-        entry.target.classList.add("is-glinting");
-        window.setTimeout(() => entry.target.classList.add("glint-complete"), 1800);
-        glintObserver.unobserve(entry.target);
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-glinting");
+          activeGlintItems.add(entry.target);
+        } else {
+          entry.target.classList.remove("is-glinting");
+          activeGlintItems.delete(entry.target);
+        }
       });
+
+      requestGlintUpdate();
     },
     {
-      threshold: 0.32,
-      rootMargin: "0px 0px -12% 0px"
+      threshold: 0,
+      rootMargin: "18% 0px 18% 0px"
     }
   );
 
@@ -89,4 +128,18 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
 
   animatedItems.forEach((item) => observer.observe(item));
   glintItems.forEach((item) => glintObserver.observe(item));
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      const currentScrollY = window.scrollY;
+      scrollDirection = currentScrollY >= lastScrollY ? 1 : -1;
+      lastScrollY = currentScrollY;
+      requestGlintUpdate();
+    },
+    { passive: true }
+  );
+
+  window.addEventListener("resize", requestGlintUpdate);
+  requestGlintUpdate();
 }

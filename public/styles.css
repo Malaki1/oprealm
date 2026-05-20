@@ -812,12 +812,14 @@ h1 span {
   padding: 1px;
   border-radius: inherit;
   pointer-events: none;
-  opacity: 0;
+  opacity: var(--glint-opacity, 0);
   background:
     linear-gradient(118deg, transparent 0 32%, rgba(255, 255, 255, 0.06) 39%, rgba(168, 239, 255, 0.95) 47%, rgba(240, 141, 255, 0.78) 53%, rgba(255, 255, 255, 0.08) 61%, transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(24, 217, 255, 0.04));
   background-size: 240% 240%, 100% 100%;
-  transform: translate3d(-38%, -28%, 0);
+  background-position: var(--glint-bg-x, 0%) var(--glint-bg-y, 0%), 0 0;
+  transform: translate3d(var(--glint-x, -44%), var(--glint-y, -38%), 0);
+  transition: opacity 140ms ease-out;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -831,35 +833,9 @@ h1 span {
     drop-shadow(0 0 18px rgba(139, 67, 255, 0.22));
 }
 
-.is-glinting > .glass-edge-glint,
-.is-visible .is-glinting > .glass-edge-glint {
-  animation: glassEdgeGlint 1.65s cubic-bezier(0.19, 1, 0.22, 1) both;
-}
-
+.glass-glint-ready:not(.is-glinting) > .glass-edge-glint,
 .glint-complete > .glass-edge-glint {
   opacity: 0;
-}
-
-@keyframes glassEdgeGlint {
-  0% {
-    opacity: 0;
-    background-position: 0% 0%, 0 0;
-    transform: translate3d(-42%, -30%, 0);
-  }
-
-  18% {
-    opacity: 0.95;
-  }
-
-  72% {
-    opacity: 0.8;
-  }
-
-  100% {
-    opacity: 0;
-    background-position: 100% 100%, 0 0;
-    transform: translate3d(42%, 30%, 0);
-  }
 }
 
 .path-card {
