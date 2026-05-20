@@ -513,14 +513,15 @@ h1 span {
   .button-primary[href="#enrol"]::after,
   .button-primary[href="/ai-coach.html"]::after,
   .final-cta .button-primary::after,
-  .glass-edge-glint {
+  .circuit-electron,
+  .circuit-track::after {
     animation: none;
     opacity: 1;
     transform: none;
     transition: none;
   }
 
-  .glass-edge-glint {
+  .circuit-scroll-rail {
     display: none;
   }
 }
@@ -798,44 +799,161 @@ h1 span {
   line-height: 1.6;
 }
 
-.glass-glint-ready {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.glass-edge-glint {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: block;
-  padding: 1px;
-  border-radius: inherit;
+.circuit-scroll-rail {
+  --electron-y: 0%;
+  position: fixed;
+  top: 112px;
+  right: clamp(14px, 2.4vw, 36px);
+  z-index: 24;
+  width: 82px;
+  height: min(68vh, 640px);
   pointer-events: none;
-  opacity: var(--glint-opacity, 0);
-  background:
-    linear-gradient(118deg, transparent 0 32%, rgba(255, 255, 255, 0.06) 39%, rgba(168, 239, 255, 0.95) 47%, rgba(240, 141, 255, 0.78) 53%, rgba(255, 255, 255, 0.08) 61%, transparent 70%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(24, 217, 255, 0.04));
-  background-size: 240% 240%, 100% 100%;
-  background-position: var(--glint-bg-x, 0%) var(--glint-bg-y, 0%), 0 0;
-  transform: translate3d(var(--glint-x, -44%), var(--glint-y, -38%), 0);
-  transition: opacity 140ms ease-out;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  filter:
-    drop-shadow(0 0 10px rgba(24, 217, 255, 0.4))
-    drop-shadow(0 0 18px rgba(139, 67, 255, 0.22));
+  opacity: 0.9;
+  transform: translateZ(0);
 }
 
-.glass-glint-ready:not(.is-glinting) > .glass-edge-glint,
-.glint-complete > .glass-edge-glint {
-  opacity: 0;
+.circuit-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(24, 217, 255, 0.3) 12%, rgba(139, 67, 255, 0.36) 50%, rgba(24, 217, 255, 0.28) 88%, transparent 100%);
+  box-shadow:
+    0 0 16px rgba(24, 217, 255, 0.22),
+    0 0 32px rgba(139, 67, 255, 0.16);
+}
+
+.circuit-track::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: calc(var(--electron-y) + 10px);
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(24, 217, 255, 0.05), rgba(168, 239, 255, 0.82));
+  box-shadow: 0 0 20px rgba(24, 217, 255, 0.38);
+}
+
+.circuit-branch {
+  position: absolute;
+  left: calc(50% - 1px);
+  width: 34px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(168, 239, 255, 0.7), rgba(139, 67, 255, 0.05));
+  box-shadow: 0 0 14px rgba(24, 217, 255, 0.2);
+}
+
+.branch-top {
+  top: 18%;
+}
+
+.branch-mid {
+  top: 50%;
+  width: 42px;
+  transform: translateX(-40px);
+  background: linear-gradient(270deg, rgba(168, 239, 255, 0.7), rgba(139, 67, 255, 0.05));
+}
+
+.branch-bottom {
+  top: 78%;
+}
+
+.circuit-node {
+  position: absolute;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(168, 239, 255, 0.72);
+  border-radius: 50%;
+  background: #071337;
+  box-shadow:
+    0 0 12px rgba(24, 217, 255, 0.42),
+    inset 0 0 8px rgba(24, 217, 255, 0.28);
+  transform: translate(-50%, -50%);
+}
+
+.node-top {
+  top: 18%;
+}
+
+.node-mid {
+  top: 50%;
+}
+
+.node-bottom {
+  top: 78%;
+}
+
+.circuit-electron {
+  position: absolute;
+  left: 50%;
+  top: var(--electron-y);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, #ffffff 0 18%, #a8efff 24%, #18d9ff 46%, rgba(139, 67, 255, 0.24) 72%, transparent 73%);
+  box-shadow:
+    0 0 16px rgba(24, 217, 255, 0.96),
+    0 0 34px rgba(139, 67, 255, 0.62),
+    0 0 56px rgba(24, 217, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: top 130ms linear;
+}
+
+.circuit-electron::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 2px;
+  height: 54px;
+  border-radius: 999px;
+  background: linear-gradient(0deg, rgba(24, 217, 255, 0.54), transparent);
+  filter: blur(0.5px);
+  transform: translateX(-50%);
+}
+
+.circuit-electron::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(24, 217, 255, 0.18), transparent 62%);
+  animation: electronPulse 1.8s ease-in-out infinite;
+}
+
+.circuit-electron span {
+  position: absolute;
+  inset: 5px;
+  z-index: 1;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.scrolling-up .circuit-electron::before {
+  top: 12px;
+  bottom: auto;
+  background: linear-gradient(180deg, rgba(24, 217, 255, 0.54), transparent);
+}
+
+@keyframes electronPulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.86);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.14);
+  }
 }
 
 .path-card {
@@ -2250,8 +2368,9 @@ h1 span {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .glass-edge-glint {
-    background-size: 210% 210%, 100% 100%;
+  .circuit-scroll-rail {
+    right: 10px;
+    width: 54px;
   }
 
   .safety-band,

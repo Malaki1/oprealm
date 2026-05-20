@@ -2,24 +2,29 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 const animatedItems = document.querySelectorAll(
   ".reveal, .reveal-section, .platform-panel, .hero-strip"
 );
-const glintItems = document.querySelectorAll(
-  ".path-card, .module-grid article, .unlock-card, .safety-grid article, .chat-card, .project-grid article, .dashboard-card, .pricing-card, .membership-card"
-);
-const activeGlintItems = new Set();
 let lastScrollY = window.scrollY;
 let scrollDirection = 1;
-let glintFrame = 0;
+let circuitFrame = 0;
 
-glintItems.forEach((item) => {
-  item.classList.add("glass-glint-ready");
+function createCircuitRail() {
+  const rail = document.createElement("div");
+  rail.className = "circuit-scroll-rail";
+  rail.setAttribute("aria-hidden", "true");
+  rail.innerHTML = `
+    <span class="circuit-track"></span>
+    <span class="circuit-branch branch-top"></span>
+    <span class="circuit-branch branch-mid"></span>
+    <span class="circuit-branch branch-bottom"></span>
+    <span class="circuit-node node-top"></span>
+    <span class="circuit-node node-mid"></span>
+    <span class="circuit-node node-bottom"></span>
+    <span class="circuit-electron"><span></span></span>
+  `;
+  document.body.appendChild(rail);
+  return rail;
+}
 
-  if (!item.querySelector(":scope > .glass-edge-glint")) {
-    const glint = document.createElement("span");
-    glint.className = "glass-edge-glint";
-    glint.setAttribute("aria-hidden", "true");
-    item.appendChild(glint);
-  }
-});
+const circuitRail = reduceMotion ? null : createCircuitRail();
 
 function animateCounter(element) {
   if (element.dataset.counted === "true") return;
@@ -55,60 +60,30 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
 
-function updateScrollGlints() {
-  glintFrame = 0;
+function updateCircuitRail() {
+  circuitFrame = 0;
+  if (!circuitRail) return;
 
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const scrollable = Math.max(document.documentElement.scrollHeight - window.innerHeight, 1);
+  const progress = clamp(window.scrollY / scrollable, 0, 1);
+  const eased = 1 - Math.pow(1 - progress, 1.35);
 
-  activeGlintItems.forEach((item) => {
-    const rect = item.getBoundingClientRect();
-    const progress = clamp((viewportHeight - rect.top) / (viewportHeight + rect.height), 0, 1);
-    const centerDistance = Math.abs(rect.top + rect.height / 2 - viewportHeight / 2);
-    const proximity = 1 - clamp(centerDistance / (viewportHeight * 0.62), 0, 1);
-    const opacity = clamp(0.18 + proximity * 0.82, 0, 1);
-    const diagonal = scrollDirection >= 0 ? progress : 1 - progress;
-    const cross = 1 - Math.abs(progress - 0.5) * 2;
-
-    item.style.setProperty("--glint-x", `${-44 + diagonal * 88}%`);
-    item.style.setProperty("--glint-y", `${-38 + progress * 76}%`);
-    item.style.setProperty("--glint-bg-x", `${diagonal * 100}%`);
-    item.style.setProperty("--glint-bg-y", `${progress * 100}%`);
-    item.style.setProperty("--glint-opacity", (opacity * (0.38 + cross * 0.62)).toFixed(3));
-  });
+  circuitRail.style.setProperty("--electron-y", `${eased * 100}%`);
+  circuitRail.style.setProperty("--circuit-progress", progress.toFixed(4));
+  circuitRail.classList.toggle("scrolling-up", scrollDirection < 0);
 }
 
-function requestGlintUpdate() {
-  if (glintFrame) return;
-  glintFrame = window.requestAnimationFrame(updateScrollGlints);
+function requestCircuitUpdate() {
+  if (circuitFrame) return;
+  circuitFrame = window.requestAnimationFrame(updateCircuitRail);
 }
 
 if (reduceMotion || !("IntersectionObserver" in window)) {
   animatedItems.forEach((item) => item.classList.add("is-visible"));
-  glintItems.forEach((item) => item.classList.add("glint-complete"));
   document.querySelectorAll(".count-up").forEach((item) => {
     item.textContent = item.dataset.suffix === "h" ? "4h 30m" : item.dataset.count;
   });
 } else {
-  const glintObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-glinting");
-          activeGlintItems.add(entry.target);
-        } else {
-          entry.target.classList.remove("is-glinting");
-          activeGlintItems.delete(entry.target);
-        }
-      });
-
-      requestGlintUpdate();
-    },
-    {
-      threshold: 0,
-      rootMargin: "18% 0px 18% 0px"
-    }
-  );
-
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -127,7 +102,6 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
   );
 
   animatedItems.forEach((item) => observer.observe(item));
-  glintItems.forEach((item) => glintObserver.observe(item));
 
   window.addEventListener(
     "scroll",
@@ -135,11 +109,11 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
       const currentScrollY = window.scrollY;
       scrollDirection = currentScrollY >= lastScrollY ? 1 : -1;
       lastScrollY = currentScrollY;
-      requestGlintUpdate();
+      requestCircuitUpdate();
     },
     { passive: true }
   );
 
-  window.addEventListener("resize", requestGlintUpdate);
-  requestGlintUpdate();
+  window.addEventListener("resize", requestCircuitUpdate);
+  requestCircuitUpdate();
 }
