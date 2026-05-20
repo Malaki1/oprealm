@@ -242,12 +242,12 @@ const commands = [
   },
   {
     name: "story-board",
-    description: "Create a full safe game storyboard with scenes, objectives, and asset prompts.",
+    description: "Create a safe visual storyboard sheet with 6 consistent character panels.",
     options: [
       {
         type: 3,
         name: "prompt",
-        description: "Describe the game story, world, or quest idea.",
+        description: "Describe the character, world, and 6-scene story idea.",
         required: true,
       },
     ],

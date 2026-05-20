@@ -148,8 +148,14 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return handleElevenLabsAudioTool(interaction, env, waitUntil, command);
     }
 
-    if (command === "trailer" || command === "trailer-pro" || command === "story-board") {
-      const tool = command === "trailer-pro" ? "trailer_pro" : command === "story-board" ? "storyboard" : command;
+    if (command === "story-board") {
+      const channelCheck = requireChannel(interaction, env, "storyboard");
+      if (channelCheck) return channelCheck;
+      return handleImageTool(interaction, env, waitUntil, "storyboard");
+    }
+
+    if (command === "trailer" || command === "trailer-pro") {
+      const tool = command === "trailer-pro" ? "trailer_pro" : command;
       const channelCheck = requireChannel(interaction, env, tool);
       if (channelCheck) return channelCheck;
       return handleTextAiTool(interaction, env, waitUntil, tool);
@@ -478,8 +484,8 @@ async function handleElevenLabsAudioTool(interaction, env, waitUntil, tool) {
 }
 
 async function generatePrivateImage(interaction, env, prompt, tool = "image") {
-  const toolLabel = tool === "sprite" ? "sprite sheet" : tool === "game_cover" ? "game cover" : tool === "image_pro" ? "premium image" : "image";
-  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : tool === "game_cover" ? "oprealm-game-cover.png" : tool === "image_pro" ? "oprealm-premium-image.png" : "oprealm-image.png";
+  const toolLabel = tool === "sprite" ? "sprite sheet" : tool === "storyboard" ? "visual storyboard" : tool === "game_cover" ? "game cover" : tool === "image_pro" ? "premium image" : "image";
+  const filename = tool === "sprite" ? "oprealm-sprite-sheet.png" : tool === "storyboard" ? "oprealm-visual-storyboard.png" : tool === "game_cover" ? "oprealm-game-cover.png" : tool === "image_pro" ? "oprealm-premium-image.png" : "oprealm-image.png";
 
   try {
     await editOriginalInteraction(interaction, env, [
@@ -793,7 +799,7 @@ async function createNextStepFromResult(interaction, env, result, nextStep) {
 
   const prompt = buildFlowPrompt(result, tool);
 
-  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") {
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "storyboard" || tool === "sprite") {
     if (!env.OPENAI_API_KEY) {
       await editOriginalInteraction(interaction, env, "The OPRealm image generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
       return;
@@ -1379,7 +1385,7 @@ function imageQualityForTool(tool) {
 }
 
 function imageGenerationSpecsForTool(tool) {
-  if (tool === "image_pro" || tool === "game_cover") {
+  if (tool === "image_pro" || tool === "game_cover" || tool === "storyboard") {
     return [
       {
         model: "gpt-image-1-mini",
@@ -1428,6 +1434,21 @@ function buildSafeImagePrompt(prompt, tool = "image") {
       "Do not include text, labels, logos, weapons, gore, scary realism, copyrighted characters, real children, usernames, school names, phone numbers, private chat prompts, bullying, hate, or personal information.",
       "If the request asks for something too complex, simplify it into a cute beginner-friendly sprite object or character.",
       `Student request: ${prompt.slice(0, 900)}`,
+    ].join("\n");
+  }
+
+  if (tool === "storyboard") {
+    return [
+      "Create a kid-friendly visual storyboard sheet for OPRealm.",
+      "Use a strict 2x3 grid with exactly 6 panels. The image must clearly read as one storyboard sheet.",
+      "Each panel must show a different moment from the same game story: beginning, discovery, challenge, helping action, magical or creative solution, cheerful ending.",
+      "Character consistency is paramount. Keep the same main character in every panel with the same silhouette, outfit, color palette, face style, signature prop, and personality.",
+      "Do not change the character species, clothing, colors, age, body shape, or signature item between panels.",
+      "Use simple readable compositions with generous spacing. No captions, no labels, no speech bubbles, no readable text, no logos.",
+      "Style: polished bright game concept art, friendly, age-appropriate, suitable for children aged 7-16.",
+      "Avoid: personal information, real children, usernames, school names, phone numbers, scary realism, gore, bullying, hate, weapons-focused imagery, copyrighted characters, and private chat prompts.",
+      "If the request is too complex, simplify it into one consistent main character moving through 6 clear game-story moments.",
+      `Student request: ${prompt.slice(0, 1000)}`,
     ].join("\n");
   }
 
@@ -1574,7 +1595,7 @@ function textToolLabel(tool) {
     music: "music brief",
     trailer: "trailer storyboard",
     trailer_pro: "premium trailer storyboard",
-    storyboard: "game storyboard",
+    storyboard: "visual storyboard",
     voice: "voice narration",
   };
 
@@ -2331,18 +2352,18 @@ function providerForTool(tool) {
 
 function modelForUsage(tool) {
   if (["idea", "sound", "music", "trailer"].includes(tool)) return TEXT_MODEL;
-  if (tool === "trailer_pro" || tool === "storyboard") return TEXT_MODEL;
-  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return imageModelForTool(tool);
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "storyboard" || tool === "sprite") return imageModelForTool(tool);
+  if (tool === "trailer_pro") return TEXT_MODEL;
   return null;
 }
 
 function qualityForUsage(tool) {
-  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return imageQualityForTool(tool);
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "storyboard" || tool === "sprite") return imageQualityForTool(tool);
   return null;
 }
 
 function unitsForUsage(tool) {
-  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "sprite") return 1;
+  if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "storyboard" || tool === "sprite") return 1;
   return 0;
 }
 
