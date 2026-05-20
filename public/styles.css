@@ -1984,6 +1984,31 @@ h1 span {
   line-height: 1;
 }
 
+.old-price {
+  display: inline-block;
+  margin-right: 8px;
+  color: rgba(96, 112, 154, 0.72);
+  font-size: 0.7em;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.promo-note {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 28px;
+  margin: -2px 0 12px;
+  padding: 0 10px;
+  border: 1px solid rgba(24, 217, 255, 0.28);
+  border-radius: 999px;
+  color: #0e5d7a;
+  background: rgba(24, 217, 255, 0.1);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .tier-format,
 .membership-card p {
   color: var(--muted);

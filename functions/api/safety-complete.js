@@ -204,11 +204,11 @@ function normalizeCourse(course) {
 
 function monthlyCredits(tier) {
   return {
-    explorer: 10,
-    creator: 150,
-    pro: 400,
-    elite: 1500,
-  }[tier] || 10;
+    explorer: 50,
+    creator: 400,
+    pro: 1000,
+    elite: 3000,
+  }[tier] || 50;
 }
 
 function createSafeAlias(tier, discordUserId) {

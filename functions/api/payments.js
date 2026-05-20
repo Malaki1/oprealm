@@ -1,7 +1,7 @@
 const TIERS = {
-  creator: { label: "Creator Membership", amountCents: 2900, credits: 400 },
-  pro: { label: "Creator Pro Membership", amountCents: 4900, credits: 1000 },
-  intensive: { label: "Elite Creator Intensive", amountCents: 49900, credits: 3000 },
+  creator: { label: "Creator Membership", amountCents: 1900, credits: 400 },
+  pro: { label: "Creator Pro Membership", amountCents: 3900, credits: 1000 },
+  intensive: { label: "Elite Creator Intensive", amountCents: 39900, credits: 3000 },
 };
 
 export async function onRequestPost({ request, env }) {
