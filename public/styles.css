@@ -1203,16 +1203,6 @@ h1 span {
   mask-image: linear-gradient(180deg, #000 0%, transparent 88%);
 }
 
-.unlock-card:nth-child(2),
-.unlock-card:nth-child(4) {
-  transform: translateY(24px);
-}
-
-.is-visible .unlock-card:nth-child(2),
-.is-visible .unlock-card:nth-child(4) {
-  transform: translateY(24px);
-}
-
 .unlock-card:hover {
   border-color: rgba(24, 217, 255, 0.42);
   box-shadow: 0 28px 76px rgba(13, 28, 63, 0.24);
