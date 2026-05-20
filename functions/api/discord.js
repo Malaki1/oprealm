@@ -844,6 +844,10 @@ function buildFlowPrompt(result, nextTool) {
     return buildStoryboardPromptFromIdea(result);
   }
 
+  if (nextTool === "game_cover" || nextTool === "sprite" || nextTool === "image_pro" || nextTool === "image") {
+    return buildCompactImageFlowPrompt(result, nextTool);
+  }
+
   const source = [
     `Target next tool: ${nextTool}`,
     `Source result tool: ${result.tool || "unknown"}`,
@@ -872,6 +876,53 @@ function buildFlowPrompt(result, nextTool) {
   ].join("\n");
 }
 
+function buildCompactImageFlowPrompt(result, nextTool) {
+  const content = `${result.prompt || ""}\n\n${result.content || ""}`;
+  const characterBible = extractSection(content, "Character Bible", ["World Setup", "Player Goal", "8 Scene Storyboard"]);
+  const premise = extractSection(content, "Story Premise", ["Main Character", "Character Bible", "World Setup"]);
+  const mainCharacter = extractSection(content, "Main Character", ["Character Bible", "World Setup", "Player Goal"]);
+  const worldSetup = extractSection(content, "World Setup", ["Player Goal", "8 Scene Storyboard", "Character Continuity Checks"]);
+  const imagePrompts = extractSection(content, "Image Prompts", ["Safety Boundaries", "First Build Steps"]);
+  const fallbackSummary = content.replace(/\s+/g, " ").slice(0, 900);
+
+  const task = {
+    game_cover: "Create one polished kid-friendly game cover image. No readable title text. Use one clear focal subject and preserve character consistency.",
+    sprite: "Create a clean 2x2 sprite sheet for the main character or most important playable object. Preserve character consistency exactly.",
+    image_pro: "Create one polished kid-friendly game concept image. Preserve character consistency and keep the composition simple.",
+    image: "Create one kid-friendly game concept image. Preserve character consistency and keep the composition simple.",
+  }[nextTool] || "Create one kid-friendly OPRealm game image.";
+
+  return [
+    task,
+    "",
+    characterBible ? `Character Bible:\n${characterBible}` : "",
+    mainCharacter ? `Main Character:\n${mainCharacter}` : "",
+    premise ? `Story Premise:\n${premise}` : "",
+    worldSetup ? `World Setup:\n${worldSetup}` : "",
+    imagePrompts ? `Useful image prompt details:\n${imagePrompts}` : "",
+    !characterBible && !premise && !worldSetup ? `Project summary:\n${fallbackSummary}` : "",
+  ].filter(Boolean).join("\n\n").slice(0, 1800);
+}
+
+function extractSection(content, sectionName, stopSectionNames = []) {
+  const startPattern = new RegExp(`\\*\\*${escapeRegExp(sectionName)}\\*\\*|^${escapeRegExp(sectionName)}\\s*$`, "im");
+  const startMatch = content.match(startPattern);
+  if (!startMatch || startMatch.index === undefined) return "";
+
+  const start = startMatch.index + startMatch[0].length;
+  const rest = content.slice(start);
+  const stopPatterns = stopSectionNames.map((name) => `\\*\\*${escapeRegExp(name)}\\*\\*|^${escapeRegExp(name)}\\s*$`);
+  const stopRegex = new RegExp(stopPatterns.join("|"), "im");
+  const stopMatch = rest.match(stopRegex);
+  const section = stopMatch && stopMatch.index !== undefined ? rest.slice(0, stopMatch.index) : rest;
+
+  return section.trim().replace(/\s+\n/g, "\n").slice(0, 700);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function buildStoryboardPromptFromIdea(result) {
   return [
     "Create a complete game storyboard from the saved OPRealm game idea below.",
@@ -889,6 +940,9 @@ async function generateOpenAIImage(env, prompt, tool = "image") {
   let lastError = null;
 
   for (const spec of imageGenerationSpecsForTool(tool)) {
+    const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout
+      ? AbortSignal.timeout(25_000)
+      : undefined;
     const response = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
@@ -904,6 +958,7 @@ async function generateOpenAIImage(env, prompt, tool = "image") {
         output_format: "png",
         moderation: "auto",
       }),
+      signal,
     });
 
     const data = await response.json();
