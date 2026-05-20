@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="OPREALM Creator Studio helps young creators plan, build and publish safe AI-assisted games, stories, music, sound, trailers and digital creations."
+    />
+    <title>OPREALM Creator Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=1" />
+    <script src="/studio.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Studio</span>
+      </a>
+      <nav aria-label="Studio navigation">
+        <a href="/library">Public Library</a>
+        <a href="/ai-coach.html">AI Coach</a>
+        <a class="button button-primary" href="#publish">Publish Creation</a>
+      </nav>
+    </header>
+
+    <main class="studio-shell">
+      <section class="studio-hero">
+        <div>
+          <p class="eyebrow">Safe creator workspace</p>
+          <h1>Turn one spark into a playable, watchable, listenable creation.</h1>
+          <p>
+            Build web games, 2D pixel games, AI story games, music, songs, sound effects, trailers, covers and visual assets from one guided project board.
+          </p>
+        </div>
+        <aside class="credits-card studio-console" aria-label="Creator credit summary">
+          <div class="console-orbit" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span>Creator Credits</span>
+          <strong id="creditCount">400</strong>
+          <p>Use credits across safe AI tools, then publish finished work for review.</p>
+          <div class="console-stats" aria-label="Studio tools">
+            <b>AI</b>
+            <b>Games</b>
+            <b>Music</b>
+          </div>
+        </aside>
+      </section>
+
+      <section class="studio-grid" aria-label="Creator studio">
+        <aside class="tool-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Tool stack</p>
+            <h2>Choose A Tool</h2>
+          </div>
+          <div class="tool-list" id="toolList"></div>
+        </aside>
+
+        <section class="workspace-panel">
+          <div class="workspace-top">
+            <div>
+              <p class="eyebrow" id="activeToolKicker">Idea Builder</p>
+              <h2 id="activeToolTitle">Creation Planner</h2>
+            </div>
+            <span class="status-pill" id="activeToolCost">0.5 credits</span>
+          </div>
+
+          <form class="prompt-box" id="promptForm">
+            <label for="projectPrompt">Project prompt</label>
+            <textarea id="projectPrompt" rows="8" placeholder="Paste an idea, story, song lyric, game dream, character description, or project goal."></textarea>
+            <div class="prompt-actions">
+              <button class="button button-primary" type="submit">Generate Step</button>
+              <button class="button button-secondary" type="button" id="saveProjectButton">Save Project</button>
+            </div>
+          </form>
+
+          <div class="output-board" aria-live="polite">
+            <div class="output-header">
+              <h3>Project Board</h3>
+              <button class="text-button" type="button" id="clearBoardButton">Clear</button>
+            </div>
+            <div id="projectBoard" class="project-board"></div>
+          </div>
+        </section>
+
+        <aside class="flow-panel">
+          <div class="panel-heading">
+            <p class="eyebrow">Creator flow</p>
+            <h2>Next Steps</h2>
+          </div>
+          <ol class="flow-list">
+            <li><span>01</span> Start with idea, drawing, tune, lyric or story</li>
+            <li><span>02</span> Shape the project plan and character bible</li>
+            <li><span>03</span> Build assets, game logic, music and scenes</li>
+            <li><span>04</span> Make trailer, cover and publish pack</li>
+            <li><span>05</span> Submit to the public library for review</li>
+          </ol>
+        </aside>
+      </section>
+
+      <section class="builders-section">
+        <div class="section-heading">
+          <p class="eyebrow">Creation engines</p>
+          <h2>Built For Games, Stories, Music And Movies</h2>
+        </div>
+        <div class="builder-grid" id="builderGrid"></div>
+      </section>
+
+      <section class="publish-section" id="publish">
+        <div class="section-heading">
+          <p class="eyebrow">Showcase</p>
+          <h2>Publish To The OPREALM Library</h2>
+          <p>Submissions are marked pending until reviewed, so kids can share finished work in a safer public space.</p>
+        </div>
+        <form class="publish-form" id="publishForm">
+          <label>
+            Creation title
+            <input id="publishTitle" maxlength="80" required placeholder="Pixel Moon Quest" />
+          </label>
+          <label>
+            Creation type
+            <select id="publishType">
+              <option value="web_game">Web game</option>
+              <option value="pixel_game">2D pixel game</option>
+              <option value="story_game">AI story game</option>
+              <option value="music">Music or song</option>
+              <option value="sound">Sound effect pack</option>
+              <option value="trailer">Trailer or mini movie</option>
+              <option value="comic">Comic or storybook</option>
+            </select>
+          </label>
+          <label>
+            Public link or media URL
+            <input id="publishUrl" type="url" placeholder="https://..." />
+          </label>
+          <label>
+            Short description
+            <textarea id="publishDescription" rows="4" maxlength="600" required placeholder="Describe what people can play, watch, read or hear."></textarea>
+          </label>
+          <button class="button button-primary" type="submit">Submit For Review</button>
+          <p class="form-note" id="publishStatus"></p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

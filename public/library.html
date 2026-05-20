@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Browse public OPREALM creations made by young creators after safety review." />
+    <title>OPREALM Public Library</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=1" />
+    <script src="/library.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Library</span>
+      </a>
+      <nav aria-label="Library navigation">
+        <a href="/studio">Creator Studio</a>
+        <a href="/">Home</a>
+      </nav>
+    </header>
+
+    <main class="studio-shell">
+      <section class="studio-hero">
+        <div>
+          <p class="eyebrow">Public showcase</p>
+          <h1>Play, watch and listen to safe reviewed creations.</h1>
+          <p>Finished games, music, sound packs, trailers, stories and digital creations appear here after OPREALM review.</p>
+        </div>
+        <aside class="credits-card">
+          <span>Review-first library</span>
+          <strong id="libraryCount">0</strong>
+          <p>Approved creations currently visible.</p>
+        </aside>
+      </section>
+
+      <section class="publish-form" aria-label="Library filters">
+        <label>
+          Search creations
+          <input id="librarySearch" placeholder="Search by title, type or description" />
+        </label>
+        <label>
+          Type
+          <select id="libraryType">
+            <option value="all">All creations</option>
+            <option value="web_game">Web games</option>
+            <option value="pixel_game">2D pixel games</option>
+            <option value="story_game">AI story games</option>
+            <option value="music">Music and songs</option>
+            <option value="sound">Sound packs</option>
+            <option value="trailer">Trailers and mini movies</option>
+            <option value="comic">Comics and storybooks</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="builders-section">
+        <div class="builder-grid" id="libraryGrid"></div>
+      </section>
+    </main>
+  </body>
+</html>
