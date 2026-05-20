@@ -91,6 +91,11 @@ export async function onRequestPost({ request, env, waitUntil }) {
   }
 
   if (interaction.type === InteractionType.MESSAGE_COMPONENT) {
+    const customId = interaction.data?.custom_id || "";
+    if (customId.startsWith("oprealm_storyboard:")) {
+      return handleStoryboardComponent(interaction, env, waitUntil);
+    }
+
     return handleResultComponent(interaction, env, waitUntil);
   }
 
@@ -151,7 +156,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     if (command === "story-board") {
       const channelCheck = requireChannel(interaction, env, "storyboard");
       if (channelCheck) return channelCheck;
-      return handleImageTool(interaction, env, waitUntil, "storyboard");
+      return handleStoryboardStart(interaction, env);
     }
 
     if (command === "trailer" || command === "trailer-pro") {
@@ -455,6 +460,95 @@ async function handleImageTool(interaction, env, waitUntil, tool = "image") {
   }
 
   return deferredEphemeral();
+}
+
+async function handleStoryboardStart(interaction, env) {
+  const blocked = requireSafety(interaction, env);
+  if (blocked) return blocked;
+
+  if (!env.OPENAI_API_KEY) {
+    return ephemeral("The OPRealm visual storyboard generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
+  }
+
+  const prompt = getOption(interaction, "prompt") || "";
+  const safetyWarning = checkPromptSafety(prompt);
+  if (safetyWarning) return safetyWarning;
+
+  const creditCheck = await checkCredits(interaction, env, CREDIT_COSTS.storyboard);
+  if (creditCheck) return creditCheck;
+
+  const setupId = await saveAiResult(interaction, env, {
+    tool: "storyboard_setup",
+    prompt,
+    content: prompt,
+  });
+
+  return json({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      flags: MessageFlags.EPHEMERAL,
+      content: [
+        "How should OPRealm create this visual storyboard?",
+        "",
+        "Each storyboard creates one landscape image with 6 square panels.",
+      ].join("\n"),
+      components: storyboardChoiceComponents(setupId),
+      allowed_mentions: { parse: [] },
+    },
+  });
+}
+
+async function handleStoryboardComponent(interaction, env, waitUntil) {
+  const customId = interaction.data?.custom_id || "";
+  const match = customId.match(/^oprealm_storyboard:(new|character|character_idea):([a-zA-Z0-9-]+)$/);
+
+  if (!match) {
+    return ephemeral("That OPRealm storyboard button is not supported yet.");
+  }
+
+  const [, mode, setupId] = match;
+  const task = generateStoryboardFromChoice(interaction, env, mode, setupId);
+
+  if (waitUntil) {
+    waitUntil(task);
+  } else {
+    task.catch((error) => console.error(error));
+  }
+
+  return deferredEphemeral();
+}
+
+async function generateStoryboardFromChoice(interaction, env, mode, setupId) {
+  try {
+    const blocked = requireSafety(interaction, env);
+    if (blocked) {
+      await editOriginalInteraction(interaction, env, "Please complete the Online Safety Academy before creating a storyboard.");
+      return;
+    }
+
+    const setup = await getAiResult(interaction, env, setupId);
+    if (!setup || setup.tool !== "storyboard_setup") {
+      await editOriginalInteraction(interaction, env, "I could not find that storyboard setup. Try running /story-board again.");
+      return;
+    }
+
+    if (!isResultOwner(interaction, setup)) {
+      await editOriginalInteraction(interaction, env, "That storyboard setup belongs to another OPRealm creator.");
+      return;
+    }
+
+    const creditCheck = await checkCredits(interaction, env, CREDIT_COSTS.storyboard);
+    if (creditCheck) {
+      await editOriginalInteraction(interaction, env, `You need **${formatCredits(CREDIT_COSTS.storyboard)} Creator credits** for a visual storyboard.`);
+      return;
+    }
+
+    const prompt = await buildStoryboardPromptFromChoice(interaction, env, setup.prompt || setup.content || "", mode);
+    await generatePrivateImage(interaction, env, prompt, "storyboard");
+  } catch (error) {
+    console.error(error);
+    await editOriginalInteraction(interaction, env, "I could not start that storyboard. Try again or choose Create New.");
+  }
 }
 
 async function handleElevenLabsAudioTool(interaction, env, waitUntil, tool) {
@@ -1744,6 +1838,34 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
   }));
 }
 
+function storyboardChoiceComponents(setupId) {
+  return [
+    {
+      type: 1,
+      components: [
+        {
+          type: 2,
+          style: ButtonStyle.PRIMARY,
+          label: "Create New",
+          custom_id: `oprealm_storyboard:new:${setupId}`,
+        },
+        {
+          type: 2,
+          style: ButtonStyle.SECONDARY,
+          label: "Use Saved Character",
+          custom_id: `oprealm_storyboard:character:${setupId}`,
+        },
+        {
+          type: 2,
+          style: ButtonStyle.SECONDARY,
+          label: "Use Saved Character + Idea",
+          custom_id: `oprealm_storyboard:character_idea:${setupId}`,
+        },
+      ],
+    },
+  ];
+}
+
 function canOfferSaveCharacterButton(tool) {
   return tool === "image" || tool === "image_pro" || tool === "sprite" || tool === "game_cover" || tool === "storyboard";
 }
@@ -2176,6 +2298,85 @@ function buildCharacterBibleFromResult(result) {
     "- Do not redesign the character between storyboard panels or future generated assets.",
     "- If any detail is missing, infer one simple kid-friendly detail and keep it fixed.",
   ].join("\n");
+}
+
+async function buildStoryboardPromptFromChoice(interaction, env, prompt, mode) {
+  const parts = [
+    prompt,
+  ];
+
+  if (mode === "character" || mode === "character_idea") {
+    const character = await getLatestCharacterReference(interaction, env);
+
+    if (!character) {
+      return [
+        prompt,
+        "",
+        "No saved character reference was found for this creator. Create a new visual storyboard from the prompt only.",
+      ].join("\n");
+    }
+
+    parts.push(
+      "",
+      "Use this saved character as the main character. Preserve the character likeness as closely as possible.",
+      "Character consistency is paramount. Do not redesign the character between panels.",
+      `Saved character name: ${character.name}`,
+      `Saved character reference image URL: ${character.attachment_url || "not available"}`,
+      "Saved Character Bible:",
+      character.character_bible,
+    );
+  }
+
+  if (mode === "character_idea") {
+    const idea = await getLatestIdeaResult(interaction, env);
+
+    if (idea) {
+      parts.push(
+        "",
+        "Also incorporate this saved game idea as the story source. Do not copy the idea format; turn it into visual scenes.",
+        "Saved idea:",
+        `${idea.prompt || ""}\n\n${idea.content || ""}`.slice(0, 1800),
+      );
+    }
+  }
+
+  return parts.join("\n").slice(0, 3500);
+}
+
+async function getLatestCharacterReference(interaction, env) {
+  if (!env.OPREALM_DB) return null;
+
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id || env.DISCORD_GUILD_ID || "unknown";
+
+  return env.OPREALM_DB.prepare(
+    `
+      SELECT * FROM character_references
+      WHERE discord_user_id = ? AND guild_id = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  )
+    .bind(discordUserId, guildId)
+    .first();
+}
+
+async function getLatestIdeaResult(interaction, env) {
+  if (!env.OPREALM_DB) return null;
+
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id || env.DISCORD_GUILD_ID || "unknown";
+
+  return env.OPREALM_DB.prepare(
+    `
+      SELECT * FROM ai_results
+      WHERE discord_user_id = ? AND guild_id = ? AND tool = 'idea'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  )
+    .bind(discordUserId, guildId)
+    .first();
 }
 
 async function getAiResult(interaction, env, resultId) {
