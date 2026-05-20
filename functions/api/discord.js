@@ -374,27 +374,29 @@ async function generatePrivateTextResult(interaction, env, prompt, tool) {
     ].join("\n"));
 
     const result = await generateOpenAIText(env, prompt, tool);
+    const finalResult = await repairTextResultIfNeeded(env, result, prompt, tool);
     await deductCredits(interaction, env, CREDIT_COSTS[tool], tool, prompt, {
       provider: "openai",
-      model: result.model || TEXT_MODEL,
-      providerUnits: result.usage?.totalTokens || 0,
-      estimatedCostUsd: estimateTextCostUsd(result.usage),
+      model: finalResult.model || TEXT_MODEL,
+      providerUnits: finalResult.usage?.totalTokens || 0,
+      estimatedCostUsd: estimateTextCostUsd(finalResult.usage),
       metadata: {
-        responseId: result.responseId,
+        responseId: finalResult.responseId,
         toolMode: textToolMode(tool),
-        usage: result.usage,
+        usage: finalResult.usage,
+        repaired: finalResult.repaired || false,
       },
     });
 
-    const recommendedCourse = tool === "idea" || tool === "storyboard" || tool === "storyboard_from_idea" ? recommendedCourseForIdea(result.content, prompt) : null;
+    const recommendedCourse = tool === "idea" || tool === "storyboard" || tool === "storyboard_from_idea" ? recommendedCourseForIdea(finalResult.content, prompt) : null;
     const resultId = await saveAiResult(interaction, env, {
       tool: savedTool,
       prompt,
-      content: result.content,
+      content: finalResult.content,
     });
 
-    const fullBriefBytes = textToBytes(result.content);
-    const preview = truncateDiscordMessage(result.content, 1100);
+    const fullBriefBytes = textToBytes(finalResult.content);
+    const preview = truncateDiscordMessage(finalResult.content, 1100);
 
     await editOriginalInteraction(
       interaction,
@@ -1105,6 +1107,93 @@ async function generateOpenAIText(env, prompt, tool) {
   }
 
   throw lastError || new Error("OpenAI text generation failed");
+}
+
+async function repairTextResultIfNeeded(env, result, originalPrompt, tool) {
+  if (!isStoryboardTool(tool) || isValidStoryboardContent(result.content)) {
+    return result;
+  }
+
+  const repairPrompt = [
+    "The previous output was rejected because it used the game idea brief format instead of the storyboard format.",
+    "Rewrite it now as a GAME STORYBOARD ONLY.",
+    "",
+    "Required output sections, in this exact order:",
+    "**Title**",
+    "**One-Sentence Pitch**",
+    "**Best OPRealm Course Fit**",
+    "**Age Fit**",
+    "**Story Premise**",
+    "**Main Character**",
+    "**Character Bible**",
+    "**World Setup**",
+    "**Player Goal**",
+    "**8 Scene Storyboard**",
+    "**Character Continuity Checks**",
+    "**Playable Objectives**",
+    "**Choice Moments**",
+    "**Dialogue Starters**",
+    "**Asset List**",
+    "**Image Prompts**",
+    "**Safety Boundaries**",
+    "**First Build Steps**",
+    "",
+    "Do not include these idea-brief sections: Core Game Loop, Main Mechanics, Starter Assets Needed, AI Prompts To Try, Safe Multiplayer Rules, Easy Upgrade Ideas, First 60-Minute Mission.",
+    "The 8 Scene Storyboard must include exactly 8 numbered scenes. Each scene must include Scene Goal, Character Continuity, What the Player Sees, Player Action, Game Mechanic, and Build Tip.",
+    "Character consistency is paramount.",
+    "",
+    "Original source material:",
+    originalPrompt.slice(0, 5000),
+    "",
+    "Rejected previous output:",
+    result.content.slice(0, 2500),
+  ].join("\n");
+
+  const repaired = await generateOpenAIText(env, repairPrompt, "storyboard");
+
+  return {
+    ...repaired,
+    repaired: true,
+    usage: combineUsage(result.usage, repaired.usage),
+  };
+}
+
+function isStoryboardTool(tool) {
+  return tool === "storyboard" || tool === "storyboard_from_idea";
+}
+
+function isValidStoryboardContent(content = "") {
+  const text = content.toLowerCase();
+  const required = [
+    "character bible",
+    "8 scene storyboard",
+    "character continuity checks",
+    "dialogue starters",
+    "image prompts",
+  ];
+  const ideaOnlySections = [
+    "core game loop",
+    "main mechanics",
+    "starter assets needed",
+    "ai prompts to try",
+    "first 60-minute mission",
+  ];
+
+  const hasRequiredStoryboardSections = required.every((section) => text.includes(section));
+  const hasIdeaBriefShape = ideaOnlySections.filter((section) => text.includes(section)).length >= 3;
+
+  return hasRequiredStoryboardSections && !hasIdeaBriefShape;
+}
+
+function combineUsage(first = {}, second = {}) {
+  const inputTokens = (first.inputTokens || 0) + (second.inputTokens || 0);
+  const outputTokens = (first.outputTokens || 0) + (second.outputTokens || 0);
+
+  return {
+    inputTokens,
+    outputTokens,
+    totalTokens: (first.totalTokens || 0) + (second.totalTokens || 0) || inputTokens + outputTokens,
+  };
 }
 
 function buildTextToolInstructions(tool) {
