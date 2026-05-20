@@ -50,7 +50,7 @@
           </label>
           <div class="turnstile-slot" data-turnstile="login"></div>
           <button class="button button-primary" type="submit">Log In</button>
-          <button class="text-button" type="button" data-panel="reset">Forgot password?</button>
+          <a class="text-button text-link" href="/forgot-password">Forgot password?</a>
           <p class="form-note" id="loginStatus"></p>
         </form>
 
@@ -87,33 +87,6 @@
           <div class="turnstile-slot" data-turnstile="register"></div>
           <button class="button button-primary" type="submit">Create Account</button>
           <p class="form-note" id="registerStatus"></p>
-        </form>
-
-        <form class="publish-form account-card reset-card" id="resetRequestForm">
-          <div>
-            <p class="eyebrow">Recovery</p>
-            <h2>Reset Password</h2>
-          </div>
-          <label>
-            Account email
-            <input name="email" type="email" autocomplete="email" required />
-          </label>
-          <div class="turnstile-slot" data-turnstile="reset"></div>
-          <button class="button button-secondary" type="submit">Send Reset Link</button>
-          <p class="form-note" id="resetRequestStatus"></p>
-        </form>
-
-        <form class="publish-form account-card reset-card" id="resetPasswordForm" hidden>
-          <div>
-            <p class="eyebrow">Secure reset</p>
-            <h2>Choose New Password</h2>
-          </div>
-          <label>
-            New password
-            <input name="password" type="password" autocomplete="new-password" minlength="10" required />
-          </label>
-          <button class="button button-primary" type="submit">Update Password</button>
-          <p class="form-note" id="resetPasswordStatus"></p>
         </form>
       </section>
     </main>

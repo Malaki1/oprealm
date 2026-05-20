@@ -693,6 +693,15 @@ select option {
   gap: 18px;
 }
 
+.auth-grid-single {
+  grid-template-columns: minmax(0, 620px);
+}
+
+.text-link {
+  display: inline-flex;
+  justify-self: start;
+}
+
 .account-card h2 {
   margin-bottom: 0;
   font-size: clamp(1.6rem, 3vw, 2.4rem);

@@ -103,7 +103,7 @@ async function requestReset(request, env, body) {
       .run();
 
     const origin = new URL(request.url).origin;
-    const resetUrl = `${origin}/login?reset=${encodeURIComponent(rawToken)}`;
+    const resetUrl = `${origin}/reset-password?token=${encodeURIComponent(rawToken)}`;
     await sendResetEmail(env, user.email, user.display_name, resetUrl);
   }
 
