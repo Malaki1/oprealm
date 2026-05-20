@@ -646,7 +646,7 @@ async function generatePrivateElevenLabsAudio(interaction, env, prompt, tool) {
 
 async function handleResultComponent(interaction, env, waitUntil) {
   const customId = interaction.data?.custom_id || "";
-  const match = customId.match(/^oprealm_result:(dm|share|retry|submit_sfx|submit_music|flow_[a-z_]+):([a-zA-Z0-9-]+)$/);
+  const match = customId.match(/^oprealm_result:(dm|share|retry|save_character|submit_sfx|submit_music|flow_[a-z_]+):([a-zA-Z0-9-]+)$/);
 
   if (!match) {
     return ephemeral("That OPRealm button is not supported yet.");
@@ -700,6 +700,17 @@ async function handleResultAction(interaction, env, action, resultId) {
 
       await shareResultToShowcase(interaction, env, result, channelId);
       await editOriginalInteraction(interaction, env, `Shared to <#${channelId}> for moderator-safe community viewing.`);
+      return;
+    }
+
+    if (action === "save_character") {
+      if (!canSaveCharacterReference(result)) {
+        await editOriginalInteraction(interaction, env, "Only generated character, sprite, cover, or storyboard images can be saved as character references.");
+        return;
+      }
+
+      await saveCharacterReference(interaction, env, result);
+      await editOriginalInteraction(interaction, env, "Character reference saved. Future storyboard tools can use this character bible for consistency.");
       return;
     }
 
@@ -1680,6 +1691,15 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
     });
   }
 
+  if (canOfferSaveCharacterButton(tool)) {
+    buttons.push({
+      type: 2,
+      style: ButtonStyle.SECONDARY,
+      label: "Save Character",
+      custom_id: `oprealm_result:save_character:${resultId}`,
+    });
+  }
+
   buttons.push(
     {
       type: 2,
@@ -1715,6 +1735,14 @@ function resultActionComponents(resultId, recommendedCourse = null, tool = null)
     type: 1,
     components,
   }));
+}
+
+function canOfferSaveCharacterButton(tool) {
+  return tool === "image" || tool === "image_pro" || tool === "sprite" || tool === "game_cover" || tool === "storyboard";
+}
+
+function canSaveCharacterReference(result) {
+  return canOfferSaveCharacterButton(result.tool) && Boolean(result.attachment_url || result.attachmentUrl);
 }
 
 function chunkButtons(buttons) {
@@ -2078,6 +2106,69 @@ async function submitMusicForReview(interaction, env, result) {
       null,
     )
     .run();
+}
+
+async function saveCharacterReference(interaction, env, result) {
+  if (!env.OPREALM_DB) {
+    throw new Error("OPRealm database is not connected");
+  }
+
+  const discordUserId = interaction.member?.user?.id || interaction.user?.id;
+  const guildId = interaction.guild_id || env.DISCORD_GUILD_ID || "unknown";
+  const id = crypto.randomUUID();
+  const characterBible = buildCharacterBibleFromResult(result);
+  const name = titleFromPrompt(result.prompt || result.content || "Saved Character", "Saved Character");
+
+  await env.OPREALM_DB.prepare(
+    `
+      INSERT INTO character_references (
+        id,
+        discord_user_id,
+        guild_id,
+        source_result_id,
+        name,
+        character_bible,
+        attachment_url,
+        attachment_filename,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `,
+  )
+    .bind(
+      id,
+      discordUserId,
+      guildId,
+      result.id || null,
+      name.slice(0, 80),
+      characterBible.slice(0, 2500),
+      result.attachment_url || result.attachmentUrl || null,
+      result.attachment_filename || result.attachmentFilename || null,
+    )
+    .run();
+
+  return id;
+}
+
+function buildCharacterBibleFromResult(result) {
+  const source = `${result.prompt || ""}\n\n${result.content || ""}`.replace(/\s+/g, " ").trim();
+
+  return [
+    "Saved OPRealm Character Reference",
+    "",
+    "Use the linked image as the visual source of truth when image-reference generation is available.",
+    "Until then, preserve the character details below as a Character Bible.",
+    "",
+    `Source tool: ${result.tool || "unknown"}`,
+    `Original character/image prompt: ${source.slice(0, 1200) || "No prompt available."}`,
+    "",
+    "Consistency rules:",
+    "- Keep the same character species or role.",
+    "- Keep the same silhouette, outfit, colors, face style, signature prop, and personality.",
+    "- Do not redesign the character between storyboard panels or future generated assets.",
+    "- If any detail is missing, infer one simple kid-friendly detail and keep it fixed.",
+  ].join("\n");
 }
 
 async function getAiResult(interaction, env, resultId) {
