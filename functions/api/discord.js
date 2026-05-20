@@ -57,7 +57,7 @@ const ESTIMATED_OPENAI_COSTS_USD = {
   music: 0.08,
   trailer: 0.005,
   trailer_pro: 0.02,
-  storyboard: 0.01,
+  storyboard: 0.011,
   voice: 0.01,
 };
 
@@ -1389,11 +1389,20 @@ function imageGenerationSpecsForTool(tool) {
     return [
       {
         model: "gpt-image-1-mini",
-        quality: "low",
-        estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD[tool],
-        allowFallback: false,
+        quality: tool === "storyboard" ? "medium" : "low",
+        estimatedCostUsd: tool === "storyboard" ? 0.011 : ESTIMATED_OPENAI_COSTS_USD[tool],
+        allowFallback: tool === "storyboard",
         fallback: false,
       },
+      ...(tool === "storyboard"
+        ? [{
+          model: "gpt-image-1-mini",
+          quality: "low",
+          estimatedCostUsd: ESTIMATED_OPENAI_COSTS_USD.storyboard,
+          allowFallback: false,
+          fallback: true,
+        }]
+        : []),
     ];
   }
 
