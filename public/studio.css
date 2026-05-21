@@ -1589,14 +1589,16 @@ body.story-map-open .story-map-tools {
 .builder-card::after {
   content: "";
   position: absolute;
-  right: -30px;
-  bottom: -46px;
-  width: 150px;
-  height: 150px;
-  border-radius: 22px;
-  border: 1px solid rgba(143, 240, 255, 0.25);
-  background: linear-gradient(135deg, rgba(24, 217, 255, 0.24), rgba(139, 67, 255, 0.18));
-  transform: rotate(18deg);
+  right: -84px;
+  bottom: -92px;
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(24, 217, 255, 0.22) 0 24%, rgba(139, 67, 255, 0.16) 42%, transparent 68%);
+  filter: blur(2px);
+  opacity: 0.9;
+  pointer-events: none;
 }
 
 .library-card {
