@@ -23,6 +23,7 @@ async function loadConfig() {
     resetWidget = window.turnstile.render("[data-turnstile='reset']", {
       sitekey: config.turnstileSiteKey,
       theme: "dark",
+      appearance: "always",
     });
   };
 

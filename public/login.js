@@ -31,10 +31,25 @@ async function loadConfig() {
 
     document.querySelectorAll("[data-turnstile]").forEach((slot) => {
       const name = slot.dataset.turnstile;
-      turnstileWidgets[name] = window.turnstile.render(slot, {
-        sitekey: config.turnstileSiteKey,
-        theme: "dark",
-      });
+      try {
+        turnstileWidgets[name] = window.turnstile.render(slot, {
+          sitekey: config.turnstileSiteKey,
+          theme: "dark",
+          appearance: "always",
+          callback: () => {
+            if (statuses[name]) statuses[name].textContent = "";
+          },
+          "error-callback": () => {
+            if (statuses[name]) statuses[name].textContent = "Human verification could not load. Please refresh and try again.";
+          },
+          "expired-callback": () => {
+            if (statuses[name]) statuses[name].textContent = "Human verification expired. Please complete it again.";
+          },
+        });
+      } catch (error) {
+        slot.textContent = "Human verification could not load. Please refresh and try again.";
+        slot.classList.add("turnstile-missing");
+      }
     });
   };
 
