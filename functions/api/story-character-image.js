@@ -1,7 +1,7 @@
-const CHARACTER_IMAGE_COST = 4;
-const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.005;
-const CHARACTER_IMAGE_MODEL = "gpt-image-1-mini";
-const CHARACTER_IMAGE_QUALITY = "low";
+const CHARACTER_IMAGE_COST = 12;
+const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.042;
+const CHARACTER_IMAGE_MODEL = "gpt-image-1";
+const CHARACTER_IMAGE_QUALITY = "medium";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -31,44 +31,63 @@ export async function onRequestPost({ request, env }) {
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
   const prompt = buildCharacterImagePrompt(body);
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: CHARACTER_IMAGE_MODEL,
-      prompt,
-      size: "1024x1024",
-      quality: CHARACTER_IMAGE_QUALITY,
-      n: 1,
-    }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    return json({ ok: false, error: data.error?.message || "Character image generation failed." }, 502);
+  let result;
+  try {
+    result = await generateCharacterImage(env, prompt);
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Character image generation failed." }, 502);
   }
-
-  const b64 = data.data?.[0]?.b64_json;
-  if (!b64) return json({ ok: false, error: "The image generator did not return an image." }, 502);
 
   await env.OPREALM_DB.prepare(
     "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ?",
   )
     .bind(CHARACTER_IMAGE_COST, user.id)
     .run();
-  await logAiUsage(env, user, prompt);
+  await logAiUsage(env, user, prompt, result);
 
   return json({
     ok: true,
-    imageDataUrl: `data:image/png;base64,${b64}`,
+    imageDataUrl: `data:image/png;base64,${result.b64}`,
     creditsUsed: CHARACTER_IMAGE_COST,
+    model: result.model,
+    quality: result.quality,
   });
 }
 
-async function logAiUsage(env, user, prompt) {
+async function generateCharacterImage(env, prompt) {
+  const attempts = [
+    { model: CHARACTER_IMAGE_MODEL, quality: CHARACTER_IMAGE_QUALITY },
+    { model: "gpt-image-1-mini", quality: "high" },
+    { model: "gpt-image-1-mini", quality: "medium" },
+  ];
+  let lastError;
+
+  for (const attempt of attempts) {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: attempt.model,
+        prompt,
+        size: "1024x1024",
+        quality: attempt.quality,
+        n: 1,
+      }),
+    });
+
+    const data = await response.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (response.ok && b64) return { b64, ...attempt };
+    lastError = new Error(data.error?.message || `Character image generation failed with ${attempt.model}.`);
+  }
+
+  throw lastError || new Error("Character image generation failed.");
+}
+
+async function logAiUsage(env, user, prompt, imageResult) {
   try {
     await env.OPREALM_DB.prepare(
       `
@@ -96,8 +115,8 @@ async function logAiUsage(env, user, prompt) {
         prompt.slice(0, 1500),
         CHARACTER_IMAGE_COST,
         "openai",
-        CHARACTER_IMAGE_MODEL,
-        CHARACTER_IMAGE_QUALITY,
+        imageResult?.model || CHARACTER_IMAGE_MODEL,
+        imageResult?.quality || CHARACTER_IMAGE_QUALITY,
         1,
         CHARACTER_IMAGE_ESTIMATED_COST_USD,
         JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id }).slice(0, 1500),
