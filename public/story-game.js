@@ -65,6 +65,7 @@ const addBannerSceneToMapButton = document.querySelector("#addBannerSceneToMapBu
 const imageLightbox = document.querySelector("#imageLightbox");
 const imageLightboxImage = document.querySelector("#imageLightboxImage");
 const imageLightboxTitle = document.querySelector("#imageLightboxTitle");
+const imageLightboxDownload = document.querySelector("[data-download-scene-image='lightbox']");
 const checkCharacter = document.querySelector("#checkCharacter");
 const checkScenes = document.querySelector("#checkScenes");
 
@@ -818,11 +819,15 @@ function setScenePreviewImage(format, imageDataUrl) {
   setFrameImageFromStoredValue(frame, imageDataUrl);
 }
 
-function openImageLightbox(src, title) {
+function openImageLightbox(src, title, filename = "") {
   if (!src || !imageLightbox || !imageLightboxImage || !imageLightboxTitle) return;
   imageLightboxImage.src = src;
   imageLightboxImage.alt = title;
   imageLightboxTitle.textContent = title;
+  if (imageLightboxDownload) {
+    imageLightboxDownload.dataset.imageSrc = src;
+    imageLightboxDownload.dataset.downloadName = filename || downloadFileName(title || "oprealm-scene-card");
+  }
   imageLightbox.classList.add("is-open");
   imageLightbox.setAttribute("aria-hidden", "false");
   document.body.classList.add("lightbox-open");
@@ -833,6 +838,10 @@ function closeImageLightbox() {
   imageLightbox.classList.remove("is-open");
   imageLightbox.setAttribute("aria-hidden", "true");
   imageLightboxImage.removeAttribute("src");
+  if (imageLightboxDownload) {
+    delete imageLightboxDownload.dataset.imageSrc;
+    delete imageLightboxDownload.dataset.downloadName;
+  }
   document.body.classList.remove("lightbox-open");
 }
 
@@ -862,13 +871,14 @@ document.addEventListener("click", (event) => {
     const imageSrc = enlargeButton.dataset.imageSrc
       || (enlargeButton.dataset.imageRef ? "" : "");
     const title = enlargeButton.dataset.lightboxTitle || "16:9 scene card preview";
+    const filename = enlargeButton.dataset.downloadName || downloadFileName(title);
     if (imageSrc) {
-      openImageLightbox(imageSrc, title);
+      openImageLightbox(imageSrc, title, filename);
       return;
     }
     if (enlargeButton.dataset.imageRef) {
       loadStoryImage(enlargeButton.dataset.imageRef)
-        .then((src) => openImageLightbox(src, title))
+        .then((src) => openImageLightbox(src, title, filename))
         .catch(() => {
           if (sceneImageStatus) sceneImageStatus.textContent = "Could not open that saved scene image.";
         });

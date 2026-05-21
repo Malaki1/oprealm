@@ -1093,10 +1093,10 @@ select option {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.image-lightbox-close {
+.image-lightbox-close,
+.image-lightbox-download {
   position: absolute;
   top: 14px;
-  right: 14px;
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.22);
@@ -1106,6 +1106,26 @@ select option {
   font-size: 0.72rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+.image-lightbox-close {
+  right: 14px;
+}
+
+.image-lightbox-download {
+  right: 78px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.image-lightbox-close:hover,
+.image-lightbox-download:hover {
+  border-color: rgba(143, 240, 255, 0.74);
+  background: rgba(24, 217, 255, 0.18);
 }
 
 .scene-card {
