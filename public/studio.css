@@ -843,7 +843,10 @@ select option {
 
 .scene-card-list {
   display: grid;
-  gap: 10px;
+  gap: 14px;
+  max-height: 760px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .scene-preview-stack {
@@ -1094,24 +1097,26 @@ select option {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 12px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid rgba(160, 218, 255, 0.16);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(24, 217, 255, 0.08), transparent 32%),
+    rgba(255, 255, 255, 0.06);
 }
 
 .scene-card-thumbs {
   display: grid;
-  grid-template-columns: 0.55fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin: 8px 0 10px;
 }
 
 .scene-card-thumbs img {
   width: 100%;
-  height: 82px;
+  height: clamp(128px, 18vw, 220px);
   border: 1px solid rgba(160, 218, 255, 0.18);
-  border-radius: 10px;
+  border-radius: 12px;
   object-fit: cover;
 }
 

@@ -15,7 +15,9 @@ const scenePromptButton = document.querySelector("#scenePromptButton");
 const generateSceneImagesButton = document.querySelector("#generateSceneImagesButton");
 const sceneImageStatus = document.querySelector("#sceneImageStatus");
 const addPreviewToMapButton = document.querySelector("#addPreviewToMapButton");
+const createNextSceneButton = document.querySelector("#createNextSceneButton");
 const recreateSceneImagesButton = document.querySelector("#recreateSceneImagesButton");
+const clearSceneCardsButton = document.querySelector("#clearSceneCardsButton");
 const characterPreviewName = document.querySelector("#characterPreviewName");
 const characterPreviewBody = document.querySelector("#characterPreviewBody");
 const characterPreviewType = document.querySelector("#characterPreviewType");
@@ -499,6 +501,31 @@ function addBlankScene() {
   renderStoryDashboard();
 }
 
+function resetSceneBuilderForNext() {
+  delete storyProject.sceneDraftImages;
+  delete storyProject.bannerDraft;
+  storySceneForm.reset();
+  if (storyBannerForm) storyBannerForm.reset();
+  saveStoryProject();
+  renderStoryDashboard();
+  switchStoryTab("scene");
+  storySceneForm.querySelector("[name='prompt']")?.focus();
+}
+
+function clearSceneCards() {
+  if (!window.confirm("Clear all saved scene cards from this story project? Characters and banner styles will stay saved.")) return;
+  storyProject.scenes = [];
+  delete storyProject.sceneDraftImages;
+  delete storyProject.bannerDraft;
+  selectedSceneIndex = 0;
+  storySceneForm.reset();
+  if (storyBannerForm) storyBannerForm.reset();
+  saveStoryProject();
+  renderStoryDashboard();
+  switchStoryTab("scene");
+  sceneImageStatus.textContent = "Saved scene cards cleared. Characters were left untouched.";
+}
+
 function addSceneFromCurrentPreview() {
   const data = currentSceneFormData();
   const banner = currentBannerFormData();
@@ -522,7 +549,8 @@ function addSceneFromCurrentPreview() {
   storySceneForm.reset();
   if (storyBannerForm) storyBannerForm.reset();
   renderStoryDashboard();
-  switchStoryTab("map");
+  switchStoryTab("scene");
+  sceneImageStatus.textContent = `Scene ${scenes.length} saved. Create the next scene when ready.`;
 }
 
 function deleteScene(index) {
@@ -1086,6 +1114,12 @@ async function generateSceneImages() {
 generateSceneImagesButton.addEventListener("click", generateSceneImages);
 recreateSceneImagesButton.addEventListener("click", generateSceneImages);
 addPreviewToMapButton.addEventListener("click", () => switchStoryTab("banner"));
+if (createNextSceneButton) {
+  createNextSceneButton.addEventListener("click", resetSceneBuilderForNext);
+}
+if (clearSceneCardsButton) {
+  clearSceneCardsButton.addEventListener("click", clearSceneCards);
+}
 if (addBannerSceneToMapButton) {
   addBannerSceneToMapButton.addEventListener("click", addSceneFromCurrentPreview);
 }
