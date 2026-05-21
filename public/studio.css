@@ -644,6 +644,24 @@ select option {
   gap: 12px;
 }
 
+.story-checkbox-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(143, 240, 255, 0.18);
+  border-radius: 14px;
+  color: rgba(226, 240, 255, 0.84);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.story-checkbox-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #18d9ff;
+}
+
 .story-card-preview,
 .story-player {
   padding: 16px;

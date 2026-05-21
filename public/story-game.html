@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=14" />
+    <link rel="stylesheet" href="/studio.css?v=15" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=10" defer></script>
+    <script src="/story-game.js?v=11" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -187,6 +187,20 @@
                   </select>
                 </label>
                 <label>
+                  Scene art style
+                  <select name="sceneStyle" id="sceneStyleSelect">
+                    <option value="inherit">Lock to saved character style</option>
+                    <option>Bright 3D game mascot</option>
+                    <option>Cozy storybook</option>
+                    <option>Pixel game hero</option>
+                    <option>Cartoon adventure</option>
+                    <option>Futuristic OPREALM style</option>
+                    <option>Anime adventure</option>
+                    <option>Manga hero</option>
+                    <option>Chibi character</option>
+                  </select>
+                </label>
+                <label>
                   Mood
                   <select name="mood">
                     <option>Curious</option>
@@ -218,6 +232,11 @@
                   </select>
                 </label>
               </div>
+              <label class="story-checkbox-row">
+                <input name="lockCharacterStyle" type="checkbox" checked />
+                <span>Lock scene art style to the saved character style</span>
+              </label>
+              <p class="form-note" id="sceneStyleLockNote">Scene images will inherit the saved character style.</p>
               <div class="prompt-actions">
                 <button class="button button-primary" type="submit">Add Scene Card</button>
                 <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Images</button>

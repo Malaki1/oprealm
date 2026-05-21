@@ -33,6 +33,7 @@ export async function onRequestPost({ request, env }) {
     body.characterPersonality,
     body.characterStyle,
     body.characterSafety,
+    body.sceneStyle,
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
@@ -101,6 +102,12 @@ async function generateImage(env, prompt, size) {
 
 function buildScenePrompt(body, format) {
   const isMobile = format === "mobile";
+  const savedStyle = cleanText(body.characterStyle || "Bright 3D game mascot", 120);
+  const requestedSceneStyle = cleanText(body.sceneStyle || "inherit", 120);
+  const lockedStyle = body.lockCharacterStyle === false || body.lockCharacterStyle === "false"
+    ? (requestedSceneStyle === "inherit" ? savedStyle : requestedSceneStyle)
+    : savedStyle;
+  const styleLockMode = body.lockCharacterStyle === false || body.lockCharacterStyle === "false" ? "soft scene style match" : "hard locked saved character style";
   return [
     `Create a safe kid-friendly AI story game scene background and composition for OPRealm in ${isMobile ? "vertical 9:16 mobile game view" : "wide 16:9 web game view"}.`,
     "No text, no UI words, no logos, no real children, no personal information, no copyrighted characters, no romance, no gore, no scary realism.",
@@ -110,6 +117,9 @@ function buildScenePrompt(body, format) {
     "CHARACTER CONSISTENCY LOCK:",
     "Treat the saved character as a fixed, locked design, not a loose inspiration.",
     "Do not redesign the character. Preserve the same apparent age, body proportions, face shape, hairstyle or fur shape, skin/fur tone, outfit, accessories, color palette, silhouette, and art style across every scene.",
+    `ART STYLE LOCK: ${styleLockMode}. The entire scene must be rendered in "${lockedStyle}".`,
+    "Do not mix art styles. Do not convert the saved character into a different style such as realistic, anime, pixel, storybook, chibi, 3D, or manga unless that is the saved locked style.",
+    "Backgrounds, props, lighting, UI-safe space, sidekicks, and effects must all match the same locked style.",
     "If a detail is missing from the character bible, keep that area simple or partially obscured rather than inventing a different design.",
     "The scene may change pose, lighting, camera angle, facial expression, and action, but the character identity must remain recognisably the same.",
     `Scene prompt: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
@@ -121,7 +131,9 @@ function buildScenePrompt(body, format) {
     `Saved character name: ${cleanText(body.characterName || "OPRealm hero", 80)}`,
     `Saved character type/species/role: ${cleanText(body.characterType || "Original story hero", 120)}`,
     `Saved character personality: ${cleanText(body.characterPersonality || "Brave and kind", 120)}`,
-    `Saved character visual style: ${cleanText(body.characterStyle || "Bright 3D game mascot", 120)}`,
+    `Saved character visual style: ${savedStyle}`,
+    `Scene style selector: ${requestedSceneStyle}`,
+    `Final locked scene style: ${lockedStyle}`,
     `Saved character safety tone: ${cleanText(body.characterSafety || "Friendly and safe for all ages", 160)}`,
     `Saved character core design bible: ${cleanText(body.characterPrompt || "A friendly original story character.", 1200)}`,
   ].join("\n");

@@ -43,6 +43,8 @@ const mobileScenePreviewTitle = document.querySelector("#mobileScenePreviewTitle
 const mobileScenePreviewText = document.querySelector("#mobileScenePreviewText");
 const webScenePreviewTitle = document.querySelector("#webScenePreviewTitle");
 const webScenePreviewText = document.querySelector("#webScenePreviewText");
+const sceneStyleSelect = document.querySelector("#sceneStyleSelect");
+const sceneStyleLockNote = document.querySelector("#sceneStyleLockNote");
 const imageLightbox = document.querySelector("#imageLightbox");
 const imageLightboxImage = document.querySelector("#imageLightboxImage");
 const imageLightboxTitle = document.querySelector("#imageLightboxTitle");
@@ -509,7 +511,9 @@ function currentCharacterFormData() {
 }
 
 function currentSceneFormData() {
-  return Object.fromEntries(new FormData(storySceneForm).entries());
+  const data = Object.fromEntries(new FormData(storySceneForm).entries());
+  data.lockCharacterStyle = Boolean(new FormData(storySceneForm).get("lockCharacterStyle"));
+  return data;
 }
 
 function renderSceneFormPreview() {
@@ -519,10 +523,18 @@ function renderSceneFormPreview() {
   const title = titleFromPrompt(data.prompt, "Scene preview");
   const text = data.prompt || "Fill in the scene prompt to preview the moment.";
   const details = [data.camera, data.background, data.mood].filter(Boolean).join(" | ");
+  const character = storyProject.character || storyProject.characterDraft || {};
+  const inheritedStyle = character.style || "the saved character style";
+  const sceneStyle = data.sceneStyle === "inherit" ? inheritedStyle : data.sceneStyle;
+  if (sceneStyleLockNote) {
+    sceneStyleLockNote.textContent = data.lockCharacterStyle
+      ? `Scene images will lock to: ${sceneStyle || inheritedStyle}.`
+      : `Scene images may use: ${sceneStyle || inheritedStyle}.`;
+  }
   mobileScenePreviewTitle.textContent = title;
-  mobileScenePreviewText.textContent = details ? `${text} ${details}` : text;
+  mobileScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
   webScenePreviewTitle.textContent = title;
-  webScenePreviewText.textContent = details ? `${text} ${details}` : text;
+  webScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
   setScenePreviewImage("mobile", draft.mobileImageDataUrl);
   setScenePreviewImage("web", draft.webImageDataUrl);
 }
@@ -770,6 +782,10 @@ function clearSceneDraftAndPreview() {
 storySceneForm.addEventListener("input", clearSceneDraftAndPreview);
 storySceneForm.addEventListener("change", clearSceneDraftAndPreview);
 
+if (sceneStyleSelect) {
+  sceneStyleSelect.addEventListener("change", renderSceneFormPreview);
+}
+
 async function generateSceneImages() {
   const data = currentSceneFormData();
   const character = storyProject.character || {};
@@ -789,6 +805,8 @@ async function generateSceneImages() {
         characterPersonality: character.personality || "",
         characterStyle: character.style || "",
         characterSafety: character.safety || "",
+        sceneStyle: data.sceneStyle || "inherit",
+        lockCharacterStyle: Boolean(data.lockCharacterStyle),
       }),
     });
     const result = await response.json();
