@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=15" />
+    <link rel="stylesheet" href="/studio.css?v=16" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=11" defer></script>
+    <script src="/story-game.js?v=12" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -248,18 +248,10 @@
             <div class="scene-preview-stack">
               <article class="scene-responsive-preview">
                 <div>
-                  <p class="eyebrow">Responsive scene preview</p>
-                  <h4>Design once. Check both formats.</h4>
+                  <p class="eyebrow">16:9 scene card preview</p>
+                  <h4>Build wide cinematic scene cards.</h4>
                 </div>
-                <div class="scene-preview-pair">
-                  <div class="scene-preview-frame mobile-view">
-                    <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="mobile" hidden>Enlarge</button>
-                    <span>9:16 Mobile</span>
-                    <strong id="mobileScenePreviewTitle">Scene preview</strong>
-                    <p id="mobileScenePreviewText">Fill in the scene prompt to preview the moment.</p>
-                    <div class="scene-preview-choice">Choice A</div>
-                    <div class="scene-preview-choice">Choice B</div>
-                  </div>
+                <div class="scene-preview-pair scene-preview-single">
                   <div class="scene-preview-frame web-view">
                     <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="web" hidden>Enlarge</button>
                     <span>16:9 Web</span>

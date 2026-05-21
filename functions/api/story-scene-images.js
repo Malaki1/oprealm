@@ -1,4 +1,4 @@
-const SCENE_IMAGE_COST = 30;
+const SCENE_IMAGE_COST = 18;
 const SCENE_IMAGE_MODEL = "gpt-image-1.5";
 const SCENE_IMAGE_QUALITY = "medium";
 const SCENE_IMAGE_ESTIMATED_COST_USD = 0.1;
@@ -37,15 +37,10 @@ export async function onRequestPost({ request, env }) {
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
-  const mobilePrompt = buildScenePrompt(body, "mobile");
   const webPrompt = buildScenePrompt(body, "web");
-  let mobile;
   let web;
   try {
-    [mobile, web] = await Promise.all([
-      generateImage(env, mobilePrompt, "1024x1536"),
-      generateImage(env, webPrompt, "1536x1024"),
-    ]);
+    web = await generateImage(env, webPrompt, "1536x1024");
   } catch (error) {
     return json({ ok: false, error: error.message || "Scene image generation failed." }, 502);
   }
@@ -55,15 +50,14 @@ export async function onRequestPost({ request, env }) {
   )
     .bind(SCENE_IMAGE_COST, user.id)
     .run();
-  await logAiUsage(env, user, `${mobilePrompt}\n\n--- WEB ---\n${webPrompt}`, mobile, web);
+  await logAiUsage(env, user, webPrompt, web);
 
   return json({
     ok: true,
-    mobileImageDataUrl: `data:image/png;base64,${mobile.b64}`,
     webImageDataUrl: `data:image/png;base64,${web.b64}`,
     creditsUsed: SCENE_IMAGE_COST,
-    model: mobile.model === web.model ? mobile.model : `${mobile.model}, ${web.model}`,
-    quality: mobile.quality === web.quality ? mobile.quality : `${mobile.quality}, ${web.quality}`,
+    model: web.model,
+    quality: web.quality,
   });
 }
 
@@ -101,7 +95,6 @@ async function generateImage(env, prompt, size) {
 }
 
 function buildScenePrompt(body, format) {
-  const isMobile = format === "mobile";
   const savedStyle = cleanText(body.characterStyle || "Bright 3D game mascot", 120);
   const requestedSceneStyle = cleanText(body.sceneStyle || "inherit", 120);
   const lockedStyle = body.lockCharacterStyle === false || body.lockCharacterStyle === "false"
@@ -109,11 +102,11 @@ function buildScenePrompt(body, format) {
     : savedStyle;
   const styleLockMode = body.lockCharacterStyle === false || body.lockCharacterStyle === "false" ? "soft scene style match" : "hard locked saved character style";
   return [
-    `Create a safe kid-friendly AI story game scene background and composition for OPRealm in ${isMobile ? "vertical 9:16 mobile game view" : "wide 16:9 web game view"}.`,
+    "Create a safe kid-friendly AI story game scene card for OPRealm in wide 16:9 landscape format.",
     "No text, no UI words, no logos, no real children, no personal information, no copyrighted characters, no romance, no gore, no scary realism.",
     "Make it feel like a polished interactive story game scene with clear foreground, midground and background.",
     "Leave clean readable space for choice buttons and dialogue overlays.",
-    isMobile ? "Frame the scene vertically with the main action centered and extra safe space near the bottom." : "Frame the scene wide with cinematic depth and safe empty areas near the lower corners.",
+    "Frame the scene wide with cinematic depth, clear action, and safe empty areas near the lower corners for future dialogue and choice buttons.",
     "CHARACTER CONSISTENCY LOCK:",
     "Treat the saved character as a fixed, locked design, not a loose inspiration.",
     "Do not redesign the character. Preserve the same apparent age, body proportions, face shape, hairstyle or fur shape, skin/fur tone, outfit, accessories, color palette, silhouette, and art style across every scene.",
@@ -139,7 +132,7 @@ function buildScenePrompt(body, format) {
   ].join("\n");
 }
 
-async function logAiUsage(env, user, prompt, mobile, web) {
+async function logAiUsage(env, user, prompt, web) {
   try {
     await env.OPREALM_DB.prepare(
       `
@@ -167,9 +160,9 @@ async function logAiUsage(env, user, prompt, mobile, web) {
         prompt.slice(0, 1500),
         SCENE_IMAGE_COST,
         "openai",
-        mobile?.model === web?.model ? mobile?.model || SCENE_IMAGE_MODEL : `${mobile?.model || SCENE_IMAGE_MODEL}, ${web?.model || SCENE_IMAGE_MODEL}`,
-        mobile?.quality === web?.quality ? mobile?.quality || SCENE_IMAGE_QUALITY : `${mobile?.quality || SCENE_IMAGE_QUALITY}, ${web?.quality || SCENE_IMAGE_QUALITY}`,
-        2,
+        web?.model || SCENE_IMAGE_MODEL,
+        web?.quality || SCENE_IMAGE_QUALITY,
+        1,
         SCENE_IMAGE_ESTIMATED_COST_USD,
         JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id }).slice(0, 1500),
       )

@@ -39,8 +39,6 @@ const deleteSelectedSceneButton = document.querySelector("#deleteSelectedSceneBu
 const storyPreviewTitle = document.querySelector("#storyPreviewTitle");
 const storyPreviewText = document.querySelector("#storyPreviewText");
 const storyPreviewChoices = document.querySelector("#storyPreviewChoices");
-const mobileScenePreviewTitle = document.querySelector("#mobileScenePreviewTitle");
-const mobileScenePreviewText = document.querySelector("#mobileScenePreviewText");
 const webScenePreviewTitle = document.querySelector("#webScenePreviewTitle");
 const webScenePreviewText = document.querySelector("#webScenePreviewText");
 const sceneStyleSelect = document.querySelector("#sceneStyleSelect");
@@ -172,19 +170,11 @@ async function migrateStoryImagesToIndexedDb() {
     storyProject.characterDraft.imageDataUrl = await saveStoryImage(storyProject.characterDraft.imageDataUrl);
     changed = true;
   }
-  if (storyProject.sceneDraftImages?.mobileImageDataUrl?.startsWith?.("data:image/")) {
-    storyProject.sceneDraftImages.mobileImageDataUrl = await saveStoryImage(storyProject.sceneDraftImages.mobileImageDataUrl);
-    changed = true;
-  }
   if (storyProject.sceneDraftImages?.webImageDataUrl?.startsWith?.("data:image/")) {
     storyProject.sceneDraftImages.webImageDataUrl = await saveStoryImage(storyProject.sceneDraftImages.webImageDataUrl);
     changed = true;
   }
   for (const scene of storyProject.scenes || []) {
-    if (scene.mobileImageDataUrl?.startsWith?.("data:image/")) {
-      scene.mobileImageDataUrl = await saveStoryImage(scene.mobileImageDataUrl);
-      changed = true;
-    }
     if (scene.webImageDataUrl?.startsWith?.("data:image/")) {
       scene.webImageDataUrl = await saveStoryImage(scene.webImageDataUrl);
       changed = true;
@@ -225,17 +215,15 @@ function renderStoryDashboard() {
             <span>${String(index + 1).padStart(2, "0")}</span>
             <div>
               <strong>${escapeHtml(scene.title)}</strong>
-              ${scene.mobileImageDataUrl || scene.webImageDataUrl ? `
+              ${scene.webImageDataUrl ? `
                 <div class="scene-card-thumbs">
-                  ${scene.mobileImageDataUrl ? imageMarkup(scene.mobileImageDataUrl, `${scene.title} mobile preview`) : ""}
                   ${scene.webImageDataUrl ? imageMarkup(scene.webImageDataUrl, `${scene.title} web preview`) : ""}
                 </div>
               ` : ""}
               <p>${escapeHtml(scene.prompt)}</p>
               <small>${escapeHtml(scene.camera)} - ${escapeHtml(scene.background)} - ${escapeHtml(scene.type)}</small>
               <div class="scene-format-row">
-                <em>9:16 mobile ready</em>
-                <em>16:9 web ready</em>
+                <em>16:9 scene card ready</em>
               </div>
             </div>
           </article>
@@ -531,16 +519,13 @@ function renderSceneFormPreview() {
       ? `Scene images will lock to: ${sceneStyle || inheritedStyle}.`
       : `Scene images may use: ${sceneStyle || inheritedStyle}.`;
   }
-  mobileScenePreviewTitle.textContent = title;
-  mobileScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
   webScenePreviewTitle.textContent = title;
   webScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
-  setScenePreviewImage("mobile", draft.mobileImageDataUrl);
   setScenePreviewImage("web", draft.webImageDataUrl);
 }
 
 function setScenePreviewImage(format, imageDataUrl) {
-  const frame = document.querySelector(format === "mobile" ? ".mobile-view" : ".web-view");
+  const frame = document.querySelector(".web-view");
   setFrameImageFromStoredValue(frame, imageDataUrl);
 }
 
@@ -566,8 +551,7 @@ document.addEventListener("click", (event) => {
   const enlargeButton = event.target.closest("[data-enlarge-scene-preview]");
   if (enlargeButton) {
     const format = enlargeButton.dataset.enlargeScenePreview;
-    const title = format === "mobile" ? "Mobile 9:16 scene preview" : "Web 16:9 scene preview";
-    openImageLightbox(enlargeButton.dataset.imageSrc, title);
+    openImageLightbox(enlargeButton.dataset.imageSrc, "16:9 scene card preview");
     return;
   }
 
@@ -789,7 +773,7 @@ if (sceneStyleSelect) {
 async function generateSceneImages() {
   const data = currentSceneFormData();
   const character = storyProject.character || {};
-  sceneImageStatus.textContent = "Generating mobile and web scene images...";
+  sceneImageStatus.textContent = "Generating 16:9 scene card image...";
   generateSceneImagesButton.disabled = true;
   recreateSceneImagesButton.disabled = true;
 
@@ -815,7 +799,6 @@ async function generateSceneImages() {
     }
 
     storyProject.sceneDraftImages = {
-      mobileImageDataUrl: await saveStoryImage(result.mobileImageDataUrl),
       webImageDataUrl: await saveStoryImage(result.webImageDataUrl),
       sourcePrompt: data.prompt || "",
     };
