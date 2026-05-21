@@ -2,6 +2,7 @@ const storyTabs = document.querySelectorAll("[data-story-tab]");
 const storyPanels = document.querySelectorAll("[data-story-panel]");
 const storyCharacterForm = document.querySelector("#storyCharacterForm");
 const storySceneForm = document.querySelector("#storySceneForm");
+const storyBannerForm = document.querySelector("#storyBannerForm");
 const characterPromptButton = document.querySelector("#characterPromptButton");
 const scenePromptButton = document.querySelector("#scenePromptButton");
 const generateSceneImagesButton = document.querySelector("#generateSceneImagesButton");
@@ -43,6 +44,14 @@ const webScenePreviewTitle = document.querySelector("#webScenePreviewTitle");
 const webScenePreviewText = document.querySelector("#webScenePreviewText");
 const sceneStyleSelect = document.querySelector("#sceneStyleSelect");
 const sceneStyleLockNote = document.querySelector("#sceneStyleLockNote");
+const sceneBannerPreview = document.querySelector("#sceneBannerPreview");
+const bannerDesignPreview = document.querySelector("#bannerDesignPreview");
+const bannerDesignText = document.querySelector("#bannerDesignText");
+const bannerTextInput = document.querySelector("#bannerTextInput");
+const bannerTextCount = document.querySelector("#bannerTextCount");
+const bannerStyleSelect = document.querySelector("#bannerStyleSelect");
+const applyScenePromptToBannerButton = document.querySelector("#applyScenePromptToBannerButton");
+const addBannerSceneToMapButton = document.querySelector("#addBannerSceneToMapButton");
 const imageLightbox = document.querySelector("#imageLightbox");
 const imageLightboxImage = document.querySelector("#imageLightboxImage");
 const imageLightboxTitle = document.querySelector("#imageLightboxTitle");
@@ -224,6 +233,7 @@ function renderStoryDashboard() {
               <small>${escapeHtml(scene.camera)} - ${escapeHtml(scene.background)} - ${escapeHtml(scene.type)}</small>
               <div class="scene-format-row">
                 <em>16:9 scene card ready</em>
+                ${scene.banner?.bannerText ? `<em>${escapeHtml(scene.banner.bannerStyle || "glass")} banner ready</em>` : ""}
               </div>
             </div>
           </article>
@@ -262,6 +272,12 @@ function renderStoryDashboard() {
 
   renderRouteControls(scenes);
   renderSelectedSceneEditor(scenes);
+  if (storyBannerForm) {
+    const banner = storyProject.banner || {};
+    storyBannerForm.elements.bannerText.value = banner.bannerText || "";
+    storyBannerForm.elements.bannerStyle.value = banner.bannerStyle || "glass";
+    storyBannerForm.elements.bannerTone.value = banner.bannerTone || "Question";
+  }
 
   const firstScene = scenes[0];
   storyPreviewTitle.textContent = firstScene?.title || "Your story will appear here";
@@ -273,6 +289,7 @@ function renderStoryDashboard() {
   checkCharacter.textContent = character.name ? "Ready" : "Not ready yet";
   checkScenes.textContent = scenes.length >= 3 ? "Ready for preview" : `Add ${Math.max(3 - scenes.length, 0)} more scene card${3 - scenes.length === 1 ? "" : "s"}`;
   renderSceneFormPreview();
+  renderBannerPreview();
   hydrateStoryImages();
 }
 
@@ -415,12 +432,14 @@ function addBlankScene() {
 
 function addSceneFromCurrentPreview() {
   const data = currentSceneFormData();
+  const banner = currentBannerFormData();
   const draftImages = storyProject.sceneDraftImages || {};
   const scenes = storyProject.scenes || [];
   const nextIndex = scenes.length;
   scenes.push({
     ...data,
     ...draftImages,
+    banner,
     title: titleFromPrompt(data.prompt, nextIndex ? `Scene ${nextIndex + 1}` : "Start Scene"),
     routes: [],
     x: 60 + (nextIndex % 3) * 270,
@@ -428,9 +447,11 @@ function addSceneFromCurrentPreview() {
   });
   storyProject.scenes = scenes;
   delete storyProject.sceneDraftImages;
+  delete storyProject.bannerDraft;
   selectedSceneIndex = scenes.length - 1;
   saveStoryProject();
   storySceneForm.reset();
+  if (storyBannerForm) storyBannerForm.reset();
   renderStoryDashboard();
   switchStoryTab("map");
 }
@@ -504,6 +525,22 @@ function currentSceneFormData() {
   return data;
 }
 
+function currentBannerFormData() {
+  if (!storyBannerForm) return {};
+  const data = Object.fromEntries(new FormData(storyBannerForm).entries());
+  data.bannerText = String(data.bannerText || "").trim().slice(0, 180);
+  data.bannerStyle = data.bannerStyle || "glass";
+  return data;
+}
+
+function saveBannerConfig(message = "") {
+  storyProject.banner = currentBannerFormData();
+  delete storyProject.bannerDraft;
+  saveStoryProject();
+  renderBannerPreview();
+  if (message && sceneImageStatus) sceneImageStatus.textContent = message;
+}
+
 function renderSceneFormPreview() {
   if (!storySceneForm) return;
   const data = currentSceneFormData();
@@ -522,6 +559,29 @@ function renderSceneFormPreview() {
   webScenePreviewTitle.textContent = title;
   webScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
   setScenePreviewImage("web", draft.webImageDataUrl);
+  renderBannerPreview();
+}
+
+function renderBannerPreview() {
+  const banner = {
+    bannerStyle: "glass",
+    bannerText: "Write your story question in the Banner UI step.",
+    ...(storyProject.banner || {}),
+    ...(storyProject.bannerDraft || {}),
+    ...currentBannerFormData(),
+  };
+  const text = banner.bannerText || "Write your story question in the Banner UI step.";
+  [sceneBannerPreview, bannerDesignText].forEach((element) => {
+    if (!element) return;
+    element.textContent = text;
+    element.className = `scene-banner-overlay banner-style-${banner.bannerStyle || "glass"}`;
+  });
+  if (bannerDesignPreview) {
+    bannerDesignPreview.classList.toggle("has-generated-image", Boolean(storyProject.sceneDraftImages?.webImageDataUrl));
+  }
+  if (bannerTextCount && bannerTextInput) {
+    bannerTextCount.textContent = `${bannerTextInput.value.length} / 180 characters`;
+  }
 }
 
 function setScenePreviewImage(format, imageDataUrl) {
@@ -690,6 +750,32 @@ storyCharacterForm.addEventListener("submit", (event) => {
   saveCharacterFromForm("Character saved to this story project.");
 });
 
+if (storyBannerForm) {
+  storyBannerForm.addEventListener("input", () => {
+    storyProject.bannerDraft = currentBannerFormData();
+    renderBannerPreview();
+  });
+
+  storyBannerForm.addEventListener("change", () => {
+    storyProject.bannerDraft = currentBannerFormData();
+    renderBannerPreview();
+  });
+
+  storyBannerForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveBannerConfig("Banner style saved to this story project.");
+  });
+}
+
+if (applyScenePromptToBannerButton && bannerTextInput) {
+  applyScenePromptToBannerButton.addEventListener("click", () => {
+    const scene = currentSceneFormData();
+    bannerTextInput.value = (scene.prompt || "").trim().slice(0, 180);
+    storyProject.bannerDraft = currentBannerFormData();
+    renderBannerPreview();
+  });
+}
+
 function saveCharacterFromForm(message) {
   const data = currentCharacterFormData();
   const draft = storyProject.characterDraft || {};
@@ -815,7 +901,10 @@ async function generateSceneImages() {
 
 generateSceneImagesButton.addEventListener("click", generateSceneImages);
 recreateSceneImagesButton.addEventListener("click", generateSceneImages);
-addPreviewToMapButton.addEventListener("click", addSceneFromCurrentPreview);
+addPreviewToMapButton.addEventListener("click", () => switchStoryTab("banner"));
+if (addBannerSceneToMapButton) {
+  addBannerSceneToMapButton.addEventListener("click", addSceneFromCurrentPreview);
+}
 
 storySceneForm.addEventListener("submit", (event) => {
   event.preventDefault();

@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=16" />
+    <link rel="stylesheet" href="/studio.css?v=17" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=12" defer></script>
+    <script src="/story-game.js?v=13" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -52,6 +52,7 @@
         <div class="story-tabs" role="tablist" aria-label="AI Story Game sections">
           <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
           <button class="story-tab" type="button" data-story-tab="scene">Scene Cards</button>
+          <button class="story-tab" type="button" data-story-tab="banner">Banner UI</button>
           <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
           <button class="story-tab" type="button" data-story-tab="preview">Preview</button>
           <button class="story-tab" type="button" data-story-tab="publish">Publish Prep</button>
@@ -257,19 +258,70 @@
                     <span>16:9 Web</span>
                     <strong id="webScenePreviewTitle">Scene preview</strong>
                     <p id="webScenePreviewText">The same scene adapts to a wider game view.</p>
-                    <div class="web-choice-row">
-                      <div class="scene-preview-choice">Choice A</div>
-                      <div class="scene-preview-choice">Choice B</div>
-                    </div>
+                    <div class="scene-banner-overlay" id="sceneBannerPreview">Write your story question in the Banner UI step.</div>
                   </div>
                 </div>
                 <div class="scene-preview-actions">
-                  <button class="button button-primary" type="button" id="addPreviewToMapButton">Add Preview To Story Map</button>
+                  <button class="button button-primary" type="button" id="addPreviewToMapButton">Continue To Banner UI</button>
                   <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Images</button>
                 </div>
               </article>
               <div class="scene-card-list" id="sceneCardList"></div>
             </div>
+          </div>
+        </div>
+
+        <div class="story-tab-panel" data-story-panel="banner">
+          <div class="story-workspace">
+            <form class="story-form" id="storyBannerForm">
+              <div>
+                <p class="eyebrow">Step 3</p>
+                <h4>Choose The Story Text Banner</h4>
+              </div>
+              <label>
+                Banner text
+                <textarea name="bannerText" id="bannerTextInput" rows="4" maxlength="180" placeholder="What should the player read or decide in this scene?"></textarea>
+              </label>
+              <p class="form-note" id="bannerTextCount">0 / 180 characters</p>
+              <div class="story-form-grid">
+                <label>
+                  Banner style
+                  <select name="bannerStyle" id="bannerStyleSelect">
+                    <option value="glass">Glass quest panel</option>
+                    <option value="comic">Comic caption bar</option>
+                    <option value="scroll">Fantasy scroll plate</option>
+                    <option value="terminal">Sci-fi terminal strip</option>
+                  </select>
+                </label>
+                <label>
+                  Text tone
+                  <select name="bannerTone">
+                    <option>Question</option>
+                    <option>Narration</option>
+                    <option>Challenge</option>
+                    <option>Discovery</option>
+                  </select>
+                </label>
+              </div>
+              <div class="prompt-actions">
+                <button class="button button-primary" type="submit">Save Banner Style</button>
+                <button class="button button-primary" type="button" id="addBannerSceneToMapButton">Add Scene To Story Map</button>
+                <button class="button button-secondary" type="button" id="applyScenePromptToBannerButton">Use Scene Prompt</button>
+              </div>
+              <p class="form-note">One fixed banner size keeps the scene playable. Keep the text short so it stays readable on desktop and tablet screens.</p>
+            </form>
+
+            <article class="scene-responsive-preview">
+              <div>
+                <p class="eyebrow">Banner layer preview</p>
+                <h4>Text sits over the bottom of the scene card.</h4>
+              </div>
+              <div class="scene-preview-frame web-view banner-design-preview" id="bannerDesignPreview">
+                <span>16:9 Scene Card</span>
+                <strong>Banner layout</strong>
+                <div class="scene-banner-overlay" id="bannerDesignText">What happens next?</div>
+              </div>
+            </article>
           </div>
         </div>
 
