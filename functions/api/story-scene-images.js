@@ -1,7 +1,7 @@
-const SCENE_IMAGE_COST = 8;
-const SCENE_IMAGE_MODEL = "gpt-image-1-mini";
-const SCENE_IMAGE_QUALITY = "low";
-const SCENE_IMAGE_ESTIMATED_COST_USD = 0.01;
+const SCENE_IMAGE_COST = 30;
+const SCENE_IMAGE_MODEL = "gpt-image-1.5";
+const SCENE_IMAGE_QUALITY = "medium";
+const SCENE_IMAGE_ESTIMATED_COST_USD = 0.1;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -29,6 +29,10 @@ export async function onRequestPost({ request, env }) {
     body.type,
     body.characterName,
     body.characterPrompt,
+    body.characterType,
+    body.characterPersonality,
+    body.characterStyle,
+    body.characterSafety,
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
@@ -50,38 +54,49 @@ export async function onRequestPost({ request, env }) {
   )
     .bind(SCENE_IMAGE_COST, user.id)
     .run();
-  await logAiUsage(env, user, `${mobilePrompt}\n\n--- WEB ---\n${webPrompt}`);
+  await logAiUsage(env, user, `${mobilePrompt}\n\n--- WEB ---\n${webPrompt}`, mobile, web);
 
   return json({
     ok: true,
-    mobileImageDataUrl: `data:image/png;base64,${mobile}`,
-    webImageDataUrl: `data:image/png;base64,${web}`,
+    mobileImageDataUrl: `data:image/png;base64,${mobile.b64}`,
+    webImageDataUrl: `data:image/png;base64,${web.b64}`,
     creditsUsed: SCENE_IMAGE_COST,
+    model: mobile.model === web.model ? mobile.model : `${mobile.model}, ${web.model}`,
+    quality: mobile.quality === web.quality ? mobile.quality : `${mobile.quality}, ${web.quality}`,
   });
 }
 
 async function generateImage(env, prompt, size) {
-  const response = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: SCENE_IMAGE_MODEL,
-      prompt,
-      size,
-      quality: SCENE_IMAGE_QUALITY,
-      n: 1,
-    }),
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error?.message || "Scene image generation failed.");
+  const attempts = [
+    { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
+    { model: "gpt-image-1", quality: "high" },
+    { model: "gpt-image-1", quality: "medium" },
+    { model: "gpt-image-1-mini", quality: "high" },
+  ];
+  let lastError;
+
+  for (const attempt of attempts) {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: attempt.model,
+        prompt,
+        size,
+        quality: attempt.quality,
+        n: 1,
+      }),
+    });
+    const data = await response.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (response.ok && b64) return { b64, ...attempt };
+    lastError = new Error(data.error?.message || `Scene image generation failed with ${attempt.model}.`);
   }
-  const b64 = data.data?.[0]?.b64_json;
-  if (!b64) throw new Error("The scene image generator did not return an image.");
-  return b64;
+
+  throw lastError || new Error("Scene image generation failed.");
 }
 
 function buildScenePrompt(body, format) {
@@ -92,6 +107,11 @@ function buildScenePrompt(body, format) {
     "Make it feel like a polished interactive story game scene with clear foreground, midground and background.",
     "Leave clean readable space for choice buttons and dialogue overlays.",
     isMobile ? "Frame the scene vertically with the main action centered and extra safe space near the bottom." : "Frame the scene wide with cinematic depth and safe empty areas near the lower corners.",
+    "CHARACTER CONSISTENCY LOCK:",
+    "Treat the saved character as a fixed, locked design, not a loose inspiration.",
+    "Do not redesign the character. Preserve the same apparent age, body proportions, face shape, hairstyle or fur shape, skin/fur tone, outfit, accessories, color palette, silhouette, and art style across every scene.",
+    "If a detail is missing from the character bible, keep that area simple or partially obscured rather than inventing a different design.",
+    "The scene may change pose, lighting, camera angle, facial expression, and action, but the character identity must remain recognisably the same.",
     `Scene prompt: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
     `Camera angle: ${cleanText(body.camera || "Wide cinematic reveal", 80)}`,
     `Background: ${cleanText(body.background || "Custom background", 120)}`,
@@ -99,11 +119,15 @@ function buildScenePrompt(body, format) {
     `Mood: ${cleanText(body.mood || "Curious", 80)}`,
     `Scene type: ${cleanText(body.type || "Choice moment", 80)}`,
     `Saved character name: ${cleanText(body.characterName || "OPRealm hero", 80)}`,
-    `Saved character details: ${cleanText(body.characterPrompt || "A friendly original story character.", 500)}`,
+    `Saved character type/species/role: ${cleanText(body.characterType || "Original story hero", 120)}`,
+    `Saved character personality: ${cleanText(body.characterPersonality || "Brave and kind", 120)}`,
+    `Saved character visual style: ${cleanText(body.characterStyle || "Bright 3D game mascot", 120)}`,
+    `Saved character safety tone: ${cleanText(body.characterSafety || "Friendly and safe for all ages", 160)}`,
+    `Saved character core design bible: ${cleanText(body.characterPrompt || "A friendly original story character.", 1200)}`,
   ].join("\n");
 }
 
-async function logAiUsage(env, user, prompt) {
+async function logAiUsage(env, user, prompt, mobile, web) {
   try {
     await env.OPREALM_DB.prepare(
       `
@@ -131,8 +155,8 @@ async function logAiUsage(env, user, prompt) {
         prompt.slice(0, 1500),
         SCENE_IMAGE_COST,
         "openai",
-        SCENE_IMAGE_MODEL,
-        SCENE_IMAGE_QUALITY,
+        mobile?.model === web?.model ? mobile?.model || SCENE_IMAGE_MODEL : `${mobile?.model || SCENE_IMAGE_MODEL}, ${web?.model || SCENE_IMAGE_MODEL}`,
+        mobile?.quality === web?.quality ? mobile?.quality || SCENE_IMAGE_QUALITY : `${mobile?.quality || SCENE_IMAGE_QUALITY}, ${web?.quality || SCENE_IMAGE_QUALITY}`,
         2,
         SCENE_IMAGE_ESTIMATED_COST_USD,
         JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id }).slice(0, 1500),

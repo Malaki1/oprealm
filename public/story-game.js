@@ -741,6 +741,10 @@ async function generateSceneImages() {
         ...data,
         characterName: character.name || "",
         characterPrompt: character.prompt || "",
+        characterType: character.type || "",
+        characterPersonality: character.personality || "",
+        characterStyle: character.style || "",
+        characterSafety: character.safety || "",
       }),
     });
     const result = await response.json();
