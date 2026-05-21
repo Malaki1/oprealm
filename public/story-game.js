@@ -75,6 +75,8 @@ let activeHeroIndex = 0;
 let activeCharacterMethod = "chooser";
 let activeMapTool = "select";
 let draggedScene = null;
+let activeLightboxImageSrc = "";
+let activeLightboxDownloadName = "oprealm-scene-card.png";
 const STORY_IMAGE_REF_PREFIX = "story-image:";
 
 function saveStoryProject() {
@@ -824,9 +826,10 @@ function openImageLightbox(src, title, filename = "") {
   imageLightboxImage.src = src;
   imageLightboxImage.alt = title;
   imageLightboxTitle.textContent = title;
+  activeLightboxImageSrc = src;
+  activeLightboxDownloadName = filename || downloadFileName(title || "oprealm-scene-card");
   if (imageLightboxDownload) {
-    imageLightboxDownload.dataset.imageSrc = src;
-    imageLightboxDownload.dataset.downloadName = filename || downloadFileName(title || "oprealm-scene-card");
+    imageLightboxDownload.dataset.downloadName = activeLightboxDownloadName;
   }
   imageLightbox.classList.add("is-open");
   imageLightbox.setAttribute("aria-hidden", "false");
@@ -839,9 +842,10 @@ function closeImageLightbox() {
   imageLightbox.setAttribute("aria-hidden", "true");
   imageLightboxImage.removeAttribute("src");
   if (imageLightboxDownload) {
-    delete imageLightboxDownload.dataset.imageSrc;
     delete imageLightboxDownload.dataset.downloadName;
   }
+  activeLightboxImageSrc = "";
+  activeLightboxDownloadName = "oprealm-scene-card.png";
   document.body.classList.remove("lightbox-open");
 }
 
@@ -854,14 +858,30 @@ function downloadFileName(value) {
   return `${clean || "oprealm-scene-card"}.png`;
 }
 
+function dataUrlToBlob(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
+  if (!match) return null;
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return new Blob([bytes], { type: match[1] });
+}
+
 function downloadSceneImage(dataUrl, filename = "oprealm-scene-card.png") {
-  if (!dataUrl?.startsWith?.("data:image/")) return;
+  const blob = dataUrlToBlob(dataUrl);
+  if (!blob) return false;
+  const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = dataUrl;
+  link.href = objectUrl;
   link.download = filename;
+  link.rel = "noopener";
   document.body.appendChild(link);
   link.click();
   link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  return true;
 }
 
 document.addEventListener("click", (event) => {
@@ -890,13 +910,22 @@ document.addEventListener("click", (event) => {
   if (downloadButton) {
     event.preventDefault();
     const filename = downloadButton.dataset.downloadName || "oprealm-scene-card.png";
+    if (downloadButton.dataset.downloadSceneImage === "lightbox") {
+      const started = downloadSceneImage(activeLightboxImageSrc, activeLightboxDownloadName || filename);
+      if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
+      return;
+    }
     if (downloadButton.dataset.imageSrc) {
-      downloadSceneImage(downloadButton.dataset.imageSrc, filename);
+      const started = downloadSceneImage(downloadButton.dataset.imageSrc, filename);
+      if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
       return;
     }
     if (downloadButton.dataset.imageRef) {
       loadStoryImage(downloadButton.dataset.imageRef)
-        .then((src) => downloadSceneImage(src, filename))
+        .then((src) => {
+          const started = downloadSceneImage(src, filename);
+          if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
+        })
         .catch(() => {
           if (sceneImageStatus) sceneImageStatus.textContent = "Could not download that saved scene image.";
         });
