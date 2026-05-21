@@ -1,6 +1,13 @@
 const storyTabs = document.querySelectorAll("[data-story-tab]");
 const storyPanels = document.querySelectorAll("[data-story-panel]");
 const storyCharacterForm = document.querySelector("#storyCharacterForm");
+const storyCharacterDrawingForm = document.querySelector("#storyCharacterDrawingForm");
+const characterMethodPanel = document.querySelector("#characterMethodPanel");
+const characterDrawingInput = document.querySelector("#characterDrawingInput");
+const characterDrawingPreview = document.querySelector("#characterDrawingPreview");
+const characterDrawingNotes = document.querySelector("#characterDrawingNotes");
+const characterDrawingStyle = document.querySelector("#characterDrawingStyle");
+const useDrawingAsPromptButton = document.querySelector("#useDrawingAsPromptButton");
 const storySceneForm = document.querySelector("#storySceneForm");
 const storyBannerForm = document.querySelector("#storyBannerForm");
 const characterPromptButton = document.querySelector("#characterPromptButton");
@@ -63,6 +70,7 @@ const checkScenes = document.querySelector("#checkScenes");
 let storyProject = loadStoryProject();
 let selectedSceneIndex = 0;
 let activeHeroIndex = 0;
+let activeCharacterMethod = "chooser";
 let activeMapTool = "select";
 let draggedScene = null;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
@@ -265,6 +273,7 @@ function renderStoryDashboard() {
   createCharacterVariationButton.disabled = !previewCharacter.name && !previewCharacter.prompt;
   if (addSecondHeroButton) addSecondHeroButton.disabled = !characters[0]?.name && !storyProject.characterDrafts?.[0]?.name;
   renderHeroSlots(characters);
+  renderCharacterMethod();
 
   sceneCardList.innerHTML = scenes.length
     ? scenes
@@ -341,6 +350,15 @@ function renderStoryDashboard() {
   renderSceneFormPreview();
   renderBannerPreview();
   hydrateStoryImages();
+}
+
+function renderCharacterMethod() {
+  const hasAnyCharacter = Boolean(storyProject.characters?.length || storyProject.characterDrafts?.length);
+  const showChooser = activeCharacterMethod === "chooser" && !hasAnyCharacter;
+  const showDrawing = activeCharacterMethod === "drawing";
+  if (characterMethodPanel) characterMethodPanel.classList.toggle("is-hidden", !showChooser);
+  if (storyCharacterDrawingForm) storyCharacterDrawingForm.classList.toggle("is-hidden", !showDrawing);
+  if (storyCharacterForm) storyCharacterForm.classList.toggle("is-hidden", showChooser || showDrawing);
 }
 
 function ensureSceneLayout(scenes) {
@@ -581,9 +599,15 @@ function fillCharacterForm(character = {}) {
 
 function switchHeroSlot(index) {
   normalizeStoryCharacters();
+  activeCharacterMethod = "prompt";
   activeHeroIndex = Math.max(0, Math.min(Number(index) || 0, 1));
   const character = storyProject.characterDrafts?.[activeHeroIndex] || storyProject.characters?.[activeHeroIndex] || {};
   fillCharacterForm(character);
+  renderStoryDashboard();
+}
+
+function chooseCharacterMethod(method) {
+  activeCharacterMethod = method === "drawing" ? "drawing" : "prompt";
   renderStoryDashboard();
 }
 
@@ -929,6 +953,46 @@ if (heroSlotRow) {
     const slot = event.target.closest("[data-hero-slot]");
     if (!slot) return;
     switchHeroSlot(Number(slot.dataset.heroSlot));
+  });
+}
+
+document.querySelectorAll("[data-character-method]").forEach((button) => {
+  button.addEventListener("click", () => chooseCharacterMethod(button.dataset.characterMethod));
+});
+
+if (characterDrawingInput) {
+  characterDrawingInput.addEventListener("change", () => {
+    const file = characterDrawingInput.files?.[0];
+    if (!file) {
+      characterDrawingPreview.innerHTML = "<span>No drawing uploaded yet</span>";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      storyProject.characterDrawingDraft = {
+        imageDataUrl: reader.result,
+        notes: characterDrawingNotes?.value || "",
+        style: characterDrawingStyle?.value || "Fantasy RPG",
+      };
+      characterDrawingPreview.innerHTML = `<img src="${reader.result}" alt="Uploaded character drawing" />`;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+if (useDrawingAsPromptButton) {
+  useDrawingAsPromptButton.addEventListener("click", () => {
+    const notes = characterDrawingNotes?.value?.trim() || "";
+    const style = characterDrawingStyle?.value || "Fantasy RPG";
+    storyCharacterForm.elements.prompt.value = [
+      "Use the uploaded drawing as the core reference for this hero.",
+      "Keep the final character recognisable from the drawing: same silhouette, colours, labels, outfit ideas and key details.",
+      notes ? `Creator notes: ${notes}` : "",
+    ].filter(Boolean).join(" ");
+    storyCharacterForm.elements.style.value = style;
+    activeCharacterMethod = "prompt";
+    renderStoryDashboard();
+    characterImageStatus.textContent = "Drawing details copied into the prompt builder. Image-to-image generation comes next.";
   });
 }
 

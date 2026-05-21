@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=18" />
+    <link rel="stylesheet" href="/studio.css?v=19" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=15" defer></script>
+    <script src="/story-game.js?v=16" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -60,6 +60,63 @@
 
         <div class="story-tab-panel is-active" data-story-panel="character">
           <div class="story-workspace">
+            <section class="character-method-panel" id="characterMethodPanel">
+              <div>
+                <p class="eyebrow">Choose a starting point</p>
+                <h4>How do you want to create this hero?</h4>
+                <p>Start from a sketch or build the character with guided prompts.</p>
+              </div>
+              <div class="character-method-grid">
+                <button class="character-method-card" type="button" data-character-method="drawing">
+                  <span>01</span>
+                  <strong>Create From Drawing</strong>
+                  <p>Upload a sketch, doodle, labelled drawing or finished artwork.</p>
+                </button>
+                <button class="character-method-card" type="button" data-character-method="prompt">
+                  <span>02</span>
+                  <strong>Create With Prompt Builder</strong>
+                  <p>Use guided fields for name, type, personality, style and safety tone.</p>
+                </button>
+              </div>
+            </section>
+
+            <form class="story-form character-drawing-form is-hidden" id="storyCharacterDrawingForm">
+              <div>
+                <p class="eyebrow">Drawing import</p>
+                <h4>Create From Drawing</h4>
+              </div>
+              <label>
+                Upload drawing
+                <input name="drawing" id="characterDrawingInput" type="file" accept="image/png,image/jpeg,image/webp" />
+              </label>
+              <div class="drawing-preview-frame" id="characterDrawingPreview">
+                <span>No drawing uploaded yet</span>
+              </div>
+              <label>
+                Notes about the drawing
+                <textarea name="drawingNotes" id="characterDrawingNotes" rows="4" maxlength="500" placeholder="Example: This is a brave wolf knight with a blue cape. The sword is magical but kid-safe."></textarea>
+              </label>
+              <label>
+                Art style
+                <select name="drawingStyle" id="characterDrawingStyle">
+                  <option>Fantasy RPG</option>
+                  <option>Bright 3D game mascot</option>
+                  <option>Cozy storybook</option>
+                  <option>Pixel game hero</option>
+                  <option>Cartoon adventure</option>
+                  <option>Futuristic OPREALM style</option>
+                  <option>Anime adventure</option>
+                  <option>Manga hero</option>
+                  <option>Chibi character</option>
+                </select>
+              </label>
+              <div class="prompt-actions">
+                <button class="button button-primary" type="button" id="useDrawingAsPromptButton">Use Drawing Details</button>
+                <button class="button button-secondary" type="button" data-character-method="prompt">Open Prompt Builder</button>
+              </div>
+              <p class="form-note">Image-to-image generation will use this upload as a high-fidelity reference in the next build step.</p>
+            </form>
+
             <form class="story-form" id="storyCharacterForm">
               <div>
                 <p class="eyebrow">Step 1</p>
