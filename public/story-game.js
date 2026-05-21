@@ -286,7 +286,16 @@ function renderStoryDashboard() {
               <strong>${escapeHtml(scene.title)}</strong>
               ${scene.webImageDataUrl ? `
                 <div class="scene-card-thumbs">
-                  ${scene.webImageDataUrl ? imageMarkup(scene.webImageDataUrl, `${scene.title} web preview`) : ""}
+                  <div class="scene-card-thumb">
+                    ${imageMarkup(scene.webImageDataUrl, `${scene.title} web preview`)}
+                    <button
+                      class="scene-enlarge-button scene-card-enlarge-button"
+                      type="button"
+                      data-enlarge-scene-preview="saved"
+                      data-image-ref="${escapeHtml(scene.webImageDataUrl)}"
+                      data-lightbox-title="${escapeHtml(`Scene ${index + 1}: ${scene.title || "Scene card preview"}`)}"
+                    >Enlarge</button>
+                  </div>
                 </div>
               ` : ""}
               <p>${escapeHtml(scene.prompt)}</p>
@@ -816,8 +825,21 @@ function closeImageLightbox() {
 document.addEventListener("click", (event) => {
   const enlargeButton = event.target.closest("[data-enlarge-scene-preview]");
   if (enlargeButton) {
-    const format = enlargeButton.dataset.enlargeScenePreview;
-    openImageLightbox(enlargeButton.dataset.imageSrc, "16:9 scene card preview");
+    event.preventDefault();
+    const imageSrc = enlargeButton.dataset.imageSrc
+      || (enlargeButton.dataset.imageRef ? "" : "");
+    const title = enlargeButton.dataset.lightboxTitle || "16:9 scene card preview";
+    if (imageSrc) {
+      openImageLightbox(imageSrc, title);
+      return;
+    }
+    if (enlargeButton.dataset.imageRef) {
+      loadStoryImage(enlargeButton.dataset.imageRef)
+        .then((src) => openImageLightbox(src, title))
+        .catch(() => {
+          if (sceneImageStatus) sceneImageStatus.textContent = "Could not open that saved scene image.";
+        });
+    }
     return;
   }
 
