@@ -619,7 +619,7 @@ function fillCharacterForm(character = {}) {
   if (!storyCharacterForm) return;
   storyCharacterForm.elements.name.value = character.name || "";
   storyCharacterForm.elements.prompt.value = character.prompt || "";
-  storyCharacterForm.elements.type.value = character.type || "Young explorer";
+  storyCharacterForm.elements.type.value = character.type || "Custom";
   storyCharacterForm.elements.personality.value = character.personality || "Brave and kind";
   storyCharacterForm.elements.style.value = character.style || "Bright 3D game mascot";
   storyCharacterForm.elements.safety.value = character.safety || "Friendly and safe for all ages";
