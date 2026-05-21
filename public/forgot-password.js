@@ -1,6 +1,5 @@
 const resetForm = document.querySelector("#resetRequestForm");
 const resetStatus = document.querySelector("#resetRequestStatus");
-let resetWidget = null;
 let config = {};
 
 async function loadConfig() {
@@ -14,25 +13,41 @@ async function loadConfig() {
     return;
   }
 
-  const renderWhenReady = () => {
-    if (!window.turnstile) {
-      setTimeout(renderWhenReady, 100);
-      return;
-    }
+  const slot = document.querySelector("[data-turnstile='reset']");
+  slot.classList.add("cf-turnstile");
+  slot.dataset.sitekey = config.turnstileSiteKey;
+  slot.dataset.theme = "dark";
+  slot.dataset.appearance = "always";
 
-    resetWidget = window.turnstile.render("[data-turnstile='reset']", {
-      sitekey: config.turnstileSiteKey,
-      theme: "dark",
-      appearance: "always",
-    });
+  loadTurnstileScript();
+}
+
+function loadTurnstileScript() {
+  if (document.querySelector("script[data-turnstile-api]")) return;
+  const script = document.createElement("script");
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+  script.async = true;
+  script.defer = true;
+  script.dataset.turnstileApi = "true";
+  script.onerror = () => {
+    const slot = document.querySelector("[data-turnstile='reset']");
+    slot.textContent = "Human verification could not load. Please refresh and try again.";
+    slot.classList.add("turnstile-missing");
   };
-
-  renderWhenReady();
+  document.head.append(script);
 }
 
 function turnstileToken() {
-  if (!window.turnstile || !resetWidget) return "";
-  return window.turnstile.getResponse(resetWidget);
+  return document.querySelector("[data-turnstile='reset'] [name='cf-turnstile-response']")?.value || document.querySelector("[name='cf-turnstile-response'][value]")?.value || "";
+}
+
+async function waitForTurnstileToken() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const token = turnstileToken();
+    if (token) return token;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return "";
 }
 
 resetForm.addEventListener("submit", async (event) => {
@@ -42,7 +57,7 @@ resetForm.addEventListener("submit", async (event) => {
   const payload = {
     action: "request_reset",
     email: new FormData(resetForm).get("email"),
-    turnstileToken: turnstileToken(),
+    turnstileToken: await waitForTurnstileToken(),
   };
 
   try {
@@ -58,7 +73,8 @@ resetForm.addEventListener("submit", async (event) => {
       : "Reset flow is ready, but email sending is not configured yet.";
   } catch (error) {
     resetStatus.textContent = error.message;
-    if (window.turnstile && resetWidget) window.turnstile.reset(resetWidget);
+    const slot = document.querySelector("[data-turnstile='reset']");
+    if (window.turnstile && slot) window.turnstile.reset(slot);
   }
 });
 

@@ -8,7 +8,6 @@ const statuses = {
   register: document.querySelector("#registerStatus"),
 };
 
-const turnstileWidgets = {};
 let config = {};
 
 async function loadConfig() {
@@ -23,46 +22,49 @@ async function loadConfig() {
     return;
   }
 
-  const renderWhenReady = () => {
-    if (!window.turnstile) {
-      setTimeout(renderWhenReady, 100);
-      return;
-    }
+  document.querySelectorAll("[data-turnstile]").forEach((slot) => {
+    slot.classList.add("cf-turnstile");
+    slot.dataset.sitekey = config.turnstileSiteKey;
+    slot.dataset.theme = "dark";
+    slot.dataset.appearance = "always";
+  });
 
-    document.querySelectorAll("[data-turnstile]").forEach((slot) => {
-      const name = slot.dataset.turnstile;
-      try {
-        turnstileWidgets[name] = window.turnstile.render(slot, {
-          sitekey: config.turnstileSiteKey,
-          theme: "dark",
-          appearance: "always",
-          callback: () => {
-            if (statuses[name]) statuses[name].textContent = "";
-          },
-          "error-callback": () => {
-            if (statuses[name]) statuses[name].textContent = "Human verification could not load. Please refresh and try again.";
-          },
-          "expired-callback": () => {
-            if (statuses[name]) statuses[name].textContent = "Human verification expired. Please complete it again.";
-          },
-        });
-      } catch (error) {
-        slot.textContent = "Human verification could not load. Please refresh and try again.";
-        slot.classList.add("turnstile-missing");
-      }
+  loadTurnstileScript();
+}
+
+function loadTurnstileScript() {
+  if (document.querySelector("script[data-turnstile-api]")) return;
+  const script = document.createElement("script");
+  script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+  script.async = true;
+  script.defer = true;
+  script.dataset.turnstileApi = "true";
+  script.onerror = () => {
+    document.querySelectorAll(".turnstile-slot").forEach((slot) => {
+      slot.textContent = "Human verification could not load. Please refresh and try again.";
+      slot.classList.add("turnstile-missing");
     });
   };
-
-  renderWhenReady();
+  document.head.append(script);
 }
 
 function turnstileToken(name) {
-  if (!window.turnstile || !turnstileWidgets[name]) return "";
-  return window.turnstile.getResponse(turnstileWidgets[name]);
+  const slot = document.querySelector(`[data-turnstile="${name}"]`);
+  return slot?.querySelector("[name='cf-turnstile-response']")?.value || document.querySelector("[name='cf-turnstile-response'][value]")?.value || "";
+}
+
+async function waitForTurnstileToken(name) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const token = turnstileToken(name);
+    if (token) return token;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return "";
 }
 
 function resetTurnstile(name) {
-  if (window.turnstile && turnstileWidgets[name]) window.turnstile.reset(turnstileWidgets[name]);
+  const slot = document.querySelector(`[data-turnstile="${name}"]`);
+  if (window.turnstile && slot) window.turnstile.reset(slot);
 }
 
 function formData(form) {
@@ -84,7 +86,8 @@ forms.login.addEventListener("submit", async (event) => {
   event.preventDefault();
   statuses.login.textContent = "Checking account...";
   try {
-    await postAccount("login", { ...formData(forms.login), turnstileToken: turnstileToken("login") });
+    const token = await waitForTurnstileToken("login");
+    await postAccount("login", { ...formData(forms.login), turnstileToken: token });
     statuses.login.textContent = "Logged in. Opening the Studio...";
     location.href = "/studio";
   } catch (error) {
@@ -97,7 +100,8 @@ forms.register.addEventListener("submit", async (event) => {
   event.preventDefault();
   statuses.register.textContent = "Creating account...";
   try {
-    await postAccount("register", { ...formData(forms.register), turnstileToken: turnstileToken("register") });
+    const token = await waitForTurnstileToken("register");
+    await postAccount("register", { ...formData(forms.register), turnstileToken: token });
     statuses.register.textContent = "Account created. Opening memberships...";
     location.href = "/billing";
   } catch (error) {
