@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=17" />
+    <link rel="stylesheet" href="/studio.css?v=18" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=14" defer></script>
+    <script src="/story-game.js?v=15" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -99,6 +99,7 @@
                   Visual style
                   <select name="style">
                     <option>Bright 3D game mascot</option>
+                    <option>Fantasy RPG</option>
                     <option>Cozy storybook</option>
                     <option>Pixel game hero</option>
                     <option>Cartoon adventure</option>
@@ -120,6 +121,7 @@
               </div>
               <div class="prompt-actions">
                 <button class="button button-primary" type="submit">Save Character</button>
+                <button class="button button-secondary" type="button" id="addSecondHeroButton">Add Second Hero</button>
                 <button class="button button-primary" type="button" id="generateCharacterImageButton">Generate Character Image</button>
                 <button class="button button-secondary" type="button" id="characterPromptButton">Create Character Prompt</button>
               </div>
@@ -128,6 +130,7 @@
 
             <article class="story-card-preview">
               <p class="eyebrow" id="characterPreviewStatus">Saved character</p>
+              <div class="hero-slot-row" id="heroSlotRow"></div>
               <div class="character-image-frame" id="characterImageFrame">
                 <span>No image yet</span>
               </div>
@@ -192,6 +195,7 @@
                   <select name="sceneStyle" id="sceneStyleSelect">
                     <option value="inherit">Lock to saved character style</option>
                     <option>Bright 3D game mascot</option>
+                    <option>Fantasy RPG</option>
                     <option>Cozy storybook</option>
                     <option>Pixel game hero</option>
                     <option>Cartoon adventure</option>

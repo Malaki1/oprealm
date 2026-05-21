@@ -33,6 +33,12 @@ export async function onRequestPost({ request, env }) {
     body.characterPersonality,
     body.characterStyle,
     body.characterSafety,
+    body.secondCharacterName,
+    body.secondCharacterPrompt,
+    body.secondCharacterType,
+    body.secondCharacterPersonality,
+    body.secondCharacterStyle,
+    body.secondCharacterSafety,
     body.sceneStyle,
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
@@ -96,6 +102,7 @@ async function generateImage(env, prompt, size) {
 
 function buildScenePrompt(body, format) {
   const savedStyle = cleanText(body.characterStyle || "Bright 3D game mascot", 120);
+  const hasSecondHero = Boolean(cleanText(body.secondCharacterName || body.secondCharacterPrompt || "", 200));
   const requestedSceneStyle = cleanText(body.sceneStyle || "inherit", 120);
   const lockedStyle = body.lockCharacterStyle === false || body.lockCharacterStyle === "false"
     ? (requestedSceneStyle === "inherit" ? savedStyle : requestedSceneStyle)
@@ -115,6 +122,9 @@ function buildScenePrompt(body, format) {
     "Backgrounds, props, lighting, UI-safe space, sidekicks, and effects must all match the same locked style.",
     "If a detail is missing from the character bible, keep that area simple or partially obscured rather than inventing a different design.",
     "The scene may change pose, lighting, camera angle, facial expression, and action, but the character identity must remain recognisably the same.",
+    hasSecondHero
+      ? "TWO HERO LOCK: Include both saved heroes as distinct characters. Do not merge them, swap their outfits, mix their features, or turn one into a sidekick unless the scene prompt asks for it."
+      : "ONE HERO LOCK: Include the saved hero as the main character unless the scene says no character is shown.",
     `Scene prompt: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
     `Camera angle: ${cleanText(body.camera || "Wide cinematic reveal", 80)}`,
     `Background: ${cleanText(body.background || "Custom background", 120)}`,
@@ -129,6 +139,12 @@ function buildScenePrompt(body, format) {
     `Final locked scene style: ${lockedStyle}`,
     `Saved character safety tone: ${cleanText(body.characterSafety || "Friendly and safe for all ages", 160)}`,
     `Saved character core design bible: ${cleanText(body.characterPrompt || "A friendly original story character.", 1200)}`,
+    hasSecondHero ? `Second saved hero name: ${cleanText(body.secondCharacterName || "Second OPRealm hero", 80)}` : "",
+    hasSecondHero ? `Second saved hero type/species/role: ${cleanText(body.secondCharacterType || "Original story hero", 120)}` : "",
+    hasSecondHero ? `Second saved hero personality: ${cleanText(body.secondCharacterPersonality || "Brave and kind", 120)}` : "",
+    hasSecondHero ? `Second saved hero visual style: ${cleanText(body.secondCharacterStyle || savedStyle, 120)}` : "",
+    hasSecondHero ? `Second saved hero safety tone: ${cleanText(body.secondCharacterSafety || "Friendly and safe for all ages", 160)}` : "",
+    hasSecondHero ? `Second saved hero core design bible: ${cleanText(body.secondCharacterPrompt || "A friendly original second story character.", 1200)}` : "",
   ].join("\n");
 }
 

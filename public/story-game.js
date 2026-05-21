@@ -19,6 +19,8 @@ const characterImageStatus = document.querySelector("#characterImageStatus");
 const characterImageFrame = document.querySelector("#characterImageFrame");
 const saveCharacterPreviewButton = document.querySelector("#saveCharacterPreviewButton");
 const createCharacterVariationButton = document.querySelector("#createCharacterVariationButton");
+const addSecondHeroButton = document.querySelector("#addSecondHeroButton");
+const heroSlotRow = document.querySelector("#heroSlotRow");
 const sceneCardList = document.querySelector("#sceneCardList");
 const storyMapShell = document.querySelector("#storyMapShell");
 const storyMapBoard = document.querySelector("#storyMapBoard");
@@ -60,6 +62,7 @@ const checkScenes = document.querySelector("#checkScenes");
 
 let storyProject = loadStoryProject();
 let selectedSceneIndex = 0;
+let activeHeroIndex = 0;
 let activeMapTool = "select";
 let draggedScene = null;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
@@ -179,6 +182,18 @@ async function migrateStoryImagesToIndexedDb() {
     storyProject.characterDraft.imageDataUrl = await saveStoryImage(storyProject.characterDraft.imageDataUrl);
     changed = true;
   }
+  for (const character of storyProject.characters || []) {
+    if (character?.imageDataUrl?.startsWith?.("data:image/")) {
+      character.imageDataUrl = await saveStoryImage(character.imageDataUrl);
+      changed = true;
+    }
+  }
+  for (const draft of storyProject.characterDrafts || []) {
+    if (draft?.imageDataUrl?.startsWith?.("data:image/")) {
+      draft.imageDataUrl = await saveStoryImage(draft.imageDataUrl);
+      changed = true;
+    }
+  }
   if (storyProject.sceneDraftImages?.webImageDataUrl?.startsWith?.("data:image/")) {
     storyProject.sceneDraftImages.webImageDataUrl = await saveStoryImage(storyProject.sceneDraftImages.webImageDataUrl);
     changed = true;
@@ -196,18 +211,51 @@ function resetOversizedStoryProject() {
   localStorage.removeItem("oprealm_story_game_project");
   storyProject = {};
   selectedSceneIndex = 0;
+  activeHeroIndex = 0;
   renderStoryDashboard();
 }
 
+function normalizeStoryCharacters() {
+  if (!Array.isArray(storyProject.characters)) {
+    storyProject.characters = storyProject.character?.name || storyProject.character?.prompt
+      ? [storyProject.character]
+      : [];
+  }
+  if (storyProject.characterDraft && !storyProject.characterDrafts) {
+    storyProject.characterDrafts = [storyProject.characterDraft];
+    delete storyProject.characterDraft;
+  }
+  if (!Array.isArray(storyProject.characterDrafts)) storyProject.characterDrafts = [];
+  if (activeHeroIndex > 1) activeHeroIndex = 1;
+  if (activeHeroIndex < 0) activeHeroIndex = 0;
+}
+
+function renderHeroSlots(characters) {
+  if (!heroSlotRow) return;
+  const slots = [0, 1].map((index) => {
+    const hero = characters[index] || storyProject.characterDrafts?.[index] || {};
+    const label = hero.name || `Hero ${index + 1}`;
+    const state = hero.name || hero.prompt ? "Ready" : index === 1 ? "Optional" : "Needed";
+    return `<button class="hero-slot ${index === activeHeroIndex ? "is-active" : ""}" type="button" data-hero-slot="${index}">
+      <span>Hero ${index + 1}</span>
+      <strong>${escapeHtml(label)}</strong>
+      <em>${state}</em>
+    </button>`;
+  }).join("");
+  heroSlotRow.innerHTML = slots;
+}
+
 function renderStoryDashboard() {
-  const character = storyProject.character || {};
-  const characterDraft = storyProject.characterDraft || null;
-  const previewCharacter = characterDraft || character;
+  normalizeStoryCharacters();
+  const characters = storyProject.characters || [];
+  const character = characters[0] || storyProject.character || {};
+  const characterDraft = storyProject.characterDrafts?.[activeHeroIndex] || null;
+  const previewCharacter = characterDraft || characters[activeHeroIndex] || {};
   const scenes = ensureSceneLayout(storyProject.scenes || []);
   if (selectedSceneIndex >= scenes.length) selectedSceneIndex = Math.max(scenes.length - 1, 0);
 
-  characterPreviewStatus.textContent = characterDraft ? "Generated character draft" : "Saved character";
-  characterPreviewName.textContent = previewCharacter.name || "No character yet";
+  characterPreviewStatus.textContent = characterDraft ? `Generated Hero ${activeHeroIndex + 1} draft` : `Hero ${activeHeroIndex + 1}`;
+  characterPreviewName.textContent = previewCharacter.name || `No Hero ${activeHeroIndex + 1} yet`;
   characterPreviewBody.textContent = previewCharacter.prompt || "Add a character to begin the AI Story Game flow.";
   characterPreviewType.textContent = previewCharacter.type || "Type";
   characterPreviewStyle.textContent = previewCharacter.style || "Style";
@@ -215,6 +263,8 @@ function renderStoryDashboard() {
     ? imageMarkup(previewCharacter.imageDataUrl, previewCharacter.name || "Generated story character")
     : "<span>No image yet</span>";
   createCharacterVariationButton.disabled = !previewCharacter.name && !previewCharacter.prompt;
+  if (addSecondHeroButton) addSecondHeroButton.disabled = !characters[0]?.name && !storyProject.characterDrafts?.[0]?.name;
+  renderHeroSlots(characters);
 
   sceneCardList.innerHTML = scenes.length
     ? scenes
@@ -286,7 +336,7 @@ function renderStoryDashboard() {
     ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${choiceLabel(index)}</button>`).join("")
     : "";
 
-  checkCharacter.textContent = character.name ? "Ready" : "Not ready yet";
+  checkCharacter.textContent = character.name ? `${characters.filter((item) => item?.name).length || 1} hero character${characters.filter((item) => item?.name).length === 1 ? "" : "s"} ready` : "Not ready yet";
   checkScenes.textContent = scenes.length >= 3 ? "Ready for preview" : `Add ${Math.max(3 - scenes.length, 0)} more scene card${3 - scenes.length === 1 ? "" : "s"}`;
   renderSceneFormPreview();
   renderBannerPreview();
@@ -519,6 +569,24 @@ function currentCharacterFormData() {
   return Object.fromEntries(new FormData(storyCharacterForm).entries());
 }
 
+function fillCharacterForm(character = {}) {
+  if (!storyCharacterForm) return;
+  storyCharacterForm.elements.name.value = character.name || "";
+  storyCharacterForm.elements.prompt.value = character.prompt || "";
+  storyCharacterForm.elements.type.value = character.type || "Young explorer";
+  storyCharacterForm.elements.personality.value = character.personality || "Brave and kind";
+  storyCharacterForm.elements.style.value = character.style || "Bright 3D game mascot";
+  storyCharacterForm.elements.safety.value = character.safety || "Friendly and safe for all ages";
+}
+
+function switchHeroSlot(index) {
+  normalizeStoryCharacters();
+  activeHeroIndex = Math.max(0, Math.min(Number(index) || 0, 1));
+  const character = storyProject.characterDrafts?.[activeHeroIndex] || storyProject.characters?.[activeHeroIndex] || {};
+  fillCharacterForm(character);
+  renderStoryDashboard();
+}
+
 function currentSceneFormData() {
   const data = Object.fromEntries(new FormData(storySceneForm).entries());
   data.lockCharacterStyle = Boolean(new FormData(storySceneForm).get("lockCharacterStyle"));
@@ -543,17 +611,20 @@ function saveBannerConfig(message = "") {
 
 function renderSceneFormPreview() {
   if (!storySceneForm) return;
+  normalizeStoryCharacters();
   const data = currentSceneFormData();
   const draft = storyProject.sceneDraftImages || {};
   const title = titleFromPrompt(data.prompt, "Scene preview");
   const text = data.prompt || "Fill in the scene prompt to preview the moment.";
   const details = [data.camera, data.background, data.mood].filter(Boolean).join(" | ");
-  const character = storyProject.character || storyProject.characterDraft || {};
+  const character = storyProject.characters?.[0] || storyProject.character || storyProject.characterDraft || {};
+  const characters = storyProject.characters || [];
+  const heroCount = characters.filter((item) => item?.name || item?.prompt).length;
   const inheritedStyle = character.style || "the saved character style";
   const sceneStyle = data.sceneStyle === "inherit" ? inheritedStyle : data.sceneStyle;
   if (sceneStyleLockNote) {
     sceneStyleLockNote.textContent = data.lockCharacterStyle
-      ? `Scene images will lock to: ${sceneStyle || inheritedStyle}.`
+      ? `Scene images will lock to: ${sceneStyle || inheritedStyle}${heroCount > 1 ? ` with ${heroCount} heroes` : ""}.`
       : `Scene images may use: ${sceneStyle || inheritedStyle}.`;
   }
   webScenePreviewTitle.textContent = title;
@@ -747,7 +818,7 @@ storyRouteForm.addEventListener("submit", (event) => {
 
 storyCharacterForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  saveCharacterFromForm("Character saved to this story project.");
+  saveCharacterFromForm(`Hero ${activeHeroIndex + 1} saved to this story project.`);
 });
 
 if (storyBannerForm) {
@@ -777,14 +848,16 @@ if (applyScenePromptToBannerButton && bannerTextInput) {
 }
 
 function saveCharacterFromForm(message) {
+  normalizeStoryCharacters();
   const data = currentCharacterFormData();
-  const draft = storyProject.characterDraft || {};
-  storyProject.character = {
-    ...(storyProject.character || {}),
+  const draft = storyProject.characterDrafts?.[activeHeroIndex] || {};
+  storyProject.characters[activeHeroIndex] = {
+    ...(storyProject.characters[activeHeroIndex] || {}),
     ...draft,
     ...data,
   };
-  delete storyProject.characterDraft;
+  storyProject.character = storyProject.characters[0] || {};
+  storyProject.characterDrafts.splice(activeHeroIndex, 1);
   saveStoryProject();
   renderStoryDashboard();
   if (message) characterImageStatus.textContent = message;
@@ -792,10 +865,11 @@ function saveCharacterFromForm(message) {
 }
 
 async function generateCharacterImage({ variation = false } = {}) {
+  normalizeStoryCharacters();
   const data = currentCharacterFormData();
-  storyProject.characterDraft = {
-    ...(storyProject.character || {}),
-    ...(storyProject.characterDraft || {}),
+  storyProject.characterDrafts[activeHeroIndex] = {
+    ...(storyProject.characters[activeHeroIndex] || {}),
+    ...(storyProject.characterDrafts[activeHeroIndex] || {}),
     ...data,
   };
   saveStoryProject();
@@ -819,8 +893,8 @@ async function generateCharacterImage({ variation = false } = {}) {
       throw new Error(result.error || "Character image generation failed.");
     }
 
-    storyProject.characterDraft = {
-      ...(storyProject.characterDraft || {}),
+    storyProject.characterDrafts[activeHeroIndex] = {
+      ...(storyProject.characterDrafts[activeHeroIndex] || {}),
       ...data,
       imageDataUrl: await saveStoryImage(result.imageDataUrl),
     };
@@ -838,10 +912,25 @@ async function generateCharacterImage({ variation = false } = {}) {
 generateCharacterImageButton.addEventListener("click", () => generateCharacterImage());
 
 saveCharacterPreviewButton.addEventListener("click", () => {
-  saveCharacterFromForm("Character saved to this story project.");
+  saveCharacterFromForm(`Hero ${activeHeroIndex + 1} saved to this story project.`);
 });
 
 createCharacterVariationButton.addEventListener("click", () => generateCharacterImage({ variation: true }));
+
+if (addSecondHeroButton) {
+  addSecondHeroButton.addEventListener("click", () => {
+    switchHeroSlot(1);
+    characterImageStatus.textContent = "Hero 2 is ready to create. Hero 1 stays locked in your project.";
+  });
+}
+
+if (heroSlotRow) {
+  heroSlotRow.addEventListener("click", (event) => {
+    const slot = event.target.closest("[data-hero-slot]");
+    if (!slot) return;
+    switchHeroSlot(Number(slot.dataset.heroSlot));
+  });
+}
 
 function clearSceneDraftAndPreview() {
   delete storyProject.sceneDraftImages;
@@ -858,7 +947,10 @@ if (sceneStyleSelect) {
 
 async function generateSceneImages() {
   const data = currentSceneFormData();
-  const character = storyProject.character || {};
+  normalizeStoryCharacters();
+  const characters = storyProject.characters || [];
+  const character = characters[0] || storyProject.character || {};
+  const secondCharacter = characters[1] || {};
   sceneImageStatus.textContent = "Generating 16:9 scene card image...";
   generateSceneImagesButton.disabled = true;
   recreateSceneImagesButton.disabled = true;
@@ -875,6 +967,12 @@ async function generateSceneImages() {
         characterPersonality: character.personality || "",
         characterStyle: character.style || "",
         characterSafety: character.safety || "",
+        secondCharacterName: secondCharacter.name || "",
+        secondCharacterPrompt: secondCharacter.prompt || "",
+        secondCharacterType: secondCharacter.type || "",
+        secondCharacterPersonality: secondCharacter.personality || "",
+        secondCharacterStyle: secondCharacter.style || "",
+        secondCharacterSafety: secondCharacter.safety || "",
         sceneStyle: data.sceneStyle || "inherit",
         lockCharacterStyle: Boolean(data.lockCharacterStyle),
       }),

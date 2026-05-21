@@ -157,6 +157,9 @@ function styleGuidance(style) {
   if (key.includes("chibi")) {
     return "Style guidance: original chibi game character with cute proportions, oversized head, small body, soft rounded shapes, cheerful expression, toy-like kid-safe charm.";
   }
+  if (key.includes("fantasy rpg")) {
+    return "Style guidance: premium kid-friendly fantasy RPG character art, readable game silhouette, tasteful adventurer outfit, expressive heroic pose, polished painterly lighting, magical details without scary realism, no weapons pointed at viewer.";
+  }
   return "Style guidance: keep the chosen visual style clear, kid-friendly, original, and suitable for a game character asset.";
 }
 
