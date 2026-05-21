@@ -56,7 +56,6 @@ const webScenePreviewTitle = document.querySelector("#webScenePreviewTitle");
 const webScenePreviewText = document.querySelector("#webScenePreviewText");
 const sceneStyleSelect = document.querySelector("#sceneStyleSelect");
 const sceneStyleLockNote = document.querySelector("#sceneStyleLockNote");
-const sceneBannerPreview = document.querySelector("#sceneBannerPreview");
 const bannerDesignPreview = document.querySelector("#bannerDesignPreview");
 const bannerDesignText = document.querySelector("#bannerDesignText");
 const bannerTextInput = document.querySelector("#bannerTextInput");
@@ -712,7 +711,7 @@ function renderBannerPreview() {
     ...currentBannerFormData(),
   };
   const text = banner.bannerText || "Write your story question in the Banner UI step.";
-  [sceneBannerPreview, bannerDesignText].forEach((element) => {
+  [bannerDesignText].forEach((element) => {
     if (!element) return;
     element.textContent = text;
     element.className = `scene-banner-overlay banner-style-${banner.bannerStyle || "glass"}`;
