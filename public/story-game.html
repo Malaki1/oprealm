@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=13" />
+    <link rel="stylesheet" href="/studio.css?v=14" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=9" defer></script>
+    <script src="/story-game.js?v=10" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -234,6 +234,7 @@
                 </div>
                 <div class="scene-preview-pair">
                   <div class="scene-preview-frame mobile-view">
+                    <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="mobile" hidden>Enlarge</button>
                     <span>9:16 Mobile</span>
                     <strong id="mobileScenePreviewTitle">Scene preview</strong>
                     <p id="mobileScenePreviewText">Fill in the scene prompt to preview the moment.</p>
@@ -241,6 +242,7 @@
                     <div class="scene-preview-choice">Choice B</div>
                   </div>
                   <div class="scene-preview-frame web-view">
+                    <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="web" hidden>Enlarge</button>
                     <span>16:9 Web</span>
                     <strong id="webScenePreviewTitle">Scene preview</strong>
                     <p id="webScenePreviewText">The same scene adapts to a wider game view.</p>
@@ -362,5 +364,13 @@
         </div>
       </section>
     </main>
+    <div class="image-lightbox" id="imageLightbox" aria-hidden="true">
+      <div class="image-lightbox-backdrop" data-close-lightbox></div>
+      <figure class="image-lightbox-panel" role="dialog" aria-modal="true" aria-labelledby="imageLightboxTitle">
+        <button class="image-lightbox-close" type="button" data-close-lightbox aria-label="Close enlarged preview">Close</button>
+        <figcaption id="imageLightboxTitle">Scene preview</figcaption>
+        <img id="imageLightboxImage" alt="Enlarged scene preview" />
+      </figure>
+    </div>
   </body>
 </html>

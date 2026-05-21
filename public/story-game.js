@@ -43,6 +43,9 @@ const mobileScenePreviewTitle = document.querySelector("#mobileScenePreviewTitle
 const mobileScenePreviewText = document.querySelector("#mobileScenePreviewText");
 const webScenePreviewTitle = document.querySelector("#webScenePreviewTitle");
 const webScenePreviewText = document.querySelector("#webScenePreviewText");
+const imageLightbox = document.querySelector("#imageLightbox");
+const imageLightboxImage = document.querySelector("#imageLightboxImage");
+const imageLightboxTitle = document.querySelector("#imageLightboxTitle");
 const checkCharacter = document.querySelector("#checkCharacter");
 const checkScenes = document.querySelector("#checkScenes");
 
@@ -150,6 +153,11 @@ async function setFrameImageFromStoredValue(frame, value) {
     ? `linear-gradient(180deg, rgba(3, 9, 21, 0.08), rgba(3, 9, 21, 0.74)), url("${imageDataUrl}")`
     : "";
   frame.classList.toggle("has-generated-image", Boolean(imageDataUrl));
+  const enlargeButton = frame.querySelector("[data-enlarge-scene-preview]");
+  if (enlargeButton) {
+    enlargeButton.hidden = !imageDataUrl;
+    enlargeButton.dataset.imageSrc = imageDataUrl || "";
+  }
 }
 
 async function migrateStoryImagesToIndexedDb() {
@@ -523,6 +531,42 @@ function setScenePreviewImage(format, imageDataUrl) {
   const frame = document.querySelector(format === "mobile" ? ".mobile-view" : ".web-view");
   setFrameImageFromStoredValue(frame, imageDataUrl);
 }
+
+function openImageLightbox(src, title) {
+  if (!src || !imageLightbox || !imageLightboxImage || !imageLightboxTitle) return;
+  imageLightboxImage.src = src;
+  imageLightboxImage.alt = title;
+  imageLightboxTitle.textContent = title;
+  imageLightbox.classList.add("is-open");
+  imageLightbox.setAttribute("aria-hidden", "false");
+  document.body.classList.add("lightbox-open");
+}
+
+function closeImageLightbox() {
+  if (!imageLightbox || !imageLightboxImage) return;
+  imageLightbox.classList.remove("is-open");
+  imageLightbox.setAttribute("aria-hidden", "true");
+  imageLightboxImage.removeAttribute("src");
+  document.body.classList.remove("lightbox-open");
+}
+
+document.addEventListener("click", (event) => {
+  const enlargeButton = event.target.closest("[data-enlarge-scene-preview]");
+  if (enlargeButton) {
+    const format = enlargeButton.dataset.enlargeScenePreview;
+    const title = format === "mobile" ? "Mobile 9:16 scene preview" : "Web 16:9 scene preview";
+    openImageLightbox(enlargeButton.dataset.imageSrc, title);
+    return;
+  }
+
+  if (event.target.closest("[data-close-lightbox]")) {
+    closeImageLightbox();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeImageLightbox();
+});
 
 storyTabs.forEach((tab) => {
   tab.addEventListener("click", () => {

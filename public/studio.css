@@ -789,6 +789,28 @@ select option {
   opacity: 0.16;
 }
 
+.scene-enlarge-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: var(--white);
+  background: rgba(3, 9, 21, 0.74);
+  box-shadow: 0 12px 28px rgba(3, 9, 21, 0.28);
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.scene-enlarge-button:hover {
+  border-color: rgba(143, 240, 255, 0.74);
+  background: rgba(24, 217, 255, 0.18);
+}
+
 .scene-preview-frame > * {
   position: relative;
   z-index: 1;
@@ -840,6 +862,75 @@ select option {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.lightbox-open {
+  overflow: hidden;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  place-items: center;
+  padding: clamp(16px, 4vw, 48px);
+}
+
+.image-lightbox.is-open {
+  display: grid;
+}
+
+.image-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 9, 21, 0.82);
+  backdrop-filter: blur(14px);
+}
+
+.image-lightbox-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  width: min(1120px, 100%);
+  max-height: 92vh;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(143, 240, 255, 0.28);
+  border-radius: 22px;
+  background: linear-gradient(145deg, rgba(8, 23, 61, 0.96), rgba(20, 12, 48, 0.96));
+  box-shadow: 0 28px 90px rgba(3, 9, 21, 0.62);
+}
+
+.image-lightbox-panel figcaption {
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.image-lightbox-panel img {
+  display: block;
+  width: 100%;
+  max-height: calc(92vh - 86px);
+  border-radius: 16px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  color: var(--white);
+  background: rgba(3, 9, 21, 0.72);
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .scene-card {
