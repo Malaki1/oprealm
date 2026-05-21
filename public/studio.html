@@ -11,8 +11,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=1" />
-    <script src="/studio.js?v=1" defer></script>
+    <link rel="stylesheet" href="/studio.css?v=8" />
+    <script src="/studio.js?v=4" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -23,6 +23,8 @@
       <nav aria-label="Studio navigation">
         <a href="/library">Public Library</a>
         <a href="/ai-coach.html">AI Coach</a>
+        <a href="/story-game.html">Story Creator</a>
+        <a href="/account">My Account</a>
         <a class="button button-primary" href="#publish">Publish Creation</a>
       </nav>
     </header>
@@ -87,6 +89,241 @@
             </div>
             <div id="projectBoard" class="project-board"></div>
           </div>
+
+          <section class="story-dashboard" id="storyDashboard" hidden>
+            <div class="story-dashboard-head">
+              <div>
+                <p class="eyebrow">AI Story Game Dashboard</p>
+                <h3>Build a pick-a-path story game</h3>
+                <p>Start with a character, then create scene cards that connect into different outcomes.</p>
+              </div>
+              <span class="status-pill">Draft saved locally</span>
+            </div>
+
+            <div class="story-tabs" role="tablist" aria-label="AI Story Game sections">
+              <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
+              <button class="story-tab" type="button" data-story-tab="scene">Scene Cards</button>
+              <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
+              <button class="story-tab" type="button" data-story-tab="preview">Preview</button>
+              <button class="story-tab" type="button" data-story-tab="publish">Publish Prep</button>
+            </div>
+
+            <div class="story-tab-panel is-active" data-story-panel="character">
+              <div class="story-workspace">
+                <form class="story-form" id="storyCharacterForm">
+                  <div>
+                    <p class="eyebrow">Step 1</p>
+                    <h4>Create Your Main Character</h4>
+                  </div>
+                  <label>
+                    Character name
+                    <input name="name" maxlength="48" placeholder="Milo the Moon Explorer" />
+                  </label>
+                  <label>
+                    Character prompt
+                    <textarea name="prompt" rows="4" placeholder="Describe who they are, what they want, and what makes them fun to follow."></textarea>
+                  </label>
+                  <div class="story-form-grid">
+                    <label>
+                      Character type
+                      <select name="type">
+                        <option>Young explorer</option>
+                        <option>Robot helper</option>
+                        <option>Fantasy creature</option>
+                        <option>Space adventurer</option>
+                        <option>Everyday kid hero</option>
+                        <option>Custom</option>
+                      </select>
+                    </label>
+                    <label>
+                      Personality
+                      <select name="personality">
+                        <option>Brave and kind</option>
+                        <option>Curious and funny</option>
+                        <option>Calm problem-solver</option>
+                        <option>Inventive and energetic</option>
+                        <option>Shy but growing confident</option>
+                      </select>
+                    </label>
+                    <label>
+                      Visual style
+                      <select name="style">
+                        <option>Bright 3D game mascot</option>
+                        <option>Cozy storybook</option>
+                        <option>Pixel game hero</option>
+                        <option>Cartoon adventure</option>
+                        <option>Futuristic OPREALM style</option>
+                      </select>
+                    </label>
+                    <label>
+                      Safety tone
+                      <select name="safety">
+                        <option>Friendly and safe for all ages</option>
+                        <option>Funny with no bullying</option>
+                        <option>Mysterious but not scary</option>
+                        <option>Adventure with safe choices</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="prompt-actions">
+                    <button class="button button-primary" type="submit">Save Character</button>
+                    <button class="button button-secondary" type="button" id="characterPromptButton">Create Character Prompt</button>
+                  </div>
+                </form>
+
+                <article class="story-card-preview">
+                  <p class="eyebrow">Saved character</p>
+                  <h4 id="characterPreviewName">No character yet</h4>
+                  <p id="characterPreviewBody">Add a character to begin the AI Story Game flow.</p>
+                  <div class="story-badge-row">
+                    <span id="characterPreviewType">Type</span>
+                    <span id="characterPreviewStyle">Style</span>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <div class="story-tab-panel" data-story-panel="scene">
+              <div class="story-workspace">
+                <form class="story-form" id="storySceneForm">
+                  <div>
+                    <p class="eyebrow">Step 2</p>
+                    <h4>Create A Scene Card</h4>
+                  </div>
+                  <label>
+                    Scene prompt
+                    <textarea name="prompt" rows="4" placeholder="What happens in this scene? Example: The hero finds a glowing doorway in a quiet library."></textarea>
+                  </label>
+                  <div class="story-form-grid">
+                    <label>
+                      Camera angle
+                      <select name="camera">
+                        <option>Wide cinematic reveal</option>
+                        <option>Close-up</option>
+                        <option>Over-the-shoulder</option>
+                        <option>First-person view</option>
+                        <option>Side view</option>
+                        <option>Top-down map view</option>
+                      </select>
+                    </label>
+                    <label>
+                      Background
+                      <select name="background">
+                        <option>Magical library</option>
+                        <option>Forest path</option>
+                        <option>Village square</option>
+                        <option>Space station</option>
+                        <option>Castle room</option>
+                        <option>Custom background</option>
+                      </select>
+                    </label>
+                    <label>
+                      Character
+                      <select name="character">
+                        <option>Use saved character</option>
+                        <option>Use saved character + sidekick</option>
+                        <option>No character shown</option>
+                      </select>
+                    </label>
+                    <label>
+                      Mood
+                      <select name="mood">
+                        <option>Curious</option>
+                        <option>Exciting</option>
+                        <option>Funny</option>
+                        <option>Mysterious but safe</option>
+                        <option>Heroic</option>
+                        <option>Magical</option>
+                      </select>
+                    </label>
+                    <label>
+                      Scene type
+                      <select name="type">
+                        <option>Start scene</option>
+                        <option>Exploration</option>
+                        <option>Puzzle</option>
+                        <option>Choice moment</option>
+                        <option>Challenge</option>
+                        <option>Discovery</option>
+                        <option>Ending</option>
+                      </select>
+                    </label>
+                    <label>
+                      Choice count
+                      <select name="choices">
+                        <option>2 choices</option>
+                        <option>3 choices</option>
+                        <option>4 choices</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="prompt-actions">
+                    <button class="button button-primary" type="submit">Add Scene Card</button>
+                    <button class="button button-secondary" type="button" id="scenePromptButton">Create Scene Prompt</button>
+                  </div>
+                </form>
+
+                <div class="scene-card-list" id="sceneCardList"></div>
+              </div>
+            </div>
+
+            <div class="story-tab-panel" data-story-panel="map">
+              <div class="story-map-tools">
+                <div>
+                  <p class="eyebrow">Branching map</p>
+                  <h4>Connect choices to scenes</h4>
+                </div>
+                <button class="button button-secondary" type="button" id="toggleStoryMapSize">Expand Map</button>
+              </div>
+              <div class="story-map-shell" id="storyMapShell">
+                <div class="story-map-board" id="storyMapBoard"></div>
+                <form class="story-route-panel" id="storyRouteForm">
+                  <p class="eyebrow">Choice Routing</p>
+                  <label>
+                    If player is in scene
+                    <select name="sourceScene" id="routeSourceScene"></select>
+                  </label>
+                  <label>
+                    And selects
+                    <select name="choiceIndex" id="routeChoiceIndex"></select>
+                  </label>
+                  <label>
+                    Send them to
+                    <select name="targetScene" id="routeTargetScene"></select>
+                  </label>
+                  <label>
+                    Arrow direction
+                    <select name="direction">
+                      <option value="right">Right</option>
+                      <option value="down">Down</option>
+                      <option value="left">Left</option>
+                      <option value="up">Up</option>
+                    </select>
+                  </label>
+                  <button class="button button-primary" type="submit">Save Route</button>
+                  <p class="form-note">Use the dots on each card for quick new branches, or manually route Choice A/B/C here.</p>
+                </form>
+              </div>
+            </div>
+
+            <div class="story-tab-panel" data-story-panel="preview">
+              <article class="story-player">
+                <p class="eyebrow">Playable preview</p>
+                <h4 id="storyPreviewTitle">Your story will appear here</h4>
+                <p id="storyPreviewText">Create a character and at least one scene card to preview the pick-a-path flow.</p>
+                <div id="storyPreviewChoices" class="story-choice-row"></div>
+              </article>
+            </div>
+
+            <div class="story-tab-panel" data-story-panel="publish">
+              <div class="publish-checklist">
+                <article><span>01</span><strong>Character saved</strong><p id="checkCharacter">Not ready yet</p></article>
+                <article><span>02</span><strong>Scene cards</strong><p id="checkScenes">Add at least 3 scene cards</p></article>
+                <article><span>03</span><strong>Safety check</strong><p>No personal info, DMs, school names or unsafe choices.</p></article>
+                <article><span>04</span><strong>Library submission</strong><p>When ready, submit through the Publish section below.</p></article>
+              </div>
+            </div>
+          </section>
         </section>
 
         <aside class="flow-panel">

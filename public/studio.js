@@ -74,13 +74,53 @@ const activeToolCost = document.querySelector("#activeToolCost");
 const promptForm = document.querySelector("#promptForm");
 const projectPrompt = document.querySelector("#projectPrompt");
 const projectBoard = document.querySelector("#projectBoard");
+const outputBoard = document.querySelector(".output-board");
 const saveProjectButton = document.querySelector("#saveProjectButton");
 const clearBoardButton = document.querySelector("#clearBoardButton");
 const publishForm = document.querySelector("#publishForm");
 const publishStatus = document.querySelector("#publishStatus");
+const storyDashboard = document.querySelector("#storyDashboard");
+const storyTabs = document.querySelectorAll("[data-story-tab]");
+const storyPanels = document.querySelectorAll("[data-story-panel]");
+const storyCharacterForm = document.querySelector("#storyCharacterForm");
+const storySceneForm = document.querySelector("#storySceneForm");
+const characterPromptButton = document.querySelector("#characterPromptButton");
+const scenePromptButton = document.querySelector("#scenePromptButton");
+const characterPreviewName = document.querySelector("#characterPreviewName");
+const characterPreviewBody = document.querySelector("#characterPreviewBody");
+const characterPreviewType = document.querySelector("#characterPreviewType");
+const characterPreviewStyle = document.querySelector("#characterPreviewStyle");
+const sceneCardList = document.querySelector("#sceneCardList");
+const storyMapShell = document.querySelector("#storyMapShell");
+const storyMapBoard = document.querySelector("#storyMapBoard");
+const toggleStoryMapSize = document.querySelector("#toggleStoryMapSize");
+const storyRouteForm = document.querySelector("#storyRouteForm");
+const routeSourceScene = document.querySelector("#routeSourceScene");
+const routeChoiceIndex = document.querySelector("#routeChoiceIndex");
+const routeTargetScene = document.querySelector("#routeTargetScene");
+const storyPreviewTitle = document.querySelector("#storyPreviewTitle");
+const storyPreviewText = document.querySelector("#storyPreviewText");
+const storyPreviewChoices = document.querySelector("#storyPreviewChoices");
+const checkCharacter = document.querySelector("#checkCharacter");
+const checkScenes = document.querySelector("#checkScenes");
 
 let activeTool = tools[0];
 let boardItems = loadBoard();
+let storyProject = loadStoryProject();
+
+async function loadStudioAccount() {
+  try {
+    const response = await fetch("/api/account");
+    const data = await response.json();
+    if (!data.authenticated) return;
+    const credits = data.user?.creditsRemaining;
+    if (credits !== undefined && document.querySelector("#creditCount")) {
+      document.querySelector("#creditCount").textContent = String(credits);
+    }
+  } catch {
+    // Studio can still be used as a local planning board if account status is unavailable.
+  }
+}
 
 function renderTools() {
   toolList.innerHTML = tools
@@ -113,7 +153,12 @@ function renderActiveTool() {
   activeToolKicker.textContent = activeTool.title;
   activeToolTitle.textContent = activeTool.id === "idea" ? "Creation Planner" : activeTool.title;
   activeToolCost.textContent = activeTool.cost;
+  const isStoryGame = activeTool.id === "story_game";
+  promptForm.hidden = isStoryGame;
+  outputBoard.hidden = isStoryGame;
+  storyDashboard.hidden = !isStoryGame;
   renderTools();
+  if (isStoryGame) renderStoryDashboard();
 }
 
 function renderBoard() {
@@ -167,11 +212,248 @@ function loadBoard() {
   }
 }
 
+function saveStoryProject() {
+  localStorage.setItem("oprealm_story_game_project", JSON.stringify(storyProject));
+}
+
+function loadStoryProject() {
+  try {
+    return JSON.parse(localStorage.getItem("oprealm_story_game_project") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function renderStoryDashboard() {
+  const character = storyProject.character || {};
+  const scenes = storyProject.scenes || [];
+
+  characterPreviewName.textContent = character.name || "No character yet";
+  characterPreviewBody.textContent = character.prompt || "Add a character to begin the AI Story Game flow.";
+  characterPreviewType.textContent = character.type || "Type";
+  characterPreviewStyle.textContent = character.style || "Style";
+
+  sceneCardList.innerHTML = scenes.length
+    ? scenes
+      .map(
+        (scene, index) => `
+          <article class="scene-card">
+            <span>${String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <strong>${escapeHtml(scene.title)}</strong>
+              <p>${escapeHtml(scene.prompt)}</p>
+              <small>${escapeHtml(scene.camera)} - ${escapeHtml(scene.background)} - ${escapeHtml(scene.type)}</small>
+            </div>
+          </article>
+        `,
+      )
+      .join("")
+    : `<article class="scene-card empty"><strong>No scene cards yet</strong><p>Create the start scene first.</p></article>`;
+
+  storyMapBoard.innerHTML = scenes.length
+    ? scenes
+      .map(
+        (scene, index) => `
+          <article class="story-node" style="--node-offset:${index % 2}" data-scene-index="${index}">
+            <button class="node-port port-up" type="button" data-connect-scene="${index}" data-direction="up" aria-label="Add branch above"></button>
+            <button class="node-port port-right" type="button" data-connect-scene="${index}" data-direction="right" aria-label="Add branch right"></button>
+            <button class="node-port port-down" type="button" data-connect-scene="${index}" data-direction="down" aria-label="Add branch below"></button>
+            <button class="node-port port-left" type="button" data-connect-scene="${index}" data-direction="left" aria-label="Add branch left"></button>
+            <span>${index === 0 ? "Start" : `Scene ${index + 1}`}</span>
+            <strong>${escapeHtml(scene.title)}</strong>
+            <p>${escapeHtml(scene.type)}</p>
+            ${renderRouteChips(scene)}
+          </article>
+        `,
+      )
+      .join("")
+    : `<article class="story-node"><span>Start</span><strong>Blank Scene Card</strong><p>Add your first scene to begin the map.</p></article>`;
+
+  renderRouteControls(scenes);
+
+  const firstScene = scenes[0];
+  storyPreviewTitle.textContent = firstScene?.title || "Your story will appear here";
+  storyPreviewText.textContent = firstScene?.prompt || "Create a character and at least one scene card to preview the pick-a-path flow.";
+  storyPreviewChoices.innerHTML = firstScene
+    ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${choiceLabel(index)}</button>`).join("")
+    : "";
+
+  checkCharacter.textContent = character.name ? "Ready" : "Not ready yet";
+  checkScenes.textContent = scenes.length >= 3 ? "Ready for preview" : `Add ${Math.max(3 - scenes.length, 0)} more scene card${3 - scenes.length === 1 ? "" : "s"}`;
+}
+
+function renderRouteChips(scene) {
+  const routes = scene.routes || [];
+  if (!routes.length) return `<div class="route-chip-row"><small>No routes yet</small></div>`;
+  return `
+    <div class="route-chip-row">
+      ${routes
+      .map((route) => `<small class="route-chip">${escapeHtml(choiceLabel(route.choiceIndex))} ${arrowForDirection(route.direction)} Scene ${Number(route.targetIndex) + 1}</small>`)
+      .join("")}
+    </div>
+  `;
+}
+
+function renderRouteControls(scenes) {
+  if (!routeSourceScene || !routeTargetScene || !routeChoiceIndex) return;
+  const sceneOptions = scenes
+    .map((scene, index) => `<option value="${index}">Scene ${index + 1}: ${escapeHtml(scene.title)}</option>`)
+    .join("");
+
+  routeSourceScene.innerHTML = sceneOptions || `<option value="">Add scenes first</option>`;
+  routeTargetScene.innerHTML = sceneOptions || `<option value="">Add scenes first</option>`;
+  renderChoiceOptions();
+}
+
+function renderChoiceOptions() {
+  const scenes = storyProject.scenes || [];
+  const source = scenes[Number(routeSourceScene?.value || 0)];
+  const count = choiceCountForScene(source);
+  routeChoiceIndex.innerHTML = Array.from({ length: count }, (_, index) => `<option value="${index}">${choiceLabel(index)}</option>`).join("");
+}
+
+function choiceCountForScene(scene) {
+  if (!scene) return 2;
+  return Number(String(scene.choices || "2").match(/\d/)?.[0] || 2);
+}
+
+function choiceLabel(index) {
+  return `Choice ${String.fromCharCode(65 + Number(index || 0))}`;
+}
+
+function arrowForDirection(direction) {
+  return { up: "?", right: "?", down: "?", left: "?" }[direction] || "?";
+}
+
+function addRoute(sourceIndex, choiceIndex, targetIndex, direction = "right") {
+  const scenes = storyProject.scenes || [];
+  if (!scenes[sourceIndex] || !scenes[targetIndex]) return;
+  const routes = scenes[sourceIndex].routes || [];
+  const existingIndex = routes.findIndex((route) => Number(route.choiceIndex) === Number(choiceIndex));
+  const nextRoute = { choiceIndex: Number(choiceIndex), targetIndex: Number(targetIndex), direction };
+  if (existingIndex >= 0) routes[existingIndex] = nextRoute;
+  else routes.push(nextRoute);
+  scenes[sourceIndex].routes = routes;
+  storyProject.scenes = scenes;
+  saveStoryProject();
+  renderStoryDashboard();
+}
+
+function addConnectedScene(sourceIndex, direction) {
+  const scenes = storyProject.scenes || [];
+  const source = scenes[sourceIndex];
+  if (!source) return;
+  const targetIndex = scenes.length;
+  const routeCount = (source.routes || []).length;
+  scenes.push({
+    title: `${choiceLabel(routeCount)} Branch`,
+    prompt: `A new ${direction} branch from ${source.title}.`,
+    camera: "Wide cinematic reveal",
+    background: source.background || "Custom background",
+    character: "Use saved character",
+    mood: source.mood || "Curious",
+    type: "Choice moment",
+    choices: "2 choices",
+    routes: [],
+  });
+  storyProject.scenes = scenes;
+  addRoute(sourceIndex, Math.min(routeCount, choiceCountForScene(source) - 1), targetIndex, direction);
+}
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
+function titleFromPrompt(prompt, fallback) {
+  const clean = String(prompt || "").trim().replace(/\s+/g, " ");
+  if (!clean) return fallback;
+  return clean.split(/[.!?]/)[0].slice(0, 42) || fallback;
+}
+
 toolList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-tool]");
   if (!button) return;
+  if (button.dataset.tool === "story_game") {
+    location.href = "/story-game.html";
+    return;
+  }
   activeTool = tools.find((tool) => tool.id === button.dataset.tool) || tools[0];
   renderActiveTool();
+});
+
+storyTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    storyTabs.forEach((item) => item.classList.toggle("is-active", item === tab));
+    storyPanels.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.storyPanel === tab.dataset.storyTab));
+  });
+});
+
+toggleStoryMapSize.addEventListener("click", () => {
+  storyMapShell.classList.toggle("is-expanded");
+  document.body.classList.toggle("story-map-open", storyMapShell.classList.contains("is-expanded"));
+  toggleStoryMapSize.textContent = storyMapShell.classList.contains("is-expanded") ? "Minimize Map" : "Expand Map";
+});
+
+storyMapBoard.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-connect-scene]");
+  if (!button) return;
+  addConnectedScene(Number(button.dataset.connectScene), button.dataset.direction || "right");
+});
+
+routeSourceScene.addEventListener("change", renderChoiceOptions);
+
+storyRouteForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(storyRouteForm).entries());
+  addRoute(Number(data.sourceScene), Number(data.choiceIndex), Number(data.targetScene), data.direction);
+});
+
+storyCharacterForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(storyCharacterForm).entries());
+  storyProject.character = data;
+  saveStoryProject();
+  renderStoryDashboard();
+});
+
+storySceneForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(storySceneForm).entries());
+  const scenes = storyProject.scenes || [];
+  scenes.push({
+    ...data,
+    title: titleFromPrompt(data.prompt, scenes.length ? `Scene ${scenes.length + 1}` : "Start Scene"),
+  });
+  storyProject.scenes = scenes;
+  saveStoryProject();
+  storySceneForm.reset();
+  renderStoryDashboard();
+});
+
+characterPromptButton.addEventListener("click", () => {
+  const data = Object.fromEntries(new FormData(storyCharacterForm).entries());
+  projectPrompt.value = [
+    "Create a safe OPREALM AI Story Game character.",
+    `Name: ${data.name || "New character"}`,
+    `Type: ${data.type}`,
+    `Personality: ${data.personality}`,
+    `Visual style: ${data.style}`,
+    `Safety tone: ${data.safety}`,
+    `Prompt: ${data.prompt || "Beginner-friendly pick-a-path hero."}`,
+  ].join("\n");
+});
+
+scenePromptButton.addEventListener("click", () => {
+  const data = Object.fromEntries(new FormData(storySceneForm).entries());
+  projectPrompt.value = [
+    "Create a safe OPREALM pick-a-path scene card.",
+    `Scene prompt: ${data.prompt || "A new choice moment begins."}`,
+    `Camera angle: ${data.camera}`,
+    `Background: ${data.background}`,
+    `Character: ${data.character}`,
+    `Mood: ${data.mood}`,
+    `Scene type: ${data.type}`,
+    `Choice count: ${data.choices}`,
+  ].join("\n");
 });
 
 promptForm.addEventListener("submit", (event) => {
@@ -225,3 +507,6 @@ publishForm.addEventListener("submit", async (event) => {
 renderBuilders();
 renderActiveTool();
 renderBoard();
+renderStoryDashboard();
+loadStudioAccount();
+

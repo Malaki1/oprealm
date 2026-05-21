@@ -96,6 +96,10 @@ export async function onRequestPost({ request, env, waitUntil }) {
       return handleStoryboardComponent(interaction, env, waitUntil);
     }
 
+    if (customId.startsWith("oprealm_trailer:")) {
+      return handleTrailerComponent(interaction, env, waitUntil);
+    }
+
     return handleResultComponent(interaction, env, waitUntil);
   }
 
@@ -163,7 +167,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
       const tool = command === "trailer-pro" ? "trailer_pro" : command;
       const channelCheck = requireChannel(interaction, env, tool);
       if (channelCheck) return channelCheck;
-      return handleTextAiTool(interaction, env, waitUntil, tool);
+      return handleTrailerStarter(interaction, env, tool);
     }
 
     if (command === "setup-help") {
@@ -496,6 +500,115 @@ async function handleStoryboardStart(interaction, env) {
       allowed_mentions: { parse: [] },
     },
   });
+}
+
+async function handleTrailerStarter(interaction, env, tool) {
+  const blocked = requireSafety(interaction, env);
+  if (blocked) return blocked;
+
+  if (tool === "trailer_pro") {
+    const premiumBlocked = requirePremiumAiAccess(interaction, env);
+    if (premiumBlocked) return premiumBlocked;
+  }
+
+  const prompt = getOption(interaction, "prompt") || "";
+  const safetyWarning = checkPromptSafety(prompt);
+  if (safetyWarning) return safetyWarning;
+
+  const setupId = await saveAiResult(interaction, env, {
+    tool: "trailer_setup",
+    prompt,
+    content: prompt,
+  });
+
+  return json({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      flags: MessageFlags.EPHEMERAL,
+      content: trailerStarterMessage(tool),
+      components: trailerStarterComponents(setupId, tool),
+      allowed_mentions: { parse: [] },
+    },
+  });
+}
+
+async function handleTrailerComponent(interaction, env, waitUntil) {
+  const customId = interaction.data?.custom_id || "";
+  const match = customId.match(/^oprealm_trailer:(checklist|prep|pro|storyboard):([a-zA-Z0-9-]+)$/);
+
+  if (!match) {
+    return ephemeral("That OPRealm trailer button is not supported yet.");
+  }
+
+  const [, action, setupId] = match;
+
+  if (action === "checklist") {
+    return ephemeral(trailerChecklistMessage());
+  }
+
+  const task = runTrailerAction(interaction, env, action, setupId);
+
+  if (waitUntil) {
+    waitUntil(task);
+  } else {
+    task.catch((error) => console.error(error));
+  }
+
+  return deferredEphemeral();
+}
+
+async function runTrailerAction(interaction, env, action, setupId) {
+  try {
+    const blocked = requireSafety(interaction, env);
+    if (blocked) {
+      await editOriginalInteraction(interaction, env, "Please complete the Online Safety Academy before creating trailer materials.");
+      return;
+    }
+
+    const setup = await getAiResult(interaction, env, setupId);
+    if (!setup || setup.tool !== "trailer_setup") {
+      await editOriginalInteraction(interaction, env, "I could not find that trailer setup. Try running /trailer again.");
+      return;
+    }
+
+    if (!isResultOwner(interaction, setup)) {
+      await editOriginalInteraction(interaction, env, "That trailer setup belongs to another OPRealm creator.");
+      return;
+    }
+
+    if (action === "pro") {
+      const premiumBlocked = requirePremiumAiAccess(interaction, env);
+      if (premiumBlocked) {
+        await editOriginalInteraction(interaction, env, "Premium trailer packs are for Creator Pro, Elite, or AI Pro access members.");
+        return;
+      }
+    }
+
+    const sourcePrompt = setup.prompt || setup.content || "";
+
+    if (action === "storyboard") {
+      const creditCheck = await checkCredits(interaction, env, CREDIT_COSTS.storyboard);
+      if (creditCheck) {
+        await editOriginalInteraction(interaction, env, `You need **${formatCredits(CREDIT_COSTS.storyboard)} Creator credits** for a visual storyboard.`);
+        return;
+      }
+
+      await generatePrivateImage(interaction, env, buildTrailerStoryboardPrompt(sourcePrompt), "storyboard");
+      return;
+    }
+
+    const tool = action === "pro" ? "trailer_pro" : "trailer";
+    const creditCheck = await checkCredits(interaction, env, CREDIT_COSTS[tool]);
+    if (creditCheck) {
+      await editOriginalInteraction(interaction, env, `You need **${formatCredits(CREDIT_COSTS[tool])} Creator credits** for this trailer prep pack.`);
+      return;
+    }
+
+    await generatePrivateTextResult(interaction, env, buildTrailerPrepPrompt(sourcePrompt, tool), tool);
+  } catch (error) {
+    console.error(error);
+    await editOriginalInteraction(interaction, env, "I could not start that trailer step. Try again or ask an OPRealm moderator.");
+  }
 }
 
 async function handleStoryboardComponent(interaction, env, waitUntil) {
@@ -1391,8 +1504,18 @@ function textToolSpecificInstruction(tool) {
     ].join(" "),
     sound: "Create a sound effect design brief, not an audio file. Include: Sound Name, When It Plays, 3-Layer Sound Recipe, Safe Generation Prompt, and In-Game Use Tip.",
     music: "Create a loopable background music design brief, not an audio file. Include: Track Name, Mood, Tempo, Instruments, Loop Structure, Safe Generation Prompt, and In-Game Use Tip.",
-    trailer: "Create a game trailer storyboard, not a video file. Include: Trailer Hook, 5 Shot Plan, On-Screen Text, Music/SFX Direction, Safe Video Prompt, and Next Step.",
-    trailer_pro: "Create a premium game trailer planning pack, not a video file. Include: Trailer Strategy, 8 Shot Storyboard, Voiceover Script, On-Screen Text, Music/SFX Direction, Asset Checklist, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
+    trailer: [
+      "Create a Trailer Readiness Pack, not a video file.",
+      "Use Markdown.",
+      "Include: Trailer Readiness Score, Missing Pieces, Saved Assets Needed, 6 Shot Trailer Plan, On-Screen Text, Voiceover Script, Music/SFX Direction, Safe Video Prompt, and Next Step.",
+      "The Missing Pieces section must list anything the student still needs before making video.",
+    ].join(" "),
+    trailer_pro: [
+      "Create a premium Trailer Production Pack, not a video file.",
+      "Use Markdown.",
+      "Include: Trailer Strategy, Readiness Score, Missing Pieces, Asset Checklist, 8 Shot Storyboard, Camera Direction, Voiceover Script, On-Screen Text, Music/SFX Direction, Safe Video Prompt, Thumbnail Prompt, and Production Next Steps.",
+      "Be specific enough that the student can use this as the final input for a future video generator.",
+    ].join(" "),
     storyboard: [
       "Create a compact game storyboard for a beginner OPRealm project.",
       "Do not create another game idea brief. Do not use the game idea brief section list.",
@@ -1713,6 +1836,100 @@ function defaultPromptForTextTool(tool) {
   };
 
   return prompts[tool] || prompts.idea;
+}
+
+function trailerStarterMessage(tool) {
+  return [
+    tool === "trailer_pro" ? "**OPRealm Premium Trailer Prep**" : "**OPRealm Trailer Prep**",
+    "",
+    "Trailer creation works best as the final assembly step. Before generating video, make sure you have:",
+    "",
+    "1. A saved game idea",
+    "2. A saved character, hero object, or main visual",
+    "3. A storyboard or scene plan",
+    "4. A clear game world/setting",
+    "5. Three exciting moments to show",
+    "6. A safe call-to-action",
+    "",
+    "Choose what you want to do next. The checklist is free. Trailer prep and visual storyboard steps use Creator credits.",
+  ].join("\n");
+}
+
+function trailerChecklistMessage() {
+  return [
+    "**Trailer Readiness Checklist**",
+    "",
+    "Before making a trailer, collect these pieces:",
+    "",
+    "- **Saved idea:** title, player goal, core loop",
+    "- **Saved character/object:** consistent look, colors, outfit, prop, personality",
+    "- **Storyboard:** 5-8 scene beats or a visual storyboard",
+    "- **World:** where the game happens and what makes it exciting",
+    "- **Best 3 moments:** the strongest gameplay moments to show",
+    "- **CTA:** a safe ending like `Play my game`, `Explore the world`, or `Start your quest`",
+    "- **Safety check:** no real names, school names, usernames, DMs, copyrighted characters, or personal photos",
+    "",
+    "Recommended flow: Idea -> Character -> Storyboard -> Trailer Prep -> Trailer Video -> Music/SFX.",
+  ].join("\n");
+}
+
+function trailerStarterComponents(setupId, tool) {
+  const buttons = [
+    {
+      type: 2,
+      style: ButtonStyle.SECONDARY,
+      label: "View Checklist",
+      custom_id: `oprealm_trailer:checklist:${setupId}`,
+    },
+    {
+      type: 2,
+      style: ButtonStyle.PRIMARY,
+      label: "Create Trailer Prep",
+      custom_id: `oprealm_trailer:prep:${setupId}`,
+    },
+    {
+      type: 2,
+      style: ButtonStyle.SECONDARY,
+      label: "Create Storyboard First",
+      custom_id: `oprealm_trailer:storyboard:${setupId}`,
+    },
+  ];
+
+  if (tool === "trailer_pro") {
+    buttons.push({
+      type: 2,
+      style: ButtonStyle.SUCCESS,
+      label: "Premium Trailer Pack",
+      custom_id: `oprealm_trailer:pro:${setupId}`,
+    });
+  }
+
+  return [{ type: 1, components: buttons }];
+}
+
+function buildTrailerPrepPrompt(sourcePrompt, tool) {
+  return [
+    "Create a trailer readiness and production pack for this OPRealm project.",
+    "Do not generate a video. Prepare the student for the best possible video output later.",
+    "",
+    "Student starter notes:",
+    sourcePrompt || "The student has not provided details yet.",
+    "",
+    "If information is missing, clearly mark it under Missing Pieces and give kid-friendly prompts to gather it.",
+    tool === "trailer_pro"
+      ? "Make this a premium, studio-style pack with more detail and stronger shot planning."
+      : "Make this concise, practical, and beginner-friendly.",
+  ].join("\n");
+}
+
+function buildTrailerStoryboardPrompt(sourcePrompt) {
+  return [
+    "Create a kid-friendly visual storyboard for a future OPRealm game trailer.",
+    "Use one landscape image with 6 clear square panels.",
+    "Each panel should show one trailer shot: hook, character, world, gameplay moment, challenge, final CTA.",
+    "No readable text, no real children, no personal information, no copyrighted characters.",
+    `Project notes: ${sourcePrompt.slice(0, 900)}`,
+  ].join("\n");
 }
 
 function defaultPromptForAudioTool(tool) {

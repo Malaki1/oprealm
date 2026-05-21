@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Manage your OPREALM account, membership, safety status and creator credits." />
+    <title>OPREALM My Account</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=5" />
+    <script src="/account.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Account</span>
+      </a>
+      <nav aria-label="Account navigation">
+        <a href="/studio">Creator Studio</a>
+        <a href="/billing">Memberships</a>
+        <a href="/library">Library</a>
+        <button class="text-button header-action" type="button" id="logoutButton">Log Out</button>
+      </nav>
+    </header>
+
+    <main class="studio-shell account-shell">
+      <section class="studio-hero">
+        <div>
+          <p class="eyebrow">Member dashboard</p>
+          <h1>My Account</h1>
+          <p>Manage profile details, view membership access, check Creator credits and keep account security tidy.</p>
+        </div>
+        <aside class="credits-card account-summary" aria-label="Account summary">
+          <span>Signed in as</span>
+          <strong id="summaryName">...</strong>
+          <p id="summaryEmail">Checking account...</p>
+        </aside>
+      </section>
+
+      <section class="account-grid">
+        <article class="builder-card account-stat">
+          <p class="eyebrow">Membership</p>
+          <h3 id="tierLabel">Explorer</h3>
+          <p id="tierDescription">Your membership controls course access, AI tools and monthly Creator credits.</p>
+          <a class="button button-primary" href="/billing">Manage Membership</a>
+        </article>
+
+        <article class="builder-card account-stat">
+          <p class="eyebrow">Creator Credits</p>
+          <h3 id="creditsLabel">0</h3>
+          <p>Credits are used for OPREALM AI tools such as ideas, images, sprite sheets, music, sound and trailer prep.</p>
+          <a class="button button-primary" href="/billing.html#credit-topups">Top Up Credits</a>
+        </article>
+
+        <article class="builder-card account-stat">
+          <p class="eyebrow">Safety Status</p>
+          <h3 id="safetyLabel">Checking</h3>
+          <p>Safety-first access helps keep OPREALM spaces structured, age-aware and parent friendly.</p>
+        </article>
+      </section>
+
+      <section class="account-grid account-forms">
+        <form class="publish-form account-card" id="profileForm">
+          <div>
+            <p class="eyebrow">Profile</p>
+            <h2>Creator Details</h2>
+          </div>
+          <label>
+            Creator display name
+            <input name="displayName" maxlength="48" required />
+          </label>
+          <label>
+            Parent email
+            <input name="parentEmail" type="email" />
+          </label>
+          <label>
+            Age group
+            <select name="ageBand">
+              <option value="8-10">8-10</option>
+              <option value="11-13">11-13</option>
+              <option value="14-16">14-16</option>
+              <option value="parent">Parent / guardian</option>
+            </select>
+          </label>
+          <button class="button button-primary" type="submit">Save Profile</button>
+          <p class="form-note" id="profileStatus"></p>
+        </form>
+
+        <form class="publish-form account-card" id="passwordForm">
+          <div>
+            <p class="eyebrow">Security</p>
+            <h2>Password</h2>
+          </div>
+          <label>
+            Current password
+            <input name="currentPassword" type="password" autocomplete="current-password" required />
+          </label>
+          <label>
+            New password
+            <input name="newPassword" type="password" autocomplete="new-password" minlength="10" required />
+          </label>
+          <button class="button button-primary" type="submit">Change Password</button>
+          <p class="form-note" id="passwordStatus"></p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

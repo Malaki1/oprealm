@@ -4,6 +4,12 @@ const TIERS = {
   intensive: { label: "Elite Creator Intensive", amountCents: 39900, credits: 3000 },
 };
 
+const CREDIT_BUNDLES = {
+  mini_boost: { label: "Mini Boost", amountCents: 700, credits: 50 },
+  creator_boost: { label: "Creator Boost", amountCents: 1500, credits: 150 },
+  pro_boost: { label: "Pro Boost", amountCents: 2900, credits: 400 },
+};
+
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
 
@@ -17,6 +23,19 @@ export async function onRequestPost({ request, env }) {
   const provider = body.provider;
   if (body.action === "capture_paypal") return capturePayPalOrder(request, env, body.orderId);
 
+  const bundleKey = body.bundle;
+  if (bundleKey) {
+    const bundle = CREDIT_BUNDLES[bundleKey];
+    if (!bundle) return json({ ok: false, error: "Unknown credit bundle." }, 400);
+    if (provider !== "stripe") return json({ ok: false, error: "Credit top-ups are card checkout only right now." }, 400);
+
+    const user = await currentUser(request, env);
+    if (!user) return json({ ok: false, error: "Please log in before buying Creator credits." }, 401);
+
+    const origin = new URL(request.url).origin;
+    return createStripeCreditCheckout(env, origin, user, bundleKey, bundle);
+  }
+
   const tierKey = body.tier;
   const tier = TIERS[tierKey];
   if (!tier) return json({ ok: false, error: "Unknown membership tier." }, 400);
@@ -28,6 +47,46 @@ export async function onRequestPost({ request, env }) {
   if (provider === "paypal") return createPayPalOrder(env, origin, user, tierKey, tier);
 
   return json({ ok: false, error: "Choose Stripe or PayPal." }, 400);
+}
+
+async function createStripeCreditCheckout(env, origin, user, bundleKey, bundle) {
+  if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: "Stripe is not configured yet." }, 500);
+
+  const priceId = {
+    mini_boost: env.STRIPE_PRICE_CREDIT_MINI_BOOST,
+    creator_boost: env.STRIPE_PRICE_CREDIT_CREATOR_BOOST,
+    pro_boost: env.STRIPE_PRICE_CREDIT_PRO_BOOST,
+  }[bundleKey];
+  if (!priceId) return json({ ok: false, error: `Missing Stripe price for ${bundle.label}.` }, 500);
+
+  const body = new URLSearchParams({
+    mode: "payment",
+    success_url: `${origin}/billing?credits=success`,
+    cancel_url: `${origin}/billing?credits=cancelled`,
+    "line_items[0][price]": priceId,
+    "line_items[0][quantity]": "1",
+    allow_promotion_codes: "true",
+    client_reference_id: user.id,
+    customer_email: user.email,
+    "metadata[purchase_type]": "credit_topup",
+    "metadata[bundle]": bundleKey,
+    "metadata[credits]": String(bundle.credits),
+  });
+
+  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+  const data = await response.json();
+
+  if (!response.ok) return json({ ok: false, error: data.error?.message || "Stripe credit checkout failed." }, 502);
+
+  await saveBillingEvent(env, user.id, "stripe", bundleKey, data.id, "created", bundle.amountCents, env.OPREALM_CURRENCY || "AUD", data);
+  return json({ ok: true, provider: "stripe", checkoutUrl: data.url });
 }
 
 async function createStripeCheckout(env, origin, user, tierKey, tier) {

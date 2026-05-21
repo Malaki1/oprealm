@@ -8,16 +8,35 @@ export async function onRequestGet({ request, env }) {
         id: user.id,
         email: user.email,
         displayName: user.display_name,
+        parentEmail: user.parent_email,
+        ageBand: user.age_band,
         tier: user.tier,
         creditsRemaining: user.credits_remaining,
         safetyCompleted: Boolean(user.safety_completed),
+        createdAt: user.created_at,
       }
       : null,
   });
 }
 
 export async function onRequestPost({ request, env }) {
+  try {
+    return await handleAccountPost(request, env);
+  } catch (error) {
+    console.error("Account API failed before response", error);
+    return json(
+      {
+        ok: false,
+        error: "The account service hit a temporary server error. Please try again, or ask an OPRealm admin to check the latest deployment.",
+      },
+      500,
+    );
+  }
+}
+
+async function handleAccountPost(request, env) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
+  await ensureAccountSchema(env);
 
   let body;
   try {
@@ -32,11 +51,24 @@ export async function onRequestPost({ request, env }) {
     if (!turnstile.ok) return json({ ok: false, error: turnstile.error }, 403);
   }
 
-  if (action === "register") return register(request, env, body);
-  if (action === "login") return login(request, env, body);
-  if (action === "logout") return logout();
-  if (action === "request_reset") return requestReset(request, env, body);
-  if (action === "reset_password") return resetPassword(env, body);
+  try {
+    if (action === "register") return await register(request, env, body);
+    if (action === "login") return await login(request, env, body);
+    if (action === "logout") return logout();
+    if (action === "update_profile") return await updateProfile(request, env, body);
+    if (action === "change_password") return await changePassword(request, env, body);
+    if (action === "request_reset") return await requestReset(request, env, body);
+    if (action === "reset_password") return await resetPassword(env, body);
+  } catch (error) {
+    console.error("Account API failed", error);
+    return json(
+      {
+        ok: false,
+        error: `Account database error: ${error?.message || "unknown database issue"}`,
+      },
+      500,
+    );
+  }
 
   return json({ ok: false, error: "Unsupported account action." }, 400);
 }
@@ -80,6 +112,54 @@ async function login(request, env, body) {
   }
 
   return createSessionResponse(request, env, user.id, { loggedIn: true });
+}
+
+async function updateProfile(request, env, body) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ ok: false, error: "Please log in before updating your account." }, 401);
+
+  const displayName = cleanText(body.displayName || body.display_name || "", 48);
+  const parentEmail = cleanEmail(body.parentEmail || body.parent_email || "");
+  const ageBand = cleanText(body.ageBand || body.age_band || "", 24);
+
+  if (!displayName) {
+    return json({ ok: false, error: "Please add a creator display name." }, 400);
+  }
+
+  await env.OPREALM_DB.prepare(
+    `
+      UPDATE web_users
+      SET display_name = ?, parent_email = ?, age_band = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `,
+  )
+    .bind(displayName, parentEmail || null, ageBand || null, user.id)
+    .run();
+
+  return json({ ok: true, message: "Account profile updated." });
+}
+
+async function changePassword(request, env, body) {
+  const user = await currentUser(request, env);
+  if (!user) return json({ ok: false, error: "Please log in before changing your password." }, 401);
+
+  const currentPassword = String(body.currentPassword || body.current_password || "");
+  const newPassword = String(body.newPassword || body.new_password || "");
+
+  if (!(await verifyPassword(currentPassword, user.password_hash))) {
+    return json({ ok: false, error: "Current password was not recognised." }, 401);
+  }
+
+  if (newPassword.length < 10) {
+    return json({ ok: false, error: "Use a new password of at least 10 characters." }, 400);
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await env.OPREALM_DB.prepare("UPDATE web_users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(passwordHash, user.id)
+    .run();
+
+  return json({ ok: true, message: "Password updated." });
 }
 
 async function requestReset(request, env, body) {
@@ -169,6 +249,8 @@ async function createSessionResponse(request, env, userId, extra = {}) {
 
 async function currentUser(request, env) {
   if (!env.OPREALM_DB) return null;
+  await ensureAccountSchema(env);
+
   const sessionId = parseCookies(request.headers.get("cookie") || "").oprealm_session;
   if (!sessionId) return null;
 
@@ -186,6 +268,54 @@ async function currentUser(request, env) {
     .first();
 }
 
+async function ensureAccountSchema(env) {
+  if (!env.OPREALM_DB) return;
+
+  await env.OPREALM_DB.batch([
+    env.OPREALM_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS web_users (
+        id TEXT PRIMARY KEY,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        parent_email TEXT,
+        age_band TEXT,
+        tier TEXT NOT NULL DEFAULT 'explorer',
+        credits_remaining INTEGER NOT NULL DEFAULT 50,
+        email_verified INTEGER NOT NULL DEFAULT 0,
+        safety_completed INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `),
+    env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_web_users_tier ON web_users(tier)"),
+    env.OPREALM_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS web_sessions (
+        id TEXT PRIMARY KEY,
+        web_user_id TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (web_user_id) REFERENCES web_users(id)
+      )
+    `),
+    env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_web_sessions_user ON web_sessions(web_user_id)"),
+    env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_web_sessions_expires ON web_sessions(expires_at)"),
+    env.OPREALM_DB.prepare(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id TEXT PRIMARY KEY,
+        web_user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (web_user_id) REFERENCES web_users(id)
+      )
+    `),
+    env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash)"),
+    env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(web_user_id)"),
+  ]);
+}
+
 async function verifyTurnstile(request, env, token) {
   if (!env.TURNSTILE_SECRET_KEY) {
     const host = new URL(request.url).hostname;
@@ -200,12 +330,17 @@ async function verifyTurnstile(request, env, token) {
   form.append("response", token);
   form.append("remoteip", request.headers.get("CF-Connecting-IP") || "");
 
-  const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-    method: "POST",
-    body: form,
-  });
-  const data = await response.json();
-  return data.success ? { ok: true } : { ok: false, error: "Human verification failed. Please try again." };
+  try {
+    const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: form,
+    });
+    const data = await response.json();
+    return data.success ? { ok: true } : { ok: false, error: "Human verification failed. Please try again." };
+  } catch (error) {
+    console.error("Turnstile verification failed", error);
+    return { ok: false, error: "Human verification could not be checked. Please refresh and try again." };
+  }
 }
 
 async function sendResetEmail(env, to, displayName, resetUrl) {
@@ -235,8 +370,9 @@ async function sendResetEmail(env, to, displayName, resetUrl) {
 
 async function hashPassword(password) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const hash = await pbkdf2(password, salt);
-  return `pbkdf2_sha256$150000$${base64url(salt)}$${base64url(hash)}`;
+  const iterations = 100000;
+  const hash = await pbkdf2(password, salt, iterations);
+  return `pbkdf2_sha256$${iterations}$${base64url(salt)}$${base64url(hash)}`;
 }
 
 async function verifyPassword(password, stored) {
@@ -248,7 +384,7 @@ async function verifyPassword(password, stored) {
   return timingSafeEqual(actual, expected);
 }
 
-async function pbkdf2(password, salt, iterations = 150000) {
+async function pbkdf2(password, salt, iterations = 100000) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, key, 256));
 }

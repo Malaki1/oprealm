@@ -77,7 +77,12 @@ async function postAccount(action, payload) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ action, ...payload }),
   });
-  const data = await response.json();
+
+  const contentType = response.headers.get("content-type") || "";
+  const data = contentType.includes("application/json")
+    ? await response.json()
+    : { ok: false, error: "The account service is not responding correctly yet. Please ask an OPRealm admin to apply the latest deployment and database update." };
+
   if (!response.ok || !data.ok) throw new Error(data.error || "Account request failed.");
   return data;
 }

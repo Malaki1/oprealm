@@ -4,6 +4,12 @@ const TIERS = {
   intensive: { credits: 3000 },
 };
 
+const CREDIT_BUNDLES = {
+  mini_boost: { credits: 50 },
+  creator_boost: { credits: 150 },
+  pro_boost: { credits: 400 },
+};
+
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
   if (!env.STRIPE_WEBHOOK_SECRET) return json({ ok: false, error: "Stripe webhook secret is not configured." }, 500);
@@ -18,9 +24,18 @@ export async function onRequestPost({ request, env }) {
     const session = event.data?.object || {};
     const tierKey = session.metadata?.tier;
     const tier = TIERS[tierKey];
+    const bundleKey = session.metadata?.bundle;
+    const bundle = CREDIT_BUNDLES[bundleKey];
+    const purchaseType = session.metadata?.purchase_type;
     const webUserId = session.client_reference_id;
 
-    if (tier && webUserId) {
+    if (purchaseType === "credit_topup" && bundle && webUserId) {
+      await env.OPREALM_DB.prepare(
+        "UPDATE web_users SET credits_remaining = credits_remaining + ?, updated_at = datetime('now') WHERE id = ?",
+      )
+        .bind(bundle.credits, webUserId)
+        .run();
+    } else if (tier && webUserId) {
       await env.OPREALM_DB.prepare(
         "UPDATE web_users SET tier = ?, credits_remaining = ?, updated_at = datetime('now') WHERE id = ?",
       )

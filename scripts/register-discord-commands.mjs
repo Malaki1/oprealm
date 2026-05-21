@@ -218,24 +218,24 @@ const commands = [
   },
   {
     name: "trailer",
-    description: "Create a safe game trailer storyboard and prompt pack.",
+    description: "Start the guided trailer prep process.",
     options: [
       {
         type: 3,
         name: "prompt",
-        description: "Describe the game and trailer style.",
+        description: "Type anything to begin, such as your game title or idea.",
         required: true,
       },
     ],
   },
   {
     name: "trailer-pro",
-    description: "Create a premium trailer plan, script, and production prompt pack.",
+    description: "Start the premium guided trailer prep process.",
     options: [
       {
         type: 3,
         name: "prompt",
-        description: "Describe the game and trailer goal.",
+        description: "Type anything to begin, such as your saved idea or trailer goal.",
         required: true,
       },
     ],

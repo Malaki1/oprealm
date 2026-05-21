@@ -8,7 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=2" />
+    <link rel="stylesheet" href="/studio.css?v=5" />
+    <script src="/account-nav.js?v=1" defer></script>
     <script src="/billing.js?v=1" defer></script>
   </head>
   <body>
@@ -18,8 +19,9 @@
         <span>OPREALM Billing</span>
       </a>
       <nav aria-label="Billing navigation">
-        <a href="/login">Log In</a>
+        <a href="/login" data-account-link>Log In</a>
         <a href="/studio">Creator Studio</a>
+        <a href="/account">My Account</a>
         <a href="/library">Library</a>
       </nav>
     </header>
@@ -74,6 +76,40 @@
             <button class="button button-secondary" type="button" data-provider="paypal" data-tier="intensive">PayPal</button>
           </div>
         </article>
+      </section>
+
+      <section class="builders-section credit-topup-section" id="credit-topups">
+        <div class="section-heading">
+          <p class="eyebrow">Creator credit top-ups</p>
+          <h2>Need more AI creation power?</h2>
+          <p>Top-ups add extra Creator credits to the signed-in account. They do not change the membership tier.</p>
+        </div>
+
+        <div class="builder-grid billing-grid">
+          <article class="builder-card billing-card credit-card">
+            <p class="eyebrow">Mini Boost</p>
+            <h3>50 Credits</h3>
+            <p class="price-line">$7</p>
+            <p>Perfect for a small burst of ideas, quick sound effects, or a few extra experiments.</p>
+            <button class="button button-primary" type="button" data-provider="stripe" data-bundle="mini_boost">Buy Mini Boost</button>
+          </article>
+
+          <article class="builder-card billing-card credit-card">
+            <p class="eyebrow">Creator Boost</p>
+            <h3>150 Credits</h3>
+            <p class="price-line">$15</p>
+            <p>A useful refill for active creators building images, sounds, storyboards and trailer prep.</p>
+            <button class="button button-primary" type="button" data-provider="stripe" data-bundle="creator_boost">Buy Creator Boost</button>
+          </article>
+
+          <article class="builder-card billing-card credit-card">
+            <p class="eyebrow">Pro Boost</p>
+            <h3>400 Credits</h3>
+            <p class="price-line">$29</p>
+            <p>Best for bigger project pushes with premium visuals, sprite work, music and launch assets.</p>
+            <button class="button button-primary" type="button" data-provider="stripe" data-bundle="pro_boost">Buy Pro Boost</button>
+          </article>
+        </div>
       </section>
 
       <p class="form-note billing-status" id="billingStatus"></p>
