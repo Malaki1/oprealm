@@ -27,6 +27,7 @@ const characterImageFrame = document.querySelector("#characterImageFrame");
 const saveCharacterPreviewButton = document.querySelector("#saveCharacterPreviewButton");
 const createCharacterVariationButton = document.querySelector("#createCharacterVariationButton");
 const addSecondHeroButton = document.querySelector("#addSecondHeroButton");
+const clearCharactersButton = document.querySelector("#clearCharactersButton");
 const heroSlotRow = document.querySelector("#heroSlotRow");
 const sceneCardList = document.querySelector("#sceneCardList");
 const storyMapShell = document.querySelector("#storyMapShell");
@@ -611,6 +612,23 @@ function chooseCharacterMethod(method) {
   renderStoryDashboard();
 }
 
+function clearSavedCharacters() {
+  if (!window.confirm("Clear all saved heroes and character drafts from this story project?")) return;
+  storyProject.characters = [];
+  storyProject.character = {};
+  storyProject.characterDrafts = [];
+  delete storyProject.characterDraft;
+  delete storyProject.characterDrawingDraft;
+  activeHeroIndex = 0;
+  activeCharacterMethod = "chooser";
+  storyCharacterForm.reset();
+  if (storyCharacterDrawingForm) storyCharacterDrawingForm.reset();
+  if (characterDrawingPreview) characterDrawingPreview.innerHTML = "<span>No drawing uploaded yet</span>";
+  saveStoryProject();
+  renderStoryDashboard();
+  characterImageStatus.textContent = "Saved characters cleared. Scenes and story map were left untouched.";
+}
+
 function currentSceneFormData() {
   const data = Object.fromEntries(new FormData(storySceneForm).entries());
   data.lockCharacterStyle = Boolean(new FormData(storySceneForm).get("lockCharacterStyle"));
@@ -946,6 +964,10 @@ if (addSecondHeroButton) {
     switchHeroSlot(1);
     characterImageStatus.textContent = "Hero 2 is ready to create. Hero 1 stays locked in your project.";
   });
+}
+
+if (clearCharactersButton) {
+  clearCharactersButton.addEventListener("click", clearSavedCharacters);
 }
 
 if (heroSlotRow) {
