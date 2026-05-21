@@ -1,6 +1,6 @@
 const CHARACTER_IMAGE_COST = 12;
-const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.042;
-const CHARACTER_IMAGE_MODEL = "gpt-image-1";
+const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.034;
+const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
 const CHARACTER_IMAGE_QUALITY = "medium";
 
 export async function onRequestPost({ request, env }) {
@@ -57,8 +57,8 @@ export async function onRequestPost({ request, env }) {
 async function generateCharacterImage(env, prompt) {
   const attempts = [
     { model: CHARACTER_IMAGE_MODEL, quality: CHARACTER_IMAGE_QUALITY },
+    { model: "gpt-image-1", quality: "medium" },
     { model: "gpt-image-1-mini", quality: "high" },
-    { model: "gpt-image-1-mini", quality: "medium" },
   ];
   let lastError;
 
