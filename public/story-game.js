@@ -171,7 +171,10 @@ async function hydrateStoryImages(root = document) {
   const downloadLinks = [...root.querySelectorAll("[data-download-image-ref]")];
   await Promise.all(downloadLinks.map(async (link) => {
     const src = await loadStoryImage(link.dataset.downloadImageRef);
-    if (src) setDownloadLink(link, src, link.dataset.downloadName || "oprealm-scene-card.png");
+    if (src) {
+      link.dataset.imageSrc = src;
+      link.hidden = false;
+    }
   }));
 }
 
@@ -191,9 +194,11 @@ async function setFrameImageFromStoredValue(frame, value) {
   if (downloadButton) {
     downloadButton.hidden = !imageDataUrl;
     if (imageDataUrl) {
-      setDownloadLink(downloadButton, imageDataUrl, "oprealm-scene-preview.png");
+      downloadButton.dataset.imageSrc = imageDataUrl;
+      downloadButton.dataset.downloadName = "oprealm-scene-preview.png";
     } else {
-      clearDownloadLink(downloadButton);
+      delete downloadButton.dataset.imageSrc;
+      delete downloadButton.dataset.downloadName;
     }
   }
 }
@@ -312,14 +317,15 @@ function renderStoryDashboard() {
                       data-image-ref="${escapeHtml(scene.webImageDataUrl)}"
                       data-lightbox-title="${escapeHtml(`Scene ${index + 1}: ${scene.title || "Scene card preview"}`)}"
                     >Enlarge</button>
-                    <a
+                    <button
                       class="scene-image-download-button scene-card-download-button"
+                      type="button"
                       data-download-scene-image="saved"
                       data-download-image-ref="${escapeHtml(scene.webImageDataUrl)}"
                       data-download-name="${escapeHtml(downloadFileName(`oprealm-scene-${index + 1}-${scene.title || "scene-card"}`))}"
                       aria-label="Download scene ${index + 1} image"
                       hidden
-                    >&#8595;</a>
+                    >&#8595;</button>
                   </div>
                 </div>
               ` : ""}
@@ -837,7 +843,9 @@ function openImageLightbox(src, title, filename = "") {
   activeLightboxImageSrc = src;
   activeLightboxDownloadName = filename || downloadFileName(title || "oprealm-scene-card");
   if (imageLightboxDownload) {
-    setDownloadLink(imageLightboxDownload, src, activeLightboxDownloadName);
+    imageLightboxDownload.dataset.imageSrc = src;
+    imageLightboxDownload.dataset.downloadName = activeLightboxDownloadName;
+    imageLightboxDownload.hidden = false;
   }
   imageLightbox.classList.add("is-open");
   imageLightbox.setAttribute("aria-hidden", "false");
@@ -849,7 +857,11 @@ function closeImageLightbox() {
   imageLightbox.classList.remove("is-open");
   imageLightbox.setAttribute("aria-hidden", "true");
   imageLightboxImage.removeAttribute("src");
-  clearDownloadLink(imageLightboxDownload);
+  if (imageLightboxDownload) {
+    delete imageLightboxDownload.dataset.imageSrc;
+    delete imageLightboxDownload.dataset.downloadName;
+    imageLightboxDownload.hidden = true;
+  }
   activeLightboxImageSrc = "";
   activeLightboxDownloadName = "oprealm-scene-card.png";
   document.body.classList.remove("lightbox-open");
@@ -875,47 +887,28 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: match[1] });
 }
 
-function objectUrlFromDataUrl(dataUrl) {
-  const blob = dataUrlToBlob(dataUrl);
-  return blob ? URL.createObjectURL(blob) : "";
-}
+function submitSceneImageDownload(dataUrl, filename = "oprealm-scene-card.png") {
+  if (!dataUrlToBlob(dataUrl)) return false;
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/story-image-download";
+  form.target = "_blank";
+  form.style.display = "none";
 
-function clearDownloadLink(link) {
-  if (!link) return;
-  if (link.dataset.objectUrl) URL.revokeObjectURL(link.dataset.objectUrl);
-  link.removeAttribute("href");
-  link.removeAttribute("download");
-  delete link.dataset.objectUrl;
-  link.hidden = true;
-}
+  const filenameInput = document.createElement("input");
+  filenameInput.type = "hidden";
+  filenameInput.name = "filename";
+  filenameInput.value = filename;
 
-function setDownloadLink(link, dataUrl, filename = "oprealm-scene-card.png") {
-  if (!link) return false;
-  const objectUrl = objectUrlFromDataUrl(dataUrl);
-  if (!objectUrl) {
-    clearDownloadLink(link);
-    return false;
-  }
-  if (link.dataset.objectUrl) URL.revokeObjectURL(link.dataset.objectUrl);
-  link.href = objectUrl;
-  link.download = filename;
-  link.dataset.objectUrl = objectUrl;
-  link.hidden = false;
-  return true;
-}
+  const imageInput = document.createElement("input");
+  imageInput.type = "hidden";
+  imageInput.name = "imageDataUrl";
+  imageInput.value = dataUrl;
 
-function downloadSceneImage(dataUrl, filename = "oprealm-scene-card.png") {
-  const blob = dataUrlToBlob(dataUrl);
-  if (!blob) return false;
-  const objectUrl = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = objectUrl;
-  link.download = filename;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+  form.append(filenameInput, imageInput);
+  document.body.appendChild(form);
+  form.submit();
+  window.setTimeout(() => form.remove(), 1000);
   return true;
 }
 
@@ -943,25 +936,22 @@ document.addEventListener("click", (event) => {
 
   const downloadButton = event.target.closest("[data-download-scene-image]");
   if (downloadButton) {
-    if (downloadButton.tagName === "A" && downloadButton.href) {
-      return;
-    }
     event.preventDefault();
     const filename = downloadButton.dataset.downloadName || "oprealm-scene-card.png";
     if (downloadButton.dataset.downloadSceneImage === "lightbox") {
-      const started = downloadSceneImage(activeLightboxImageSrc, activeLightboxDownloadName || filename);
+      const started = submitSceneImageDownload(activeLightboxImageSrc, activeLightboxDownloadName || filename);
       if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
       return;
     }
     if (downloadButton.dataset.imageSrc) {
-      const started = downloadSceneImage(downloadButton.dataset.imageSrc, filename);
+      const started = submitSceneImageDownload(downloadButton.dataset.imageSrc, filename);
       if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
       return;
     }
     if (downloadButton.dataset.imageRef) {
       loadStoryImage(downloadButton.dataset.imageRef)
         .then((src) => {
-          const started = downloadSceneImage(src, filename);
+          const started = submitSceneImageDownload(src, filename);
           if (!started && sceneImageStatus) sceneImageStatus.textContent = "Could not start that image download.";
         })
         .catch(() => {
