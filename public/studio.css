@@ -311,6 +311,7 @@ h1::after {
   border: 1px solid rgba(143, 240, 255, 0.18);
   border-radius: 50%;
   opacity: 0.82;
+  animation: orbit-shell-spin 18s linear infinite;
 }
 
 .console-orbit::before,
@@ -324,12 +325,14 @@ h1::after {
 .console-orbit::before {
   inset: 30px;
   border: 1px solid rgba(139, 67, 255, 0.25);
+  animation: orbit-shell-spin 11s linear infinite reverse;
 }
 
 .console-orbit::after {
   inset: 57px;
   background: linear-gradient(135deg, var(--cyan), var(--violet));
   box-shadow: 0 0 28px rgba(24, 217, 255, 0.55);
+  animation: orbit-core-pulse 2.8s ease-in-out infinite;
 }
 
 .console-orbit span {
@@ -337,6 +340,7 @@ h1::after {
   height: 14px;
   background: var(--cyan);
   box-shadow: 0 0 18px rgba(24, 217, 255, 0.62);
+  animation: orbit-dot-pulse 2.6s ease-in-out infinite;
 }
 
 .console-orbit span:nth-child(1) {
@@ -348,12 +352,42 @@ h1::after {
   right: 12px;
   top: 78px;
   background: var(--violet);
+  animation-delay: -0.8s;
 }
 
 .console-orbit span:nth-child(3) {
   left: 18px;
   bottom: 24px;
   background: var(--green);
+  animation-delay: -1.6s;
+}
+
+@keyframes orbit-shell-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes orbit-dot-pulse {
+  0%,
+  100% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.28);
+  }
 }
 
 .console-stats {

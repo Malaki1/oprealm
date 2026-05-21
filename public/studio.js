@@ -109,15 +109,20 @@ let boardItems = loadBoard();
 let storyProject = loadStoryProject();
 
 async function loadStudioAccount() {
+  const creditCount = document.querySelector("#creditCount");
   try {
     const response = await fetch("/api/account");
     const data = await response.json();
-    if (!data.authenticated) return;
+    if (!data.authenticated) {
+      if (creditCount) creditCount.textContent = "0";
+      return;
+    }
     const credits = data.user?.creditsRemaining;
-    if (credits !== undefined && document.querySelector("#creditCount")) {
-      document.querySelector("#creditCount").textContent = String(credits);
+    if (credits !== undefined && creditCount) {
+      creditCount.textContent = Number(credits).toLocaleString();
     }
   } catch {
+    if (creditCount) creditCount.textContent = "--";
     // Studio can still be used as a local planning board if account status is unavailable.
   }
 }
