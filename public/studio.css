@@ -926,10 +926,10 @@ select option {
   opacity: 0.16;
 }
 
-.scene-enlarge-button {
+.scene-enlarge-button,
+.scene-image-download-button {
   position: absolute;
   top: 12px;
-  right: 12px;
   z-index: 3;
   min-height: 34px;
   padding: 0 12px;
@@ -943,7 +943,22 @@ select option {
   cursor: pointer;
 }
 
-.scene-enlarge-button:hover {
+.scene-enlarge-button {
+  right: 54px;
+}
+
+.scene-image-download-button {
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.scene-enlarge-button:hover,
+.scene-image-download-button:hover {
   border-color: rgba(143, 240, 255, 0.74);
   background: rgba(24, 217, 255, 0.18);
 }
@@ -1125,6 +1140,11 @@ select option {
 }
 
 .scene-card-enlarge-button {
+  top: 10px;
+  right: 54px;
+}
+
+.scene-card-download-button {
   top: 10px;
   right: 10px;
 }

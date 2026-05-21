@@ -179,6 +179,12 @@ async function setFrameImageFromStoredValue(frame, value) {
     enlargeButton.hidden = !imageDataUrl;
     enlargeButton.dataset.imageSrc = imageDataUrl || "";
   }
+  const downloadButton = frame.querySelector("[data-download-scene-image]");
+  if (downloadButton) {
+    downloadButton.hidden = !imageDataUrl;
+    downloadButton.dataset.imageSrc = imageDataUrl || "";
+    downloadButton.dataset.downloadName = "oprealm-scene-preview.png";
+  }
 }
 
 async function migrateStoryImagesToIndexedDb() {
@@ -295,6 +301,14 @@ function renderStoryDashboard() {
                       data-image-ref="${escapeHtml(scene.webImageDataUrl)}"
                       data-lightbox-title="${escapeHtml(`Scene ${index + 1}: ${scene.title || "Scene card preview"}`)}"
                     >Enlarge</button>
+                    <button
+                      class="scene-image-download-button scene-card-download-button"
+                      type="button"
+                      data-download-scene-image="saved"
+                      data-image-ref="${escapeHtml(scene.webImageDataUrl)}"
+                      data-download-name="${escapeHtml(downloadFileName(`oprealm-scene-${index + 1}-${scene.title || "scene-card"}`))}"
+                      aria-label="Download scene ${index + 1} image"
+                    >&#8595;</button>
                   </div>
                 </div>
               ` : ""}
@@ -822,6 +836,25 @@ function closeImageLightbox() {
   document.body.classList.remove("lightbox-open");
 }
 
+function downloadFileName(value) {
+  const clean = String(value || "oprealm-scene-card")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${clean || "oprealm-scene-card"}.png`;
+}
+
+function downloadSceneImage(dataUrl, filename = "oprealm-scene-card.png") {
+  if (!dataUrl?.startsWith?.("data:image/")) return;
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 document.addEventListener("click", (event) => {
   const enlargeButton = event.target.closest("[data-enlarge-scene-preview]");
   if (enlargeButton) {
@@ -838,6 +871,24 @@ document.addEventListener("click", (event) => {
         .then((src) => openImageLightbox(src, title))
         .catch(() => {
           if (sceneImageStatus) sceneImageStatus.textContent = "Could not open that saved scene image.";
+        });
+    }
+    return;
+  }
+
+  const downloadButton = event.target.closest("[data-download-scene-image]");
+  if (downloadButton) {
+    event.preventDefault();
+    const filename = downloadButton.dataset.downloadName || "oprealm-scene-card.png";
+    if (downloadButton.dataset.imageSrc) {
+      downloadSceneImage(downloadButton.dataset.imageSrc, filename);
+      return;
+    }
+    if (downloadButton.dataset.imageRef) {
+      loadStoryImage(downloadButton.dataset.imageRef)
+        .then((src) => downloadSceneImage(src, filename))
+        .catch(() => {
+          if (sceneImageStatus) sceneImageStatus.textContent = "Could not download that saved scene image.";
         });
     }
     return;
