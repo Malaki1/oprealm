@@ -14,7 +14,6 @@ const characterPromptButton = document.querySelector("#characterPromptButton");
 const scenePromptButton = document.querySelector("#scenePromptButton");
 const generateSceneImagesButton = document.querySelector("#generateSceneImagesButton");
 const sceneImageStatus = document.querySelector("#sceneImageStatus");
-const addPreviewToMapButton = document.querySelector("#addPreviewToMapButton");
 const createNextSceneButton = document.querySelector("#createNextSceneButton");
 const recreateSceneImagesButton = document.querySelector("#recreateSceneImagesButton");
 const clearSceneCardsButton = document.querySelector("#clearSceneCardsButton");
@@ -501,6 +500,10 @@ function addBlankScene() {
 }
 
 function resetSceneBuilderForNext() {
+  if (storyProject.sceneDraftImages?.webImageDataUrl || currentSceneFormData().prompt?.trim()) {
+    addSceneFromCurrentPreview({ stayOnSceneTab: true, prepareNext: true });
+    return;
+  }
   delete storyProject.sceneDraftImages;
   delete storyProject.bannerDraft;
   storySceneForm.reset();
@@ -525,7 +528,7 @@ function clearSceneCards() {
   sceneImageStatus.textContent = "Saved scene cards cleared. Characters were left untouched.";
 }
 
-function addSceneFromCurrentPreview() {
+function addSceneFromCurrentPreview({ stayOnSceneTab = true, prepareNext = false } = {}) {
   const data = currentSceneFormData();
   const banner = currentBannerFormData();
   const draftImages = storyProject.sceneDraftImages || {};
@@ -548,8 +551,11 @@ function addSceneFromCurrentPreview() {
   storySceneForm.reset();
   if (storyBannerForm) storyBannerForm.reset();
   renderStoryDashboard();
-  switchStoryTab("scene");
-  sceneImageStatus.textContent = `Scene ${scenes.length} saved. Create the next scene when ready.`;
+  switchStoryTab(stayOnSceneTab ? "scene" : "map");
+  sceneImageStatus.textContent = prepareNext
+    ? `Scene ${scenes.length} saved. Blank next scene is ready.`
+    : `Scene ${scenes.length} saved. Create the next scene when ready.`;
+  if (prepareNext) storySceneForm.querySelector("[name='prompt']")?.focus();
 }
 
 function deleteScene(index) {
@@ -1101,9 +1107,9 @@ async function generateSceneImages() {
     };
     saveStoryProject();
     renderSceneFormPreview();
-    sceneImageStatus.textContent = `Scene images generated. Credits used: ${result.creditsUsed}.`;
+    sceneImageStatus.textContent = `Scene image generated. Credits used: ${result.creditsUsed}.`;
   } catch (error) {
-    sceneImageStatus.textContent = error.message || "Could not generate scene images.";
+    sceneImageStatus.textContent = error.message || "Could not generate the scene image.";
   } finally {
     generateSceneImagesButton.disabled = false;
     recreateSceneImagesButton.disabled = false;
@@ -1112,7 +1118,6 @@ async function generateSceneImages() {
 
 generateSceneImagesButton.addEventListener("click", generateSceneImages);
 recreateSceneImagesButton.addEventListener("click", generateSceneImages);
-addPreviewToMapButton.addEventListener("click", () => switchStoryTab("banner"));
 if (createNextSceneButton) {
   createNextSceneButton.addEventListener("click", resetSceneBuilderForNext);
 }

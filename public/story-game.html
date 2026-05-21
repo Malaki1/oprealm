@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/studio.css?v=20" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=20" defer></script>
+    <script src="/story-game.js?v=21" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -302,7 +302,7 @@
               <p class="form-note" id="sceneStyleLockNote">Scene images will inherit the saved character style.</p>
               <div class="prompt-actions">
                 <button class="button button-primary" type="submit">Add Scene Card</button>
-                <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Images</button>
+                <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Image</button>
                 <button class="button button-secondary" type="button" id="scenePromptButton">Create Scene Prompt</button>
                 <button class="button button-secondary danger-button" type="button" id="clearSceneCardsButton">Clear Previous Scenes</button>
               </div>
@@ -324,9 +324,8 @@
                   </div>
                 </div>
                 <div class="scene-preview-actions">
-                  <button class="button button-primary" type="button" id="addPreviewToMapButton">Continue To Banner UI</button>
                   <button class="button button-secondary" type="button" id="createNextSceneButton">Create Next Scene</button>
-                  <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Images</button>
+                  <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Image</button>
                 </div>
               </article>
               <div class="scene-card-list" id="sceneCardList"></div>
