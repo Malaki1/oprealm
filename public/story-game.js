@@ -665,7 +665,66 @@ function clearSavedCharacters() {
 function currentSceneFormData() {
   const data = Object.fromEntries(new FormData(storySceneForm).entries());
   data.lockCharacterStyle = Boolean(new FormData(storySceneForm).get("lockCharacterStyle"));
+  data.lockSceneContinuity = Boolean(new FormData(storySceneForm).get("lockSceneContinuity"));
   return data;
+}
+
+async function buildSceneReferenceBundle() {
+  const data = currentSceneFormData();
+  if (!data.lockSceneContinuity) {
+    return { referenceImages: [], continuityBrief: "Scene continuity references are off for this image." };
+  }
+
+  normalizeStoryCharacters();
+  const references = [];
+  const addReference = async (label, value) => {
+    if (!value || references.some((item) => item.label === label)) return;
+    const imageDataUrl = await loadStoryImage(value);
+    if (!imageDataUrl?.startsWith?.("data:image/")) return;
+    references.push({ label, imageDataUrl });
+  };
+
+  const characters = storyProject.characters || [];
+  await addReference("Hero 1 locked character portrait", characters[0]?.imageDataUrl);
+  await addReference("Hero 2 locked character portrait", characters[1]?.imageDataUrl);
+
+  const scenes = storyProject.scenes || [];
+  if (scenes[0]?.webImageDataUrl) {
+    await addReference("Scene 1 style anchor", scenes[0].webImageDataUrl);
+  }
+  const previousScene = scenes[scenes.length - 1];
+  if (previousScene?.webImageDataUrl && previousScene !== scenes[0]) {
+    await addReference(`Previous approved scene ${scenes.length}`, previousScene.webImageDataUrl);
+  }
+
+  return {
+    referenceImages: references.slice(0, 4),
+    continuityBrief: buildContinuityBrief(characters, scenes),
+  };
+}
+
+function buildContinuityBrief(characters, scenes) {
+  const heroLines = characters
+    .filter((item) => item?.name || item?.prompt)
+    .slice(0, 2)
+    .map((character, index) => [
+      `Hero ${index + 1}: ${character.name || "Unnamed hero"}`,
+      `type ${character.type || "original hero"}`,
+      `style ${character.style || "locked project style"}`,
+      `personality ${character.personality || "kid-friendly"}`,
+      `visual bible ${character.prompt || "preserve the saved hero portrait exactly"}`,
+    ].join("; "));
+
+  const sceneLines = scenes
+    .slice(-3)
+    .map((scene, index) => `Prior scene ${Math.max(1, scenes.length - 2 + index)}: ${scene.title || titleFromPrompt(scene.prompt, "Untitled scene")} | ${scene.prompt || "No prompt saved"} | ${scene.camera || ""} | ${scene.background || ""} | ${scene.mood || ""}`);
+
+  return [
+    "Continue the same story sequence instead of restarting the visual design.",
+    "Use the reference images as hard anchors for identity, costume, palette, rendering style, lighting language, and overall game art direction.",
+    heroLines.join("\n"),
+    sceneLines.join("\n"),
+  ].filter(Boolean).join("\n");
 }
 
 function currentBannerFormData() {
@@ -698,9 +757,10 @@ function renderSceneFormPreview() {
   const inheritedStyle = character.style || "the saved character style";
   const sceneStyle = data.sceneStyle === "inherit" ? inheritedStyle : data.sceneStyle;
   if (sceneStyleLockNote) {
+    const continuity = data.lockSceneContinuity ? " Previous scenes and saved hero images will be used as visual anchors." : "";
     sceneStyleLockNote.textContent = data.lockCharacterStyle
-      ? `Scene images will lock to: ${sceneStyle || inheritedStyle}${heroCount > 1 ? ` with ${heroCount} heroes` : ""}.`
-      : `Scene images may use: ${sceneStyle || inheritedStyle}.`;
+      ? `Scene images will lock to: ${sceneStyle || inheritedStyle}${heroCount > 1 ? ` with ${heroCount} heroes` : ""}.${continuity}`
+      : `Scene images may use: ${sceneStyle || inheritedStyle}.${continuity}`;
   }
   webScenePreviewTitle.textContent = title;
   webScenePreviewText.textContent = details ? `${text} ${details} | Style: ${sceneStyle}` : `${text} | Style: ${sceneStyle}`;
@@ -1070,7 +1130,11 @@ async function generateSceneImages() {
   const characters = storyProject.characters || [];
   const character = characters[0] || storyProject.character || {};
   const secondCharacter = characters[1] || {};
-  sceneImageStatus.textContent = "Generating 16:9 scene card image...";
+  const continuity = await buildSceneReferenceBundle();
+  const referenceCount = continuity.referenceImages.length;
+  sceneImageStatus.textContent = referenceCount
+    ? `Generating 16:9 scene card image with ${referenceCount} visual continuity reference${referenceCount === 1 ? "" : "s"}...`
+    : "Generating 16:9 scene card image...";
   generateSceneImagesButton.disabled = true;
   recreateSceneImagesButton.disabled = true;
 
@@ -1094,6 +1158,9 @@ async function generateSceneImages() {
         secondCharacterSafety: secondCharacter.safety || "",
         sceneStyle: data.sceneStyle || "inherit",
         lockCharacterStyle: Boolean(data.lockCharacterStyle),
+        lockSceneContinuity: Boolean(data.lockSceneContinuity),
+        continuityBrief: continuity.continuityBrief,
+        referenceImages: continuity.referenceImages,
       }),
     });
     const result = await response.json();
@@ -1107,7 +1174,11 @@ async function generateSceneImages() {
     };
     saveStoryProject();
     renderSceneFormPreview();
-    sceneImageStatus.textContent = `Scene image generated. Credits used: ${result.creditsUsed}.`;
+    const modelNote = [result.model, result.quality, result.generationMode].filter(Boolean).join(" / ");
+    const referenceNote = Number(result.referenceCount || 0)
+      ? ` Used ${result.referenceCount} visual reference${Number(result.referenceCount) === 1 ? "" : "s"}.`
+      : "";
+    sceneImageStatus.textContent = `Scene image generated${modelNote ? ` with ${modelNote}` : ""}. Credits used: ${result.creditsUsed}.${referenceNote}`;
   } catch (error) {
     sceneImageStatus.textContent = error.message || "Could not generate the scene image.";
   } finally {

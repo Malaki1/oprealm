@@ -1,7 +1,8 @@
 const SCENE_IMAGE_COST = 18;
 const SCENE_IMAGE_MODEL = "gpt-image-1.5";
-const SCENE_IMAGE_QUALITY = "medium";
-const SCENE_IMAGE_ESTIMATED_COST_USD = 0.1;
+const SCENE_IMAGE_QUALITY = "high";
+const SCENE_IMAGE_ESTIMATED_COST_USD = 0.2;
+const MAX_REFERENCE_IMAGES = 4;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -40,13 +41,15 @@ export async function onRequestPost({ request, env }) {
     body.secondCharacterStyle,
     body.secondCharacterSafety,
     body.sceneStyle,
+    body.continuityBrief,
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
   const webPrompt = buildScenePrompt(body, "web");
+  const referenceImages = normalizeReferenceImages(body.referenceImages);
   let web;
   try {
-    web = await generateImage(env, webPrompt, "1536x1024");
+    web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
   } catch (error) {
     return json({ ok: false, error: error.message || "Scene image generation failed." }, 502);
   }
@@ -64,12 +67,15 @@ export async function onRequestPost({ request, env }) {
     creditsUsed: SCENE_IMAGE_COST,
     model: web.model,
     quality: web.quality,
+    generationMode: web.mode,
+    referenceCount: referenceImages.length,
   });
 }
 
-async function generateImage(env, prompt, size) {
+async function generateImage(env, prompt, size, referenceImages = []) {
   const attempts = [
     { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
+    { model: SCENE_IMAGE_MODEL, quality: "medium" },
     { model: "gpt-image-1", quality: "high" },
     { model: "gpt-image-1", quality: "medium" },
     { model: "gpt-image-1-mini", quality: "high" },
@@ -77,7 +83,26 @@ async function generateImage(env, prompt, size) {
   let lastError;
 
   for (const attempt of attempts) {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = referenceImages.length
+      ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
+      : await requestImageGeneration(env, prompt, size, attempt);
+    const data = await response.json();
+    const b64 = data.data?.[0]?.b64_json;
+    if (response.ok && b64) {
+      return {
+        b64,
+        ...attempt,
+        mode: referenceImages.length ? "reference edit" : "generation",
+      };
+    }
+    lastError = new Error(data.error?.message || `Scene image generation failed with ${attempt.model}.`);
+  }
+
+  throw lastError || new Error("Scene image generation failed.");
+}
+
+async function requestImageGeneration(env, prompt, size, attempt) {
+  return fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
         authorization: `Bearer ${env.OPENAI_API_KEY}`,
@@ -91,13 +116,28 @@ async function generateImage(env, prompt, size) {
         n: 1,
       }),
     });
-    const data = await response.json();
-    const b64 = data.data?.[0]?.b64_json;
-    if (response.ok && b64) return { b64, ...attempt };
-    lastError = new Error(data.error?.message || `Scene image generation failed with ${attempt.model}.`);
-  }
+}
 
-  throw lastError || new Error("Scene image generation failed.");
+async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
+  const form = new FormData();
+  form.append("model", attempt.model);
+  form.append("prompt", prompt);
+  form.append("size", size);
+  form.append("quality", attempt.quality);
+  form.append("n", "1");
+
+  referenceImages.forEach((reference, index) => {
+    const file = dataUrlToFile(reference.imageDataUrl, `oprealm-reference-${index + 1}.png`);
+    form.append("image[]", file);
+  });
+
+  return fetch("https://api.openai.com/v1/images/edits", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+    },
+    body: form,
+  });
 }
 
 function buildScenePrompt(body, format) {
@@ -112,6 +152,15 @@ function buildScenePrompt(body, format) {
     "Create a safe kid-friendly AI story game scene card for OPRealm in wide 16:9 landscape format.",
     "No text, no UI words, no logos, no real children, no personal information, no copyrighted characters, no romance, no gore, no scary realism.",
     "Make it feel like a polished interactive story game scene with clear foreground, midground and background.",
+    body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
+      ? "VISUAL CONTINUITY MODE: off for this request."
+      : "VISUAL CONTINUITY MODE: on. Use the supplied reference images as continuity anchors, not loose inspiration.",
+    body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
+      ? ""
+      : "Reference priority order: first saved hero portrait, second saved hero portrait, first scene style anchor, previous approved scene. Preserve identities and style from these references while creating the new requested scene.",
+    body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
+      ? ""
+      : `Continuity brief: ${cleanText(body.continuityBrief || "Continue the same safe story sequence with consistent characters and art style.", 1600)}`,
     "Leave clean readable space for choice buttons and dialogue overlays.",
     "Frame the scene wide with cinematic depth, clear action, and safe empty areas near the lower corners for future dialogue and choice buttons.",
     "CHARACTER CONSISTENCY LOCK:",
@@ -148,6 +197,24 @@ function buildScenePrompt(body, format) {
   ].join("\n");
 }
 
+function normalizeReferenceImages(images) {
+  if (!Array.isArray(images)) return [];
+  return images
+    .map((image) => ({
+      label: cleanText(image?.label || "Story reference image", 80),
+      imageDataUrl: String(image?.imageDataUrl || ""),
+    }))
+    .filter((image) => /^data:image\/(png|jpe?g|webp);base64,/i.test(image.imageDataUrl))
+    .slice(0, MAX_REFERENCE_IMAGES);
+}
+
+function dataUrlToFile(dataUrl, filename) {
+  const match = String(dataUrl).match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
+  if (!match) throw new Error("Invalid reference image data.");
+  const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
+  return new File([bytes], filename, { type: match[1] });
+}
+
 async function logAiUsage(env, user, prompt, web) {
   try {
     await env.OPREALM_DB.prepare(
@@ -180,7 +247,7 @@ async function logAiUsage(env, user, prompt, web) {
         web?.quality || SCENE_IMAGE_QUALITY,
         1,
         SCENE_IMAGE_ESTIMATED_COST_USD,
-        JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id }).slice(0, 1500),
+        JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id, generationMode: web?.mode || "generation" }).slice(0, 1500),
       )
       .run();
   } catch (error) {
