@@ -723,6 +723,26 @@ select option {
   gap: 12px;
 }
 
+.story-range-label {
+  grid-column: 1 / -1;
+  gap: 9px;
+}
+
+.story-range-label span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.story-range-label output {
+  color: #8ff0ff;
+}
+
+.story-range-label input[type="range"] {
+  width: 100%;
+  accent-color: #18d9ff;
+}
+
 .story-checkbox-row {
   display: flex !important;
   flex-direction: row !important;
@@ -1096,7 +1116,8 @@ select option {
 .banner-design-preview .scene-banner-overlay {
   position: absolute;
   z-index: 4;
-  width: min(64%, 700px);
+  width: 56%;
+  max-width: 84%;
   min-height: 64px;
   margin: 0;
   padding: 14px 18px;
