@@ -2,6 +2,7 @@ node_modules/
 .npm-cache/
 .config/
 .wrangler/
+.asset-work/
 .dev.vars
 .env
 .env.*

@@ -60,6 +60,13 @@ const bannerDesignText = document.querySelector("#bannerDesignText");
 const bannerTextInput = document.querySelector("#bannerTextInput");
 const bannerTextCount = document.querySelector("#bannerTextCount");
 const bannerStyleSelect = document.querySelector("#bannerStyleSelect");
+const uiThemeSelect = document.querySelector("#uiThemeSelect");
+const uiOverlaySelect = document.querySelector("#uiOverlaySelect");
+const uiButtonSelect = document.querySelector("#uiButtonSelect");
+const uiFontSelect = document.querySelector("#uiFontSelect");
+const uiKitOverlayImage = document.querySelector("#uiKitOverlayImage");
+const uiKitButtonImage = document.querySelector("#uiKitButtonImage");
+const uiKitSceneStack = document.querySelector("#uiKitSceneStack");
 const applyScenePromptToBannerButton = document.querySelector("#applyScenePromptToBannerButton");
 const addBannerSceneToMapButton = document.querySelector("#addBannerSceneToMapButton");
 const imageLightbox = document.querySelector("#imageLightbox");
@@ -77,6 +84,8 @@ let activeMapTool = "select";
 let draggedScene = null;
 let activeLightboxImageSrc = "";
 let activeLightboxDownloadName = "oprealm-scene-card.png";
+let storyUiKits = [];
+let draggingBannerText = null;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
 
 function saveStoryProject() {
@@ -259,6 +268,50 @@ function normalizeStoryCharacters() {
   if (!Array.isArray(storyProject.characterDrafts)) storyProject.characterDrafts = [];
   if (activeHeroIndex > 1) activeHeroIndex = 1;
   if (activeHeroIndex < 0) activeHeroIndex = 0;
+}
+
+async function loadStoryUiKits() {
+  try {
+    const response = await fetch("/assets/ui-kits/story-ui-kits.json");
+    storyUiKits = response.ok ? await response.json() : [];
+  } catch (error) {
+    console.error("Story UI kit manifest failed to load", error);
+    storyUiKits = [];
+  }
+  renderUiKitControls();
+  renderBannerPreview();
+}
+
+function getSelectedUiKit() {
+  return storyUiKits.find((kit) => kit.id === (uiThemeSelect?.value || storyProject.banner?.uiTheme)) || storyUiKits[0] || null;
+}
+
+function getKitAsset(kit, assetId) {
+  if (!kit || !assetId) return null;
+  return kit.assets.find((asset) => asset.id === assetId) || null;
+}
+
+function renderUiKitControls() {
+  if (!uiThemeSelect || !storyUiKits.length) return;
+  const currentBanner = { ...(storyProject.banner || {}), ...(storyProject.bannerDraft || {}) };
+  const selectedTheme = currentBanner.uiTheme || uiThemeSelect.value || storyUiKits[0].id;
+  uiThemeSelect.innerHTML = storyUiKits
+    .map((kit) => `<option value="${escapeHtml(kit.id)}">${escapeHtml(kit.name)}</option>`)
+    .join("");
+  uiThemeSelect.value = storyUiKits.some((kit) => kit.id === selectedTheme) ? selectedTheme : storyUiKits[0].id;
+
+  const kit = getSelectedUiKit();
+  const overlays = kit.assets.filter((asset) => ["banner", "panel", "frame"].includes(asset.type));
+  const buttons = kit.assets.filter((asset) => asset.type === "button");
+  uiOverlaySelect.innerHTML = [`<option value="">No overlay</option>`]
+    .concat(overlays.map((asset) => `<option value="${escapeHtml(asset.id)}">${escapeHtml(asset.label)}</option>`))
+    .join("");
+  uiButtonSelect.innerHTML = [`<option value="">No button</option>`]
+    .concat(buttons.map((asset) => `<option value="${escapeHtml(asset.id)}">${escapeHtml(asset.label)}</option>`))
+    .join("");
+  uiOverlaySelect.value = overlays.some((asset) => asset.id === currentBanner.uiOverlay) ? currentBanner.uiOverlay : overlays[0]?.id || "";
+  uiButtonSelect.value = buttons.some((asset) => asset.id === currentBanner.uiButton) ? currentBanner.uiButton : "";
+  if (uiFontSelect) uiFontSelect.value = currentBanner.uiFont || kit.font || "Inter";
 }
 
 function renderHeroSlots(characters) {
@@ -772,6 +825,12 @@ function currentBannerFormData() {
   const data = Object.fromEntries(new FormData(storyBannerForm).entries());
   data.bannerText = String(data.bannerText || "").trim().slice(0, 180);
   data.bannerStyle = data.bannerStyle || "glass";
+  data.uiTheme = data.uiTheme || uiThemeSelect?.value || storyUiKits[0]?.id || "";
+  data.uiOverlay = data.uiOverlay || "";
+  data.uiButton = data.uiButton || "";
+  data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
+  data.textX = Number(storyProject.bannerDraft?.textX ?? storyProject.banner?.textX ?? 50);
+  data.textY = Number(storyProject.bannerDraft?.textY ?? storyProject.banner?.textY ?? 72);
   return data;
 }
 
@@ -812,27 +871,75 @@ function renderBannerPreview() {
   const banner = {
     bannerStyle: "glass",
     bannerText: "Write your story question in the Banner UI step.",
+    textX: 50,
+    textY: 72,
     ...(storyProject.banner || {}),
     ...(storyProject.bannerDraft || {}),
     ...currentBannerFormData(),
   };
+  const kit = storyUiKits.find((item) => item.id === banner.uiTheme) || storyUiKits[0] || null;
+  const overlayAsset = getKitAsset(kit, banner.uiOverlay);
+  const buttonAsset = getKitAsset(kit, banner.uiButton);
   const text = banner.bannerText || "Write your story question in the Banner UI step.";
   [bannerDesignText].forEach((element) => {
     if (!element) return;
     element.textContent = text;
     element.className = `scene-banner-overlay banner-style-${banner.bannerStyle || "glass"}`;
+    element.style.left = `${Math.max(8, Math.min(92, Number(banner.textX || 50)))}%`;
+    element.style.top = `${Math.max(12, Math.min(88, Number(banner.textY || 72)))}%`;
+    element.style.fontFamily = banner.uiFont || kit?.font || "Inter";
   });
+  if (uiKitOverlayImage) {
+    uiKitOverlayImage.src = overlayAsset?.src || "";
+    uiKitOverlayImage.hidden = !overlayAsset;
+    uiKitOverlayImage.className = `ui-kit-overlay-image ui-kit-overlay-${overlayAsset?.type || "none"}`;
+  }
+  if (uiKitButtonImage) {
+    uiKitButtonImage.src = buttonAsset?.src || "";
+    uiKitButtonImage.hidden = !buttonAsset;
+  }
   if (bannerDesignPreview) {
     bannerDesignPreview.classList.toggle("has-generated-image", Boolean(storyProject.sceneDraftImages?.webImageDataUrl));
+    bannerDesignPreview.classList.toggle("has-ui-kit", Boolean(overlayAsset || buttonAsset));
+    const previewScene = storyProject.scenes?.[selectedSceneIndex] || storyProject.scenes?.[0] || {};
+    setFrameImageFromStoredValue(bannerDesignPreview, storyProject.sceneDraftImages?.webImageDataUrl || previewScene.webImageDataUrl);
   }
   if (bannerTextCount && bannerTextInput) {
     bannerTextCount.textContent = `${bannerTextInput.value.length} / 180 characters`;
   }
+  renderUiKitSceneStack();
 }
 
 function setScenePreviewImage(format, imageDataUrl) {
   const frame = document.querySelector(".web-view");
   setFrameImageFromStoredValue(frame, imageDataUrl);
+}
+
+function renderUiKitSceneStack() {
+  if (!uiKitSceneStack) return;
+  const scenes = storyProject.scenes || [];
+  uiKitSceneStack.innerHTML = scenes.length
+    ? scenes.map((scene, index) => `
+      <button class="ui-kit-scene-thumb ${index === selectedSceneIndex ? "is-active" : ""}" type="button" data-ui-scene-index="${index}">
+        ${scene.webImageDataUrl ? imageMarkup(scene.webImageDataUrl, `Scene ${index + 1} thumbnail`) : `<span>${index + 1}</span>`}
+        <strong>${String(index + 1).padStart(2, "0")}</strong>
+      </button>
+    `).join("")
+    : `<p class="form-note">Saved scene cards will stack here.</p>`;
+  hydrateStoryImages(uiKitSceneStack);
+}
+
+function updateBannerTextPositionFromPointer(event) {
+  if (!bannerDesignPreview || !storyBannerForm) return;
+  const rect = bannerDesignPreview.getBoundingClientRect();
+  const x = ((event.clientX - rect.left) / rect.width) * 100;
+  const y = ((event.clientY - rect.top) / rect.height) * 100;
+  storyProject.bannerDraft = {
+    ...currentBannerFormData(),
+    textX: Math.max(8, Math.min(92, x)),
+    textY: Math.max(12, Math.min(88, y)),
+  };
+  renderBannerPreview();
 }
 
 function openImageLightbox(src, title, filename = "") {
@@ -1103,13 +1210,47 @@ if (storyBannerForm) {
   });
 
   storyBannerForm.addEventListener("change", () => {
-    storyProject.bannerDraft = currentBannerFormData();
+    if (uiThemeSelect && document.activeElement === uiThemeSelect) {
+      storyProject.bannerDraft = { ...currentBannerFormData(), uiTheme: uiThemeSelect.value, uiOverlay: "", uiButton: "" };
+      renderUiKitControls();
+    } else {
+      storyProject.bannerDraft = currentBannerFormData();
+    }
     renderBannerPreview();
   });
 
   storyBannerForm.addEventListener("submit", (event) => {
     event.preventDefault();
     saveBannerConfig("Banner style saved to this story project.");
+  });
+}
+
+if (bannerDesignText) {
+  bannerDesignText.addEventListener("pointerdown", (event) => {
+    draggingBannerText = true;
+    bannerDesignText.setPointerCapture(event.pointerId);
+    updateBannerTextPositionFromPointer(event);
+  });
+  bannerDesignText.addEventListener("pointermove", (event) => {
+    if (!draggingBannerText) return;
+    updateBannerTextPositionFromPointer(event);
+  });
+  bannerDesignText.addEventListener("pointerup", () => {
+    if (!draggingBannerText) return;
+    draggingBannerText = false;
+    saveStoryProject();
+  });
+  bannerDesignText.addEventListener("pointercancel", () => {
+    draggingBannerText = false;
+  });
+}
+
+if (uiKitSceneStack) {
+  uiKitSceneStack.addEventListener("click", (event) => {
+    const thumb = event.target.closest("[data-ui-scene-index]");
+    if (!thumb) return;
+    selectedSceneIndex = Number(thumb.dataset.uiSceneIndex);
+    renderStoryDashboard();
   });
 }
 
@@ -1373,4 +1514,7 @@ scenePromptButton.addEventListener("click", () => {
 
 migrateStoryImagesToIndexedDb()
   .catch((error) => console.error("Story image migration failed", error))
-  .finally(renderStoryDashboard);
+  .finally(() => {
+    renderStoryDashboard();
+    loadStoryUiKits();
+  });

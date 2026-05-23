@@ -1,0 +1,62 @@
+[
+  {
+    "id": "futuristic",
+    "name": "Futuristic Neon",
+    "font": "Inter",
+    "assets": [
+      { "id": "frame", "label": "Full frame", "type": "frame", "src": "/assets/ui-kits/futuristic/frame.png" },
+      { "id": "banner-title", "label": "Neon title banner", "type": "banner", "src": "/assets/ui-kits/futuristic/banner-title.png" },
+      { "id": "button-primary", "label": "Large orange button", "type": "button", "src": "/assets/ui-kits/futuristic/button-primary.png" },
+      { "id": "button-short-1", "label": "Short neon button", "type": "button", "src": "/assets/ui-kits/futuristic/button-short-1.png" },
+      { "id": "button-short-2", "label": "Grid neon button", "type": "button", "src": "/assets/ui-kits/futuristic/button-short-2.png" }
+    ]
+  },
+  {
+    "id": "fantasy",
+    "name": "Medieval Fantasy",
+    "font": "Georgia",
+    "assets": [
+      { "id": "banner-parchment", "label": "Parchment banner", "type": "banner", "src": "/assets/ui-kits/fantasy/banner-parchment.png" },
+      { "id": "ribbon", "label": "Purple ribbon", "type": "banner", "src": "/assets/ui-kits/fantasy/ribbon.png" },
+      { "id": "panel-parchment", "label": "Parchment panel", "type": "panel", "src": "/assets/ui-kits/fantasy/panel-parchment.png" },
+      { "id": "button-red", "label": "Red quest button", "type": "button", "src": "/assets/ui-kits/fantasy/button-red.png" },
+      { "id": "button-gold", "label": "Gold quest button", "type": "button", "src": "/assets/ui-kits/fantasy/button-gold.png" }
+    ]
+  },
+  {
+    "id": "casual",
+    "name": "Casual Pop",
+    "font": "Inter",
+    "assets": [
+      { "id": "text-box", "label": "Clean text box", "type": "banner", "src": "/assets/ui-kits/casual/text-box.png" },
+      { "id": "panel-medium", "label": "Medium panel", "type": "panel", "src": "/assets/ui-kits/casual/panel-medium.png" },
+      { "id": "panel-small", "label": "Small panel", "type": "panel", "src": "/assets/ui-kits/casual/panel-small.png" },
+      { "id": "button-large-yellow", "label": "Large yellow button", "type": "button", "src": "/assets/ui-kits/casual/button-large-yellow.png" },
+      { "id": "button-large-blue", "label": "Large blue button", "type": "button", "src": "/assets/ui-kits/casual/button-large-blue.png" }
+    ]
+  },
+  {
+    "id": "rugged",
+    "name": "Rugged Adventure",
+    "font": "Trebuchet MS",
+    "assets": [
+      { "id": "panel-wide", "label": "Wide metal panel", "type": "banner", "src": "/assets/ui-kits/rugged/panel-wide.png" },
+      { "id": "panel-rounded", "label": "Rounded metal panel", "type": "panel", "src": "/assets/ui-kits/rugged/panel-rounded.png" },
+      { "id": "button-orange", "label": "Orange metal button", "type": "button", "src": "/assets/ui-kits/rugged/button-orange.png" },
+      { "id": "button-shoot", "label": "Action button", "type": "button", "src": "/assets/ui-kits/rugged/button-shoot.png" },
+      { "id": "star", "label": "Reward star", "type": "icon", "src": "/assets/ui-kits/rugged/star.png" }
+    ]
+  },
+  {
+    "id": "bubbly",
+    "name": "Bubbly Arcade",
+    "font": "Inter",
+    "assets": [
+      { "id": "banner-header", "label": "Soft header banner", "type": "banner", "src": "/assets/ui-kits/bubbly/banner-header.png" },
+      { "id": "panel-large", "label": "Large soft panel", "type": "panel", "src": "/assets/ui-kits/bubbly/panel-large.png" },
+      { "id": "button-blue", "label": "Blue button", "type": "button", "src": "/assets/ui-kits/bubbly/button-blue.png" },
+      { "id": "button-purple", "label": "Purple button", "type": "button", "src": "/assets/ui-kits/bubbly/button-purple.png" },
+      { "id": "button-continue", "label": "Continue button", "type": "button", "src": "/assets/ui-kits/bubbly/button-continue.png" }
+    ]
+  }
+]

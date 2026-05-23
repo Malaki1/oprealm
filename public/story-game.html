@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=20" />
+    <link rel="stylesheet" href="/studio.css?v=21" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=21" defer></script>
+    <script src="/story-game.js?v=22" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -361,6 +361,28 @@
                   </select>
                 </label>
                 <label>
+                  Game UI theme
+                  <select name="uiTheme" id="uiThemeSelect"></select>
+                </label>
+                <label>
+                  Overlay piece
+                  <select name="uiOverlay" id="uiOverlaySelect"></select>
+                </label>
+                <label>
+                  Button piece
+                  <select name="uiButton" id="uiButtonSelect"></select>
+                </label>
+                <label>
+                  Text font
+                  <select name="uiFont" id="uiFontSelect">
+                    <option>Inter</option>
+                    <option>Georgia</option>
+                    <option>Trebuchet MS</option>
+                    <option>Verdana</option>
+                    <option>Arial Black</option>
+                  </select>
+                </label>
+                <label>
                   Text tone
                   <select name="bannerTone">
                     <option>Question</option>
@@ -386,8 +408,11 @@
               <div class="scene-preview-frame web-view banner-design-preview" id="bannerDesignPreview">
                 <span>16:9 Scene Card</span>
                 <strong>Banner layout</strong>
+                <img class="ui-kit-overlay-image" id="uiKitOverlayImage" alt="" />
+                <img class="ui-kit-button-image" id="uiKitButtonImage" alt="" />
                 <div class="scene-banner-overlay" id="bannerDesignText">What happens next?</div>
               </div>
+              <div class="ui-kit-scene-stack" id="uiKitSceneStack" aria-label="Saved scene card thumbnails"></div>
             </article>
           </div>
         </div>

@@ -1,7 +1,7 @@
-const CHARACTER_IMAGE_COST = 12;
-const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.034;
+const CHARACTER_IMAGE_COST = 18;
+const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.068;
 const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
-const CHARACTER_IMAGE_QUALITY = "medium";
+const CHARACTER_IMAGE_QUALITY = "high";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -57,6 +57,7 @@ export async function onRequestPost({ request, env }) {
 async function generateCharacterImage(env, prompt) {
   const attempts = [
     { model: CHARACTER_IMAGE_MODEL, quality: CHARACTER_IMAGE_QUALITY },
+    { model: CHARACTER_IMAGE_MODEL, quality: "medium" },
     { model: "gpt-image-1", quality: "medium" },
     { model: "gpt-image-1-mini", quality: "high" },
   ];
