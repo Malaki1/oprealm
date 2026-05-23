@@ -37,6 +37,7 @@ const generateCoverButton = document.querySelector("#generateCoverButton");
 const coverPromptInput = document.querySelector("#coverPromptInput");
 const coverImageStatus = document.querySelector("#coverImageStatus");
 const coverLoadingSticker = document.querySelector("#coverLoadingSticker");
+const coverLoadingLine = document.querySelector("#coverLoadingLine");
 const gameCoverPreview = document.querySelector("#gameCoverPreview");
 const coverLogoPreview = document.querySelector("#coverLogoPreview");
 const coverTaglinePreview = document.querySelector("#coverTaglinePreview");
@@ -110,6 +111,13 @@ let draggingBannerLayer = null;
 let draggingPreviewColumn = false;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
 const BANNER_PREVIEW_WIDTH_KEY = "oprealm_story_banner_preview_width";
+const COVER_LOADING_LINES = [
+  "Tiny dance break. The cover oven is preheating.",
+  "Sad kitten eyes activated. Waiting respectfully for epic art.",
+  "Laughing cat says this cover is about to go feral.",
+  "Loading... please do not feed the pixels after midnight.",
+];
+let coverLoadingTimer = null;
 
 function saveStoryProject() {
   try {
@@ -583,6 +591,24 @@ function saveCoverSetup(message = "") {
   saveStoryProject();
   renderCoverPreview(storyProject.cover);
   if (message && coverImageStatus) coverImageStatus.textContent = message;
+}
+
+function startCoverLoadingSticker() {
+  if (!coverLoadingSticker) return;
+  coverLoadingSticker.classList.remove("is-hidden");
+  let index = 0;
+  if (coverLoadingLine) coverLoadingLine.textContent = COVER_LOADING_LINES[index];
+  clearInterval(coverLoadingTimer);
+  coverLoadingTimer = setInterval(() => {
+    index = (index + 1) % COVER_LOADING_LINES.length;
+    if (coverLoadingLine) coverLoadingLine.textContent = COVER_LOADING_LINES[index];
+  }, 2600);
+}
+
+function stopCoverLoadingSticker() {
+  clearInterval(coverLoadingTimer);
+  coverLoadingTimer = null;
+  coverLoadingSticker?.classList.add("is-hidden");
 }
 
 function renderCharacterMethod() {
@@ -1711,7 +1737,7 @@ async function generateGameCover() {
   storyProject.coverDraft = { ...data, coverPrompt: prompt };
   renderCoverPreview(storyProject.coverDraft);
   generateCoverButton.disabled = true;
-  coverLoadingSticker?.classList.remove("is-hidden");
+  startCoverLoadingSticker();
   coverImageStatus.textContent = "Generating a premium game cover. Tiny dance break in progress...";
   try {
     const response = await fetch("/api/story-game-cover", {
@@ -1743,7 +1769,7 @@ async function generateGameCover() {
     coverImageStatus.textContent = error.message || "Could not generate the game cover.";
   } finally {
     generateCoverButton.disabled = false;
-    coverLoadingSticker?.classList.add("is-hidden");
+    stopCoverLoadingSticker();
   }
 }
 

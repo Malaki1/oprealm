@@ -853,13 +853,22 @@ select option {
   background: rgba(3, 9, 21, 0.32);
 }
 
-.sticker-cat {
+.sticker-stage {
   position: relative;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+}
+
+.sticker-cat {
+  position: absolute;
+  inset: 5px;
   width: 48px;
   height: 48px;
   border-radius: 18px 18px 22px 22px;
   background: linear-gradient(135deg, #8ff0ff, #8b43ff);
   animation: sticker-dance 0.72s ease-in-out infinite alternate;
+  opacity: 0;
 }
 
 .sticker-cat::before,
@@ -892,12 +901,77 @@ select option {
   box-shadow: 16px 0 0 #03122d, 8px 12px 0 -2px rgba(255, 255, 255, 0.92);
 }
 
+.sticker-cat-dance {
+  animation: sticker-dance 0.72s ease-in-out infinite alternate, sticker-cycle 7.8s linear infinite;
+}
+
+.sticker-cat-sad {
+  background: linear-gradient(135deg, #d9fbff, #56a7ff);
+  animation: sad-kitten-wobble 0.96s ease-in-out infinite alternate, sticker-cycle 7.8s linear infinite 2.6s;
+}
+
+.sticker-cat-sad span {
+  inset: 14px 10px auto;
+  width: 11px;
+  height: 15px;
+  background: #03122d;
+  box-shadow:
+    17px 0 0 #03122d,
+    2px 13px 0 -3px rgba(143, 240, 255, 0.95),
+    19px 13px 0 -3px rgba(143, 240, 255, 0.95),
+    9px 24px 0 -4px #03122d;
+}
+
+.sticker-cat-laugh {
+  background: linear-gradient(135deg, #fff4a3, #ff75d8);
+  animation: laugh-cat-bounce 0.52s ease-in-out infinite alternate, sticker-cycle 7.8s linear infinite 5.2s;
+}
+
+.sticker-cat-laugh span {
+  inset: 14px 10px auto;
+  width: 9px;
+  height: 6px;
+  border-radius: 999px;
+  background: #03122d;
+  box-shadow:
+    19px 0 0 #03122d,
+    9px 14px 0 3px #03122d,
+    9px 18px 0 4px #ffffff;
+}
+
+@keyframes sticker-cycle {
+  0%, 30% {
+    opacity: 1;
+  }
+  34%, 100% {
+    opacity: 0;
+  }
+}
+
 @keyframes sticker-dance {
   from {
     transform: translateY(0) rotate(-8deg) scale(0.96);
   }
   to {
     transform: translateY(-8px) rotate(8deg) scale(1.04);
+  }
+}
+
+@keyframes sad-kitten-wobble {
+  from {
+    transform: translateY(0) rotate(-3deg) scale(0.98);
+  }
+  to {
+    transform: translateY(3px) rotate(3deg) scale(1.02);
+  }
+}
+
+@keyframes laugh-cat-bounce {
+  from {
+    transform: translateY(0) rotate(8deg) scale(0.95);
+  }
+  to {
+    transform: translateY(-10px) rotate(-8deg) scale(1.07);
   }
 }
 
