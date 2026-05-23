@@ -64,6 +64,8 @@ const uiThemeSelect = document.querySelector("#uiThemeSelect");
 const uiOverlaySelect = document.querySelector("#uiOverlaySelect");
 const uiButtonSelect = document.querySelector("#uiButtonSelect");
 const uiFontSelect = document.querySelector("#uiFontSelect");
+const uiTextSizeSelect = document.querySelector("#uiTextSizeSelect");
+const uiTextColorSelect = document.querySelector("#uiTextColorSelect");
 const uiKitOverlayImage = document.querySelector("#uiKitOverlayImage");
 const uiKitButtonImage = document.querySelector("#uiKitButtonImage");
 const uiKitSceneStack = document.querySelector("#uiKitSceneStack");
@@ -85,7 +87,7 @@ let draggedScene = null;
 let activeLightboxImageSrc = "";
 let activeLightboxDownloadName = "oprealm-scene-card.png";
 let storyUiKits = [];
-let draggingBannerText = null;
+let draggingBannerLayer = null;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
 
 function saveStoryProject() {
@@ -312,6 +314,8 @@ function renderUiKitControls() {
   uiOverlaySelect.value = overlays.some((asset) => asset.id === currentBanner.uiOverlay) ? currentBanner.uiOverlay : overlays[0]?.id || "";
   uiButtonSelect.value = buttons.some((asset) => asset.id === currentBanner.uiButton) ? currentBanner.uiButton : "";
   if (uiFontSelect) uiFontSelect.value = currentBanner.uiFont || kit.font || "Inter";
+  if (uiTextSizeSelect) uiTextSizeSelect.value = currentBanner.uiTextSize || "large";
+  if (uiTextColorSelect) uiTextColorSelect.value = currentBanner.uiTextColor || "dark";
 }
 
 function renderHeroSlots(characters) {
@@ -829,8 +833,14 @@ function currentBannerFormData() {
   data.uiOverlay = data.uiOverlay || "";
   data.uiButton = data.uiButton || "";
   data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
+  data.uiTextSize = data.uiTextSize || uiTextSizeSelect?.value || "large";
+  data.uiTextColor = data.uiTextColor || uiTextColorSelect?.value || "dark";
   data.textX = Number(storyProject.bannerDraft?.textX ?? storyProject.banner?.textX ?? 50);
   data.textY = Number(storyProject.bannerDraft?.textY ?? storyProject.banner?.textY ?? 72);
+  data.overlayX = Number(storyProject.bannerDraft?.overlayX ?? storyProject.banner?.overlayX ?? 50);
+  data.overlayY = Number(storyProject.bannerDraft?.overlayY ?? storyProject.banner?.overlayY ?? 78);
+  data.buttonX = Number(storyProject.bannerDraft?.buttonX ?? storyProject.banner?.buttonX ?? 78);
+  data.buttonY = Number(storyProject.bannerDraft?.buttonY ?? storyProject.banner?.buttonY ?? 78);
   return data;
 }
 
@@ -873,6 +883,12 @@ function renderBannerPreview() {
     bannerText: "Write your story question in the Banner UI step.",
     textX: 50,
     textY: 72,
+    overlayX: 50,
+    overlayY: 78,
+    buttonX: 78,
+    buttonY: 78,
+    uiTextSize: "large",
+    uiTextColor: "dark",
     ...(storyProject.banner || {}),
     ...(storyProject.bannerDraft || {}),
     ...currentBannerFormData(),
@@ -890,15 +906,21 @@ function renderBannerPreview() {
     element.style.left = `${Math.max(8, Math.min(92, Number(banner.textX || 50)))}%`;
     element.style.top = `${Math.max(12, Math.min(88, Number(banner.textY || 72)))}%`;
     element.style.fontFamily = banner.uiFont || kit?.font || "Inter";
+    element.dataset.size = banner.uiTextSize || "large";
+    element.dataset.color = banner.uiTextColor || "dark";
   });
   if (uiKitOverlayImage) {
     uiKitOverlayImage.src = overlayAsset?.src || "";
     uiKitOverlayImage.hidden = !overlayAsset;
     uiKitOverlayImage.className = `ui-kit-overlay-image ui-kit-overlay-${overlayAsset?.type || "none"}`;
+    uiKitOverlayImage.style.left = `${Math.max(0, Math.min(100, Number(banner.overlayX || 50)))}%`;
+    uiKitOverlayImage.style.top = `${Math.max(0, Math.min(100, Number(banner.overlayY || 78)))}%`;
   }
   if (uiKitButtonImage) {
     uiKitButtonImage.src = buttonAsset?.src || "";
     uiKitButtonImage.hidden = !buttonAsset;
+    uiKitButtonImage.style.left = `${Math.max(0, Math.min(100, Number(banner.buttonX || 78)))}%`;
+    uiKitButtonImage.style.top = `${Math.max(0, Math.min(100, Number(banner.buttonY || 78)))}%`;
   }
   if (bannerDesignPreview) {
     bannerDesignPreview.classList.toggle("has-generated-image", Boolean(storyProject.sceneDraftImages?.webImageDataUrl));
@@ -931,16 +953,31 @@ function renderUiKitSceneStack() {
   hydrateStoryImages(uiKitSceneStack);
 }
 
-function updateBannerTextPositionFromPointer(event) {
+function bannerPointerPercent(event) {
   if (!bannerDesignPreview || !storyBannerForm) return;
   const rect = bannerDesignPreview.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * 100;
   const y = ((event.clientY - rect.top) / rect.height) * 100;
-  storyProject.bannerDraft = {
-    ...currentBannerFormData(),
-    textX: Math.max(8, Math.min(92, x)),
-    textY: Math.max(12, Math.min(88, y)),
-  };
+  return { x, y };
+}
+
+function updateBannerLayerPositionFromPointer(event, layer) {
+  const point = bannerPointerPercent(event);
+  if (!point) return;
+  const nextDraft = { ...currentBannerFormData() };
+  if (layer === "text") {
+    nextDraft.textX = Math.max(8, Math.min(92, point.x));
+    nextDraft.textY = Math.max(12, Math.min(88, point.y));
+  }
+  if (layer === "overlay") {
+    nextDraft.overlayX = Math.max(0, Math.min(100, point.x));
+    nextDraft.overlayY = Math.max(0, Math.min(100, point.y));
+  }
+  if (layer === "button") {
+    nextDraft.buttonX = Math.max(0, Math.min(100, point.x));
+    nextDraft.buttonY = Math.max(0, Math.min(100, point.y));
+  }
+  storyProject.bannerDraft = nextDraft;
   renderBannerPreview();
 }
 
@@ -1227,25 +1264,32 @@ if (storyBannerForm) {
   });
 }
 
-if (bannerDesignText) {
-  bannerDesignText.addEventListener("pointerdown", (event) => {
-    draggingBannerText = true;
-    bannerDesignText.setPointerCapture(event.pointerId);
-    updateBannerTextPositionFromPointer(event);
+[
+  [bannerDesignText, "text"],
+  [uiKitOverlayImage, "overlay"],
+  [uiKitButtonImage, "button"],
+].forEach(([element, layer]) => {
+  if (!element) return;
+  element.addEventListener("pointerdown", (event) => {
+    if (element.hidden) return;
+    event.preventDefault();
+    draggingBannerLayer = layer;
+    element.setPointerCapture(event.pointerId);
+    updateBannerLayerPositionFromPointer(event, layer);
   });
-  bannerDesignText.addEventListener("pointermove", (event) => {
-    if (!draggingBannerText) return;
-    updateBannerTextPositionFromPointer(event);
+  element.addEventListener("pointermove", (event) => {
+    if (draggingBannerLayer !== layer) return;
+    updateBannerLayerPositionFromPointer(event, layer);
   });
-  bannerDesignText.addEventListener("pointerup", () => {
-    if (!draggingBannerText) return;
-    draggingBannerText = false;
+  element.addEventListener("pointerup", () => {
+    if (draggingBannerLayer !== layer) return;
+    draggingBannerLayer = null;
     saveStoryProject();
   });
-  bannerDesignText.addEventListener("pointercancel", () => {
-    draggingBannerText = false;
+  element.addEventListener("pointercancel", () => {
+    if (draggingBannerLayer === layer) draggingBannerLayer = null;
   });
-}
+});
 
 if (uiKitSceneStack) {
   uiKitSceneStack.addEventListener("click", (event) => {
