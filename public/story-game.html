@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=28" />
+    <link rel="stylesheet" href="/studio.css?v=29" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=29" defer></script>
+    <script src="/story-game.js?v=30" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -371,6 +371,10 @@
                 <label>
                   Button piece
                   <select name="uiButton" id="uiButtonSelect"></select>
+                </label>
+                <label class="story-range-label">
+                  <span>Banner size <output id="uiOverlaySizeValue">66%</output></span>
+                  <input type="range" name="uiOverlaySize" id="uiOverlaySizeRange" min="32" max="110" step="1" value="66" />
                 </label>
                 <label>
                   Text font
