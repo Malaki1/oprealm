@@ -67,6 +67,8 @@ const uiOverlaySelect = document.querySelector("#uiOverlaySelect");
 const uiButtonSelect = document.querySelector("#uiButtonSelect");
 const uiOverlaySizeRange = document.querySelector("#uiOverlaySizeRange");
 const uiOverlaySizeValue = document.querySelector("#uiOverlaySizeValue");
+const uiButtonSizeRange = document.querySelector("#uiButtonSizeRange");
+const uiButtonSizeValue = document.querySelector("#uiButtonSizeValue");
 const uiFontSelect = document.querySelector("#uiFontSelect");
 const uiTextSizeSelect = document.querySelector("#uiTextSizeSelect");
 const uiTextColorSelect = document.querySelector("#uiTextColorSelect");
@@ -355,6 +357,8 @@ function renderUiKitControls() {
   uiButtonSelect.value = buttons.some((asset) => asset.id === currentBanner.uiButton) ? currentBanner.uiButton : "";
   if (uiOverlaySizeRange) uiOverlaySizeRange.value = currentBanner.uiOverlaySize || 66;
   if (uiOverlaySizeValue) uiOverlaySizeValue.textContent = `${uiOverlaySizeRange?.value || currentBanner.uiOverlaySize || 66}%`;
+  if (uiButtonSizeRange) uiButtonSizeRange.value = currentBanner.uiButtonSize || 22;
+  if (uiButtonSizeValue) uiButtonSizeValue.textContent = `${uiButtonSizeRange?.value || currentBanner.uiButtonSize || 22}%`;
   if (uiFontSelect) uiFontSelect.value = currentBanner.uiFont || kit.font || "Inter";
   if (uiTextSizeSelect) uiTextSizeSelect.value = currentBanner.uiTextSize || "large";
   if (uiTextColorSelect) uiTextColorSelect.value = currentBanner.uiTextColor || "white";
@@ -878,6 +882,7 @@ function currentBannerFormData() {
   data.uiOverlay = data.uiOverlay || "";
   data.uiButton = data.uiButton || "";
   data.uiOverlaySize = Math.max(32, Math.min(110, Number(data.uiOverlaySize || storyProject.bannerDraft?.uiOverlaySize || storyProject.banner?.uiOverlaySize || 66)));
+  data.uiButtonSize = Math.max(8, Math.min(46, Number(data.uiButtonSize || storyProject.bannerDraft?.uiButtonSize || storyProject.banner?.uiButtonSize || 22)));
   data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
   data.uiTextSize = data.uiTextSize || uiTextSizeSelect?.value || "large";
   data.uiTextColor = data.uiTextColor || uiTextColorSelect?.value || "white";
@@ -936,6 +941,7 @@ function renderBannerPreview() {
     buttonX: 78,
     buttonY: 78,
     uiOverlaySize: 66,
+    uiButtonSize: 22,
     uiTextSize: "large",
     uiTextColor: "white",
     uiTextAlign: "left",
@@ -983,7 +989,9 @@ function renderBannerPreview() {
     uiKitButtonImage.hidden = !buttonAsset;
     uiKitButtonImage.style.left = `${Math.max(0, Math.min(100, Number(banner.buttonX || 78)))}%`;
     uiKitButtonImage.style.top = `${Math.max(0, Math.min(100, Number(banner.buttonY || 78)))}%`;
+    uiKitButtonImage.style.width = `${Math.max(8, Math.min(46, Number(banner.uiButtonSize || 22)))}%`;
   }
+  if (uiButtonSizeValue) uiButtonSizeValue.textContent = `${Math.max(8, Math.min(46, Number(banner.uiButtonSize || 22)))}%`;
   if (bannerDesignPreview) {
     bannerDesignPreview.classList.toggle("has-generated-image", Boolean(storyProject.sceneDraftImages?.webImageDataUrl));
     bannerDesignPreview.classList.toggle("has-ui-kit", Boolean(overlayAsset || buttonAsset));
