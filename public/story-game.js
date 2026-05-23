@@ -10,6 +10,7 @@ const characterDrawingStyle = document.querySelector("#characterDrawingStyle");
 const useDrawingAsPromptButton = document.querySelector("#useDrawingAsPromptButton");
 const storySceneForm = document.querySelector("#storySceneForm");
 const storyBannerForm = document.querySelector("#storyBannerForm");
+const storyCoverForm = document.querySelector("#storyCoverForm");
 const bannerWorkspace = document.querySelector("#bannerWorkspace");
 const bannerPreviewResizer = document.querySelector("#bannerPreviewResizer");
 const characterPromptButton = document.querySelector("#characterPromptButton");
@@ -31,6 +32,15 @@ const saveCharacterPreviewButton = document.querySelector("#saveCharacterPreview
 const createCharacterVariationButton = document.querySelector("#createCharacterVariationButton");
 const addSecondHeroButton = document.querySelector("#addSecondHeroButton");
 const clearCharactersButton = document.querySelector("#clearCharactersButton");
+const buildCoverPromptButton = document.querySelector("#buildCoverPromptButton");
+const generateCoverButton = document.querySelector("#generateCoverButton");
+const coverPromptInput = document.querySelector("#coverPromptInput");
+const coverImageStatus = document.querySelector("#coverImageStatus");
+const coverLoadingSticker = document.querySelector("#coverLoadingSticker");
+const gameCoverPreview = document.querySelector("#gameCoverPreview");
+const coverLogoPreview = document.querySelector("#coverLogoPreview");
+const coverTaglinePreview = document.querySelector("#coverTaglinePreview");
+const coverVibePill = document.querySelector("#coverVibePill");
 const heroSlotRow = document.querySelector("#heroSlotRow");
 const sceneCardList = document.querySelector("#sceneCardList");
 const storyMapShell = document.querySelector("#storyMapShell");
@@ -403,6 +413,7 @@ function renderStoryDashboard() {
   if (addSecondHeroButton) addSecondHeroButton.disabled = !characters[0]?.name && !storyProject.characterDrafts?.[0]?.name;
   renderHeroSlots(characters);
   renderCharacterMethod();
+  renderCoverSetup();
 
   sceneCardList.innerHTML = scenes.length
     ? scenes
@@ -497,6 +508,81 @@ function renderStoryDashboard() {
   renderSceneFormPreview();
   renderBannerPreview();
   hydrateStoryImages();
+}
+
+function currentCoverFormData() {
+  if (!storyCoverForm) return storyProject.cover || {};
+  const data = Object.fromEntries(new FormData(storyCoverForm).entries());
+  data.title = String(data.title || "").trim().slice(0, 58);
+  data.tagline = String(data.tagline || "").trim().slice(0, 96);
+  data.vibe = data.vibe || "Portal Adventure";
+  data.coverStyle = data.coverStyle || "Premium console game cover";
+  data.logoStyle = data.logoStyle || "Bold premium game logo";
+  data.mood = data.mood || "Epic and exciting";
+  data.coverPrompt = String(data.coverPrompt || "").trim().slice(0, 1800);
+  return data;
+}
+
+function renderCoverSetup() {
+  if (!storyCoverForm) return;
+  const cover = storyProject.cover || {};
+  storyCoverForm.elements.title.value = cover.title || "";
+  storyCoverForm.elements.tagline.value = cover.tagline || "";
+  storyCoverForm.elements.vibe.value = cover.vibe || "Haunted Mystery";
+  storyCoverForm.elements.coverStyle.value = cover.coverStyle || "Premium console game cover";
+  storyCoverForm.elements.logoStyle.value = cover.logoStyle || "Bold premium game logo";
+  storyCoverForm.elements.mood.value = cover.mood || "Epic and exciting";
+  storyCoverForm.elements.coverPrompt.value = storyProject.coverDraft?.coverPrompt || cover.coverPrompt || "";
+  renderCoverPreview({ ...cover, ...(storyProject.coverDraft || {}) });
+}
+
+function renderCoverPreview(cover = currentCoverFormData()) {
+  if (!gameCoverPreview) return;
+  const title = cover.title || "Untitled Quest";
+  const tagline = cover.tagline || "Create a character, title and vibe to begin.";
+  const vibe = cover.vibe || "Game vibe";
+  if (coverLogoPreview) {
+    coverLogoPreview.textContent = title;
+    coverLogoPreview.dataset.logoStyle = cover.logoStyle || "Bold premium game logo";
+  }
+  if (coverTaglinePreview) coverTaglinePreview.textContent = tagline;
+  if (coverVibePill) coverVibePill.textContent = vibe;
+  setFrameImageFromStoredValue(gameCoverPreview, cover.imageDataUrl);
+  gameCoverPreview.classList.toggle("has-generated-image", Boolean(cover.imageDataUrl));
+}
+
+function buildCoverPrompt(data = currentCoverFormData()) {
+  normalizeStoryCharacters();
+  const characters = storyProject.characters || [];
+  const hero = characters[0] || storyProject.character || {};
+  const secondHero = characters[1] || {};
+  return [
+    "Create safe premium cover art for an original OPREALM AI story game.",
+    "Format: vertical AAA-style game cover/poster artwork for a major console or PC game, dramatic composition, polished marketing art, strong focal character, cinematic lighting.",
+    "Do not include readable text, logos, platform badges, real brands, copyrighted characters, real children, personal information, gore, romance, bullying, or scary realism.",
+    "Leave clean space near the top for OPREALM to overlay the game title/logo later.",
+    `Game title for overlay context: ${data.title || "Untitled Quest"}`,
+    `Tagline for overlay context: ${data.tagline || "A new adventure begins."}`,
+    `Game vibe: ${data.vibe || "Portal Adventure"}`,
+    `Cover style: ${data.coverStyle || "Premium console game cover"}`,
+    `Title logo style for the web overlay: ${data.logoStyle || "Bold premium game logo"}`,
+    `Mood: ${data.mood || "Epic and exciting"}`,
+    hero.name ? `Main hero: ${hero.name}, ${hero.type || "original hero"}, ${hero.personality || "brave and kind"}, visual style ${hero.style || "locked project style"}.` : "Main hero: use an original kid-safe hero with a memorable silhouette.",
+    hero.prompt ? `Main hero design bible: ${hero.prompt}` : "",
+    secondHero.name ? `Second hero: ${secondHero.name}, ${secondHero.type || "original side hero"}, ${secondHero.personality || "friendly"}, visual style ${secondHero.style || hero.style || "matching project style"}.` : "",
+    "Make the cover feel aspirational, collectible, colorful, and exciting for Gen Alpha creators without copying any existing game or movie.",
+  ].filter(Boolean).join("\n");
+}
+
+function saveCoverSetup(message = "") {
+  storyProject.cover = {
+    ...(storyProject.cover || {}),
+    ...currentCoverFormData(),
+  };
+  delete storyProject.coverDraft;
+  saveStoryProject();
+  renderCoverPreview(storyProject.cover);
+  if (message && coverImageStatus) coverImageStatus.textContent = message;
 }
 
 function renderCharacterMethod() {
@@ -1334,6 +1420,38 @@ if (storyBannerForm) {
   });
 }
 
+if (storyCoverForm) {
+  storyCoverForm.addEventListener("input", () => {
+    storyProject.coverDraft = {
+      ...(storyProject.coverDraft || {}),
+      ...currentCoverFormData(),
+    };
+    renderCoverPreview(storyProject.coverDraft);
+  });
+  storyCoverForm.addEventListener("change", () => {
+    storyProject.coverDraft = {
+      ...(storyProject.coverDraft || {}),
+      ...currentCoverFormData(),
+    };
+    renderCoverPreview(storyProject.coverDraft);
+  });
+  storyCoverForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveCoverSetup("Cover setup saved to this story project.");
+  });
+}
+
+if (buildCoverPromptButton && coverPromptInput) {
+  buildCoverPromptButton.addEventListener("click", () => {
+    const data = currentCoverFormData();
+    const prompt = buildCoverPrompt(data);
+    coverPromptInput.value = prompt;
+    storyProject.coverDraft = { ...data, coverPrompt: prompt };
+    renderCoverPreview(storyProject.coverDraft);
+    if (coverImageStatus) coverImageStatus.textContent = "Cover prompt built. Review it, edit if needed, then generate.";
+  });
+}
+
 [
   [bannerDesignText, "text"],
   [uiKitOverlayImage, "overlay"],
@@ -1585,8 +1703,53 @@ async function generateSceneImages() {
   }
 }
 
+async function generateGameCover() {
+  if (!storyCoverForm || !generateCoverButton || !coverImageStatus) return;
+  const data = currentCoverFormData();
+  const prompt = data.coverPrompt || buildCoverPrompt(data);
+  coverPromptInput.value = prompt;
+  storyProject.coverDraft = { ...data, coverPrompt: prompt };
+  renderCoverPreview(storyProject.coverDraft);
+  generateCoverButton.disabled = true;
+  coverLoadingSticker?.classList.remove("is-hidden");
+  coverImageStatus.textContent = "Generating a premium game cover. Tiny dance break in progress...";
+  try {
+    const response = await fetch("/api/story-game-cover", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...data,
+        coverPrompt: prompt,
+        characterName: storyProject.characters?.[0]?.name || storyProject.character?.name || "",
+        characterPrompt: storyProject.characters?.[0]?.prompt || storyProject.character?.prompt || "",
+        characterStyle: storyProject.characters?.[0]?.style || storyProject.character?.style || "",
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Game cover generation failed.");
+    const imageDataUrl = await saveStoryImage(result.imageDataUrl);
+    storyProject.cover = {
+      ...data,
+      coverPrompt: prompt,
+      imageDataUrl,
+      model: result.model,
+      quality: result.quality,
+    };
+    delete storyProject.coverDraft;
+    saveStoryProject();
+    renderCoverSetup();
+    coverImageStatus.textContent = `Game cover generated. Credits used: ${result.creditsUsed}.`;
+  } catch (error) {
+    coverImageStatus.textContent = error.message || "Could not generate the game cover.";
+  } finally {
+    generateCoverButton.disabled = false;
+    coverLoadingSticker?.classList.add("is-hidden");
+  }
+}
+
 generateSceneImagesButton.addEventListener("click", generateSceneImages);
 recreateSceneImagesButton.addEventListener("click", generateSceneImages);
+if (generateCoverButton) generateCoverButton.addEventListener("click", generateGameCover);
 if (createNextSceneButton) {
   createNextSceneButton.addEventListener("click", resetSceneBuilderForNext);
 }

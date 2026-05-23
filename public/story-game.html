@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=31" />
+    <link rel="stylesheet" href="/studio.css?v=32" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=32" defer></script>
+    <script src="/story-game.js?v=33" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -51,6 +51,7 @@
 
         <div class="story-tabs" role="tablist" aria-label="AI Story Game sections">
           <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
+          <button class="story-tab" type="button" data-story-tab="cover">Game Cover</button>
           <button class="story-tab" type="button" data-story-tab="scene">Scene Cards</button>
           <button class="story-tab" type="button" data-story-tab="banner">Banner UI</button>
           <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
@@ -202,6 +203,98 @@
                 <span id="characterPreviewType">Type</span>
                 <span id="characterPreviewStyle">Style</span>
               </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="story-tab-panel" data-story-panel="cover">
+          <div class="story-workspace">
+            <form class="story-form" id="storyCoverForm">
+              <div>
+                <p class="eyebrow">Step 2</p>
+                <h4>Name The Game And Build The Cover</h4>
+              </div>
+              <label>
+                Game title
+                <input name="title" maxlength="58" placeholder="Wolf Moon Mystery" />
+              </label>
+              <label>
+                Tagline
+                <input name="tagline" maxlength="96" placeholder="One hero. One secret. One wild night." />
+              </label>
+              <div class="story-form-grid">
+                <label>
+                  Game vibe
+                  <select name="vibe">
+                    <option>Haunted Mystery</option>
+                    <option>Dragon Quest</option>
+                    <option>Magical School</option>
+                    <option>Cyber City</option>
+                    <option>Cute Chaos</option>
+                    <option>Secret Base</option>
+                    <option>Monster Friend</option>
+                    <option>Portal Adventure</option>
+                    <option>Lost Temple</option>
+                    <option>Robot Rebellion</option>
+                  </select>
+                </label>
+                <label>
+                  Cover style
+                  <select name="coverStyle">
+                    <option>Premium console game cover</option>
+                    <option>Fantasy RPG box art</option>
+                    <option>Animated movie poster</option>
+                    <option>Neon sci-fi poster</option>
+                    <option>Cozy storybook cover</option>
+                    <option>Comic book splash cover</option>
+                  </select>
+                </label>
+                <label>
+                  Title logo style
+                  <select name="logoStyle">
+                    <option>Bold premium game logo</option>
+                    <option>Glowing magical letters</option>
+                    <option>Chunky cartoon title</option>
+                    <option>Neon arcade title</option>
+                    <option>Ancient fantasy lettering</option>
+                    <option>Clean cinematic title</option>
+                  </select>
+                </label>
+                <label>
+                  Cover mood
+                  <select name="mood">
+                    <option>Epic and exciting</option>
+                    <option>Mysterious but not scary</option>
+                    <option>Funny and chaotic</option>
+                    <option>Magical and cozy</option>
+                    <option>Fast, bright and adventurous</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Cover prompt for approval
+                <textarea name="coverPrompt" id="coverPromptInput" rows="7" maxlength="1800" placeholder="Build the prompt, review it, then generate the cover."></textarea>
+              </label>
+              <div class="prompt-actions">
+                <button class="button button-secondary" type="button" id="buildCoverPromptButton">Build Cover Prompt</button>
+                <button class="button button-primary" type="button" id="generateCoverButton">Generate Game Cover</button>
+                <button class="button button-secondary" type="submit">Save Cover Setup</button>
+              </div>
+              <p class="form-note" id="coverImageStatus"></p>
+              <div class="gen-alpha-loader is-hidden" id="coverLoadingSticker" aria-live="polite">
+                <div class="sticker-cat" aria-hidden="true"><span></span></div>
+                <strong>Tiny dance break. The cover oven is preheating.</strong>
+              </div>
+            </form>
+
+            <article class="story-card-preview cover-preview-card">
+              <p class="eyebrow">Game cover preview</p>
+              <div class="game-cover-preview" id="gameCoverPreview">
+                <span class="cover-vibe-pill" id="coverVibePill">Game vibe</span>
+                <div class="cover-logo-preview" id="coverLogoPreview">Untitled Quest</div>
+                <p id="coverTaglinePreview">Create a character, title and vibe to begin.</p>
+              </div>
+              <p class="form-note">The AI creates the poster art. OPREALM places the title/logo layer on top so the words stay crisp.</p>
             </article>
           </div>
         </div>
