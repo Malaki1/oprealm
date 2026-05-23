@@ -657,6 +657,51 @@ select option {
   align-items: start;
 }
 
+.story-workspace-resizable {
+  --preview-column-width: 520px;
+  grid-template-columns: minmax(360px, 1fr) 24px minmax(320px, var(--preview-column-width));
+  gap: 8px;
+}
+
+.preview-column-resizer {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  border: 1px solid rgba(160, 218, 255, 0.16);
+  border-radius: 14px;
+  color: rgba(207, 230, 255, 0.88);
+  background: linear-gradient(180deg, rgba(24, 217, 255, 0.08), rgba(139, 67, 255, 0.12));
+  cursor: ew-resize;
+  touch-action: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.preview-column-resizer span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(160, 218, 255, 0.24);
+  background: rgba(3, 9, 21, 0.36);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.preview-column-resizer:hover,
+.preview-column-resizer:focus-visible {
+  border-color: rgba(24, 217, 255, 0.55);
+  color: var(--white);
+  outline: none;
+}
+
+.is-resizing-preview,
+.is-resizing-preview * {
+  cursor: ew-resize !important;
+  user-select: none;
+}
+
 .story-form,
 .story-card-preview,
 .story-player,
@@ -2012,6 +2057,14 @@ body.story-map-open .story-map-tools {
   .story-workspace,
   .publish-checklist {
     grid-template-columns: 1fr;
+  }
+
+  .story-workspace-resizable {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-column-resizer {
+    display: none;
   }
 
   .story-map-board {

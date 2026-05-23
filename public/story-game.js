@@ -10,6 +10,8 @@ const characterDrawingStyle = document.querySelector("#characterDrawingStyle");
 const useDrawingAsPromptButton = document.querySelector("#useDrawingAsPromptButton");
 const storySceneForm = document.querySelector("#storySceneForm");
 const storyBannerForm = document.querySelector("#storyBannerForm");
+const bannerWorkspace = document.querySelector("#bannerWorkspace");
+const bannerPreviewResizer = document.querySelector("#bannerPreviewResizer");
 const characterPromptButton = document.querySelector("#characterPromptButton");
 const scenePromptButton = document.querySelector("#scenePromptButton");
 const generateSceneImagesButton = document.querySelector("#generateSceneImagesButton");
@@ -88,7 +90,9 @@ let activeLightboxImageSrc = "";
 let activeLightboxDownloadName = "oprealm-scene-card.png";
 let storyUiKits = [];
 let draggingBannerLayer = null;
+let draggingPreviewColumn = false;
 const STORY_IMAGE_REF_PREFIX = "story-image:";
+const BANNER_PREVIEW_WIDTH_KEY = "oprealm_story_banner_preview_width";
 
 function saveStoryProject() {
   try {
@@ -107,6 +111,37 @@ function saveStoryProject() {
     if (characterImageStatus) {
       characterImageStatus.textContent = "Project storage was full, so oversized draft images were removed. Please regenerate the latest image if needed.";
     }
+  }
+}
+
+function applyBannerPreviewColumnWidth(width) {
+  if (!bannerWorkspace) return;
+  const nextWidth = Math.max(320, Math.min(820, Number(width) || 520));
+  bannerWorkspace.style.setProperty("--preview-column-width", `${Math.round(nextWidth)}px`);
+}
+
+function loadBannerPreviewColumnWidth() {
+  try {
+    applyBannerPreviewColumnWidth(localStorage.getItem(BANNER_PREVIEW_WIDTH_KEY) || 520);
+  } catch (error) {
+    applyBannerPreviewColumnWidth(520);
+  }
+}
+
+function resizeBannerPreviewColumn(event) {
+  if (!bannerWorkspace) return;
+  const rect = bannerWorkspace.getBoundingClientRect();
+  const gap = 42;
+  const minFormWidth = 360;
+  const minPreviewWidth = 320;
+  const maxPreviewWidth = Math.min(920, rect.width - minFormWidth - gap);
+  if (maxPreviewWidth < minPreviewWidth) return;
+  const previewWidth = Math.max(minPreviewWidth, Math.min(maxPreviewWidth, rect.right - event.clientX));
+  applyBannerPreviewColumnWidth(previewWidth);
+  try {
+    localStorage.setItem(BANNER_PREVIEW_WIDTH_KEY, String(Math.round(previewWidth)));
+  } catch (error) {
+    console.warn("Could not save preview column width", error);
   }
 }
 
@@ -1532,6 +1567,30 @@ if (addBannerSceneToMapButton) {
   addBannerSceneToMapButton.addEventListener("click", addSceneFromCurrentPreview);
 }
 
+if (bannerPreviewResizer) {
+  bannerPreviewResizer.addEventListener("pointerdown", (event) => {
+    if (!bannerWorkspace) return;
+    event.preventDefault();
+    draggingPreviewColumn = true;
+    bannerPreviewResizer.setPointerCapture(event.pointerId);
+    document.body.classList.add("is-resizing-preview");
+    resizeBannerPreviewColumn(event);
+  });
+  bannerPreviewResizer.addEventListener("pointermove", (event) => {
+    if (!draggingPreviewColumn) return;
+    resizeBannerPreviewColumn(event);
+  });
+  bannerPreviewResizer.addEventListener("pointerup", () => {
+    if (!draggingPreviewColumn) return;
+    draggingPreviewColumn = false;
+    document.body.classList.remove("is-resizing-preview");
+  });
+  bannerPreviewResizer.addEventListener("pointercancel", () => {
+    draggingPreviewColumn = false;
+    document.body.classList.remove("is-resizing-preview");
+  });
+}
+
 storySceneForm.addEventListener("submit", (event) => {
   event.preventDefault();
   addSceneFromCurrentPreview();
@@ -1567,6 +1626,7 @@ scenePromptButton.addEventListener("click", () => {
 migrateStoryImagesToIndexedDb()
   .catch((error) => console.error("Story image migration failed", error))
   .finally(() => {
+    loadBannerPreviewColumnWidth();
     renderStoryDashboard();
     loadStoryUiKits();
   });

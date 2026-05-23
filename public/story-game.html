@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=25" />
+    <link rel="stylesheet" href="/studio.css?v=26" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=26" defer></script>
+    <script src="/story-game.js?v=27" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -339,7 +339,7 @@
         </div>
 
         <div class="story-tab-panel" data-story-panel="banner">
-          <div class="story-workspace">
+          <div class="story-workspace story-workspace-resizable" id="bannerWorkspace">
             <form class="story-form" id="storyBannerForm">
               <div>
                 <p class="eyebrow">Step 3</p>
@@ -415,6 +415,10 @@
               </div>
               <p class="form-note">One fixed banner size keeps the scene playable. Keep the text short so it stays readable on desktop and tablet screens.</p>
             </form>
+
+            <button class="preview-column-resizer" id="bannerPreviewResizer" type="button" aria-label="Resize preview column" title="Drag to resize preview">
+              <span aria-hidden="true">&harr;</span>
+            </button>
 
             <article class="scene-responsive-preview">
               <div>
