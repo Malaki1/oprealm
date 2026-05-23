@@ -1123,12 +1123,14 @@ select option {
 }
 
 .ui-kit-overlay-frame {
-  left: 50%;
-  top: 50%;
+  inset: 0;
   width: 100%;
   height: 100%;
   max-width: none;
   max-height: none;
+  transform: none;
+  pointer-events: none;
+  cursor: default;
 }
 
 .ui-kit-overlay-panel {

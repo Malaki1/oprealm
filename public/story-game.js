@@ -913,8 +913,13 @@ function renderBannerPreview() {
     uiKitOverlayImage.src = overlayAsset?.src || "";
     uiKitOverlayImage.hidden = !overlayAsset;
     uiKitOverlayImage.className = `ui-kit-overlay-image ui-kit-overlay-${overlayAsset?.type || "none"}`;
-    uiKitOverlayImage.style.left = `${Math.max(0, Math.min(100, Number(banner.overlayX || 50)))}%`;
-    uiKitOverlayImage.style.top = `${Math.max(0, Math.min(100, Number(banner.overlayY || 78)))}%`;
+    if (overlayAsset?.type === "frame") {
+      uiKitOverlayImage.style.left = "";
+      uiKitOverlayImage.style.top = "";
+    } else {
+      uiKitOverlayImage.style.left = `${Math.max(0, Math.min(100, Number(banner.overlayX || 50)))}%`;
+      uiKitOverlayImage.style.top = `${Math.max(0, Math.min(100, Number(banner.overlayY || 78)))}%`;
+    }
   }
   if (uiKitButtonImage) {
     uiKitButtonImage.src = buttonAsset?.src || "";
@@ -1272,6 +1277,7 @@ if (storyBannerForm) {
   if (!element) return;
   element.addEventListener("pointerdown", (event) => {
     if (element.hidden) return;
+    if (element.classList.contains("ui-kit-overlay-frame")) return;
     event.preventDefault();
     draggingBannerLayer = layer;
     element.setPointerCapture(event.pointerId);
