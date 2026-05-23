@@ -884,7 +884,9 @@ function renderBannerPreview() {
   [bannerDesignText].forEach((element) => {
     if (!element) return;
     element.textContent = text;
-    element.className = `scene-banner-overlay banner-style-${banner.bannerStyle || "glass"}`;
+    element.className = overlayAsset
+      ? "scene-banner-overlay banner-style-ui-kit-text"
+      : `scene-banner-overlay banner-style-${banner.bannerStyle || "glass"}`;
     element.style.left = `${Math.max(8, Math.min(92, Number(banner.textX || 50)))}%`;
     element.style.top = `${Math.max(12, Math.min(88, Number(banner.textY || 72)))}%`;
     element.style.fontFamily = banner.uiFont || kit?.font || "Inter";

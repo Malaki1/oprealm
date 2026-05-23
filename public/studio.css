@@ -889,6 +889,7 @@ select option {
 }
 
 .scene-responsive-preview {
+  min-width: 0;
   display: grid;
   gap: 14px;
   padding: 16px;
@@ -921,6 +922,10 @@ select option {
 
 .scene-preview-frame {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1038,14 +1043,18 @@ select option {
 }
 
 .banner-design-preview {
-  min-height: 430px;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+  align-items: center;
 }
 
 .banner-design-preview .scene-banner-overlay {
   position: absolute;
   z-index: 4;
-  width: min(72%, 760px);
+  width: min(64%, 700px);
+  min-height: 64px;
   margin: 0;
+  padding: 14px 18px;
   transform: translate(-50%, -50%);
   cursor: grab;
   touch-action: none;
@@ -1069,8 +1078,8 @@ select option {
 
 .ui-kit-overlay-image {
   left: 50%;
-  bottom: 5%;
-  width: 74%;
+  bottom: 4%;
+  width: 66%;
   transform: translateX(-50%);
 }
 
@@ -1084,9 +1093,9 @@ select option {
 
 .ui-kit-overlay-panel {
   left: 50%;
-  bottom: 4%;
-  width: 58%;
-  max-height: 55%;
+  bottom: 5%;
+  width: 54%;
+  max-height: 44%;
   transform: translateX(-50%);
 }
 
@@ -1165,12 +1174,15 @@ select option {
   box-shadow: 0 0 28px rgba(24, 217, 255, 0.16), inset 0 0 18px rgba(24, 217, 255, 0.08);
 }
 
-.banner-design-preview {
-  align-items: center;
+.banner-style-ui-kit-text {
+  border: 0;
+  color: #071337;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.46);
 }
 
 .web-view {
-  min-height: clamp(260px, 36vw, 460px);
   aspect-ratio: 16 / 9;
 }
 
