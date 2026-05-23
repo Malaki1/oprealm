@@ -1166,8 +1166,6 @@ select option {
 .ui-kit-button-image {
   position: absolute;
   z-index: 2;
-  max-width: 84%;
-  max-height: 42%;
   object-fit: contain;
   pointer-events: auto;
   cursor: grab;
@@ -1186,6 +1184,8 @@ select option {
   left: 50%;
   top: 78%;
   width: 66%;
+  max-width: 140%;
+  max-height: 72%;
 }
 
 .ui-kit-overlay-frame {
@@ -1203,13 +1203,16 @@ select option {
   left: 50%;
   top: 78%;
   width: 54%;
-  max-height: 44%;
+  max-width: 140%;
+  max-height: 72%;
 }
 
 .ui-kit-button-image {
   left: 78%;
   top: 78%;
   width: 22%;
+  max-width: 52%;
+  max-height: 52%;
 }
 
 .ui-kit-scene-stack {

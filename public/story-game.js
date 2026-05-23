@@ -881,7 +881,7 @@ function currentBannerFormData() {
   data.uiTheme = data.uiTheme || uiThemeSelect?.value || storyUiKits[0]?.id || "";
   data.uiOverlay = data.uiOverlay || "";
   data.uiButton = data.uiButton || "";
-  data.uiOverlaySize = Math.max(32, Math.min(110, Number(data.uiOverlaySize || storyProject.bannerDraft?.uiOverlaySize || storyProject.banner?.uiOverlaySize || 66)));
+  data.uiOverlaySize = Math.max(32, Math.min(140, Number(data.uiOverlaySize || storyProject.bannerDraft?.uiOverlaySize || storyProject.banner?.uiOverlaySize || 66)));
   data.uiButtonSize = Math.max(8, Math.min(46, Number(data.uiButtonSize || storyProject.bannerDraft?.uiButtonSize || storyProject.banner?.uiButtonSize || 22)));
   data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
   data.uiTextSize = data.uiTextSize || uiTextSizeSelect?.value || "large";
@@ -980,10 +980,10 @@ function renderBannerPreview() {
     } else {
       uiKitOverlayImage.style.left = `${Math.max(0, Math.min(100, Number(banner.overlayX || 50)))}%`;
       uiKitOverlayImage.style.top = `${Math.max(0, Math.min(100, Number(banner.overlayY || 78)))}%`;
-      uiKitOverlayImage.style.width = `${Math.max(32, Math.min(110, Number(banner.uiOverlaySize || 66)))}%`;
+      uiKitOverlayImage.style.width = `${Math.max(32, Math.min(140, Number(banner.uiOverlaySize || 66)))}%`;
     }
   }
-  if (uiOverlaySizeValue) uiOverlaySizeValue.textContent = `${Math.max(32, Math.min(110, Number(banner.uiOverlaySize || 66)))}%`;
+  if (uiOverlaySizeValue) uiOverlaySizeValue.textContent = `${Math.max(32, Math.min(140, Number(banner.uiOverlaySize || 66)))}%`;
   if (uiKitButtonImage) {
     uiKitButtonImage.src = buttonAsset?.src || "";
     uiKitButtonImage.hidden = !buttonAsset;
