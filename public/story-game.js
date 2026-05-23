@@ -68,6 +68,7 @@ const uiButtonSelect = document.querySelector("#uiButtonSelect");
 const uiFontSelect = document.querySelector("#uiFontSelect");
 const uiTextSizeSelect = document.querySelector("#uiTextSizeSelect");
 const uiTextColorSelect = document.querySelector("#uiTextColorSelect");
+const uiTextAlignSelect = document.querySelector("#uiTextAlignSelect");
 const uiTextWidthRange = document.querySelector("#uiTextWidthRange");
 const uiTextWidthValue = document.querySelector("#uiTextWidthValue");
 const uiKitOverlayImage = document.querySelector("#uiKitOverlayImage");
@@ -353,6 +354,7 @@ function renderUiKitControls() {
   if (uiFontSelect) uiFontSelect.value = currentBanner.uiFont || kit.font || "Inter";
   if (uiTextSizeSelect) uiTextSizeSelect.value = currentBanner.uiTextSize || "large";
   if (uiTextColorSelect) uiTextColorSelect.value = currentBanner.uiTextColor || "white";
+  if (uiTextAlignSelect) uiTextAlignSelect.value = currentBanner.uiTextAlign || "left";
   if (uiTextWidthRange) uiTextWidthRange.value = currentBanner.uiTextWidth || 56;
   if (uiTextWidthValue) uiTextWidthValue.textContent = `${uiTextWidthRange?.value || currentBanner.uiTextWidth || 56}%`;
 }
@@ -874,6 +876,7 @@ function currentBannerFormData() {
   data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
   data.uiTextSize = data.uiTextSize || uiTextSizeSelect?.value || "large";
   data.uiTextColor = data.uiTextColor || uiTextColorSelect?.value || "white";
+  data.uiTextAlign = data.uiTextAlign || uiTextAlignSelect?.value || "left";
   data.uiTextWidth = Math.max(24, Math.min(84, Number(data.uiTextWidth || storyProject.bannerDraft?.uiTextWidth || storyProject.banner?.uiTextWidth || 56)));
   data.textX = Number(storyProject.bannerDraft?.textX ?? storyProject.banner?.textX ?? 50);
   data.textY = Number(storyProject.bannerDraft?.textY ?? storyProject.banner?.textY ?? 72);
@@ -929,6 +932,7 @@ function renderBannerPreview() {
     buttonY: 78,
     uiTextSize: "large",
     uiTextColor: "white",
+    uiTextAlign: "left",
     uiTextWidth: 56,
     ...(storyProject.banner || {}),
     ...(storyProject.bannerDraft || {}),
@@ -948,6 +952,7 @@ function renderBannerPreview() {
     element.style.top = `${Math.max(12, Math.min(88, Number(banner.textY || 72)))}%`;
     element.style.width = `${Math.max(24, Math.min(84, Number(banner.uiTextWidth || 56)))}%`;
     element.style.fontFamily = banner.uiFont || kit?.font || "Inter";
+    element.style.textAlign = banner.uiTextAlign || "left";
     element.dataset.size = banner.uiTextSize || "large";
     element.dataset.color = banner.uiTextColor || "white";
   });
