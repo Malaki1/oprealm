@@ -1215,20 +1215,33 @@ select option {
 
 .banner-style-ui-kit-text {
   border: 0;
-  color: #071337;
-  background: transparent;
+  color: #ffffff;
+  background: linear-gradient(90deg, rgba(3, 9, 21, 0.28), rgba(3, 9, 21, 0.1));
   box-shadow: none;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.46);
+  text-shadow: 0 2px 12px rgba(3, 9, 21, 0.82);
+  backdrop-filter: blur(2px);
+}
+
+.banner-style-ui-kit-text[data-color="dark"] {
+  color: #071337;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.58);
 }
 
 .banner-style-ui-kit-text[data-color="white"] {
   color: #ffffff;
+  background: linear-gradient(90deg, rgba(3, 9, 21, 0.3), rgba(3, 9, 21, 0.12));
   text-shadow: 0 2px 12px rgba(3, 9, 21, 0.82);
 }
 
 .banner-style-ui-kit-text[data-color="gold"] {
   color: #ffe8a6;
+  background: linear-gradient(90deg, rgba(3, 9, 21, 0.3), rgba(3, 9, 21, 0.12));
   text-shadow: 0 2px 12px rgba(3, 9, 21, 0.82);
+}
+
+.banner-design-preview .banner-style-ui-kit-text[data-color="dark"] {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.58);
 }
 
 .web-view {

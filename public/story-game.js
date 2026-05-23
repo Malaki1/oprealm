@@ -315,7 +315,7 @@ function renderUiKitControls() {
   uiButtonSelect.value = buttons.some((asset) => asset.id === currentBanner.uiButton) ? currentBanner.uiButton : "";
   if (uiFontSelect) uiFontSelect.value = currentBanner.uiFont || kit.font || "Inter";
   if (uiTextSizeSelect) uiTextSizeSelect.value = currentBanner.uiTextSize || "large";
-  if (uiTextColorSelect) uiTextColorSelect.value = currentBanner.uiTextColor || "dark";
+  if (uiTextColorSelect) uiTextColorSelect.value = currentBanner.uiTextColor || "white";
 }
 
 function renderHeroSlots(characters) {
@@ -834,7 +834,7 @@ function currentBannerFormData() {
   data.uiButton = data.uiButton || "";
   data.uiFont = data.uiFont || uiFontSelect?.value || "Inter";
   data.uiTextSize = data.uiTextSize || uiTextSizeSelect?.value || "large";
-  data.uiTextColor = data.uiTextColor || uiTextColorSelect?.value || "dark";
+  data.uiTextColor = data.uiTextColor || uiTextColorSelect?.value || "white";
   data.textX = Number(storyProject.bannerDraft?.textX ?? storyProject.banner?.textX ?? 50);
   data.textY = Number(storyProject.bannerDraft?.textY ?? storyProject.banner?.textY ?? 72);
   data.overlayX = Number(storyProject.bannerDraft?.overlayX ?? storyProject.banner?.overlayX ?? 50);
@@ -888,7 +888,7 @@ function renderBannerPreview() {
     buttonX: 78,
     buttonY: 78,
     uiTextSize: "large",
-    uiTextColor: "dark",
+    uiTextColor: "white",
     ...(storyProject.banner || {}),
     ...(storyProject.bannerDraft || {}),
     ...currentBannerFormData(),
@@ -907,7 +907,7 @@ function renderBannerPreview() {
     element.style.top = `${Math.max(12, Math.min(88, Number(banner.textY || 72)))}%`;
     element.style.fontFamily = banner.uiFont || kit?.font || "Inter";
     element.dataset.size = banner.uiTextSize || "large";
-    element.dataset.color = banner.uiTextColor || "dark";
+    element.dataset.color = banner.uiTextColor || "white";
   });
   if (uiKitOverlayImage) {
     uiKitOverlayImage.src = overlayAsset?.src || "";
