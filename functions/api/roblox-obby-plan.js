@@ -233,7 +233,7 @@ function buildSection(index, theme, difficulty, obstacle, sectionCount) {
     checkpointAfter: `checkpoint_${index + 1}`,
     intensity: index === sectionCount - 1 ? "finale" : index < 2 ? "warmup" : "challenge",
     playabilityRules: {
-      maxJumpGapStuds: difficulty === "Hard" ? 11 : difficulty === "Medium" ? 9 : 7,
+      maxJumpGapStuds: difficulty === "Hard" ? 6 : difficulty === "Medium" ? 5 : 3.8,
       minimumPlatformWidthStuds: difficulty === "Hard" ? 5 : 7,
       recoveryKillPlane: true,
       checkpointBeforeHazard: index === 0,
@@ -244,11 +244,36 @@ function buildSection(index, theme, difficulty, obstacle, sectionCount) {
 
 function themeDressing(theme, index) {
   const dressing = {
-    Volcano: ["lava glow", "smoke puffs", "basalt rocks", "safe lava sharks as decoration"],
-    Candy: ["giant donuts", "gummy rails", "sprinkle particles", "chocolate river"],
-    Space: ["asteroids", "neon stars", "planet backdrop", "safe laser gates"],
-    Cyber: ["neon strips", "glitch panels", "hologram arrows", "robot billboards"],
-    Jungle: ["vines", "ancient stones", "leaf particles", "temple torches"],
+    Volcano: [
+      "glowing magma horizon with basalt cone silhouettes",
+      "smoke vents puffing beside the safe route",
+      "charred warning markers and black volcanic rock clusters",
+      "orange lava glow under every obstacle lane",
+    ],
+    Candy: [
+      "pastel gumdrop hills along the outside lanes",
+      "giant lollipops, sprinkle rails and candy-color glow",
+      "soft frosting-style horizon with playful neon accents",
+      "bright sweet-shop props kept safely away from jumps",
+    ],
+    Space: [
+      "distant planets, neon stars and a dark orbital skyline",
+      "animated meteors crossing outside the playable route",
+      "satellite props and glowing sci-fi platform edges",
+      "cold blue space fog with purple accent lights",
+    ],
+    Cyber: [
+      "neon skyline towers and glowing circuit rails",
+      "hologram arrows pointing through the challenge path",
+      "dark metallic backdrop panels with cyan-magenta light strips",
+      "arcade-tech atmosphere with LED OPREALM signage",
+    ],
+    Jungle: [
+      "misty palm silhouettes and dense green edge dressing",
+      "temple stones, vines and torchlight around the route",
+      "warm explorer-adventure lighting with safe side props",
+      "ancient ruin details framing each checkpoint",
+    ],
   }[theme];
   return dressing.slice(index % 2, index % 2 + 3);
 }

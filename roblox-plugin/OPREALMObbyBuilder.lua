@@ -160,6 +160,34 @@ local function createPart(parent, name, size, position, color, material, anchore
 	return part
 end
 
+local function addLight(part, color, range, brightness)
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = range or 18
+	light.Brightness = brightness or 1.6
+	light.Parent = part
+	return light
+end
+
+local function addParticles(part, color, rate, lifetime, speed, size)
+	local emitter = Instance.new("ParticleEmitter")
+	emitter.Color = ColorSequence.new(color)
+	emitter.LightEmission = 0.45
+	emitter.Rate = rate or 8
+	emitter.Lifetime = NumberRange.new(lifetime or 2, (lifetime or 2) + 1)
+	emitter.Speed = NumberRange.new(speed or 2, (speed or 2) + 2)
+	emitter.Size = NumberSequence.new(size or 1.2)
+	emitter.SpreadAngle = Vector2.new(35, 35)
+	emitter.Parent = part
+	return emitter
+end
+
+local function createPillar(parent, name, position, height, color, material)
+	local pillar = createPart(parent, name, Vector3.new(2.4, height, 2.4), position + Vector3.new(0, height * 0.5, 0), color, material or Enum.Material.SmoothPlastic)
+	pillar.Shape = Enum.PartType.Cylinder
+	return pillar
+end
+
 local function addRuntimeScript(parent)
 	local runtime = Instance.new("Script")
 	runtime.Name = "OPREALM_Runtime"
@@ -552,6 +580,59 @@ local function applyThemeEnvironment(theme)
 	end
 end
 
+local function createThemeVista(parent, theme, sectionCount, colors)
+	local length = sectionCount * 72 + 120
+	local centerX = sectionCount * 36
+
+	if theme == "Space" then
+		for i = 1, sectionCount + 2 do
+			local x = (i - 1) * 54 + 18
+			local planet = createPart(parent, "DistantPlanet_" .. i, Vector3.new(10 + (i % 3) * 4, 10 + (i % 3) * 4, 10 + (i % 3) * 4), Vector3.new(x, 46 + (i % 2) * 10, (i % 2 == 0) and -52 or 52), colors.accent, Enum.Material.Neon)
+			planet.Shape = Enum.PartType.Ball
+			planet.Transparency = 0.18
+			addLight(planet, colors.accent, 26, 1.4)
+		end
+		for i = 1, 18 do
+			local star = createPart(parent, "NeonStar_" .. i, Vector3.new(1.2, 1.2, 1.2), Vector3.new(i * 22, 36 + (i % 5) * 5, (i % 2 == 0) and -41 or 41), Color3.fromRGB(220, 245, 255), Enum.Material.Neon)
+			star.Shape = Enum.PartType.Ball
+		end
+	elseif theme == "Candy" then
+		for i = 1, sectionCount + 3 do
+			local side = (i % 2 == 0) and -1 or 1
+			local mound = createPart(parent, "GumdropHill_" .. i, Vector3.new(16, 9, 16), Vector3.new(i * 42, 3, side * 50), colors.base, Enum.Material.SmoothPlastic)
+			mound.Shape = Enum.PartType.Ball
+			mound.Transparency = 0.08
+			local swirl = createPart(parent, "CandySwirl_" .. i, Vector3.new(10, 1, 10), mound.Position + Vector3.new(0, 7, 0), colors.accent, Enum.Material.Neon)
+			swirl.Shape = Enum.PartType.Cylinder
+		end
+	elseif theme == "Cyber" then
+		for i = 1, sectionCount + 3 do
+			local side = (i % 2 == 0) and -1 or 1
+			local tower = createPart(parent, "CyberSkylineTower_" .. i, Vector3.new(8, 24 + (i % 4) * 7, 8), Vector3.new(i * 40, 10, side * 48), colors.platform, Enum.Material.Metal)
+			createPart(parent, "CyberLightStrip_" .. i, Vector3.new(8.5, 1, 8.5), tower.Position + Vector3.new(0, tower.Size.Y * 0.35, 0), colors.hazard, Enum.Material.Neon)
+			addLight(tower, colors.hazard, 22, 1.2)
+		end
+	elseif theme == "Jungle" then
+		for i = 1, sectionCount + 4 do
+			local side = (i % 2 == 0) and -1 or 1
+			local trunk = createPillar(parent, "PalmTrunk_" .. i, Vector3.new(i * 34, 0, side * 48), 20 + (i % 3) * 4, Color3.fromRGB(92, 64, 38), Enum.Material.Wood)
+			local canopy = createPart(parent, "PalmCanopy_" .. i, Vector3.new(15, 9, 15), trunk.Position + Vector3.new(0, trunk.Size.Y * 0.55, 0), colors.accent, Enum.Material.Grass)
+			canopy.Shape = Enum.PartType.Ball
+		end
+	else
+		for i = 1, sectionCount + 3 do
+			local side = (i % 2 == 0) and -1 or 1
+			local volcano = createPart(parent, "BasaltCone_" .. i, Vector3.new(14, 18 + (i % 3) * 4, 14), Vector3.new(i * 44, 7, side * 50), colors.base, Enum.Material.Slate)
+			local lavaGlow = createPart(parent, "MagmaCrack_" .. i, Vector3.new(9, 0.8, 9), volcano.Position + Vector3.new(0, volcano.Size.Y * 0.45, 0), colors.hazard, Enum.Material.Neon)
+			lavaGlow.Shape = Enum.PartType.Cylinder
+			addParticles(lavaGlow, Color3.fromRGB(80, 80, 80), 5, 2.5, 1.5, 2)
+		end
+	end
+
+	createPart(parent, "DistantHorizonGlow", Vector3.new(length, 1.5, 3), Vector3.new(centerX, 1.2, -54), colors.accent, Enum.Material.Neon).Transparency = 0.35
+	createPart(parent, "DistantHorizonGlow_Right", Vector3.new(length, 1.5, 3), Vector3.new(centerX, 1.2, 54), colors.accent, Enum.Material.Neon).Transparency = 0.35
+end
+
 local function createHazard(parent, obstacle, position, theme)
 	local colors = THEME_COLORS[theme] or THEME_COLORS.Volcano
 	if obstacle == "Spinning hammers" then
@@ -588,20 +669,43 @@ end
 local function addThemeDecor(parent, theme, position, index)
 	local colors = THEME_COLORS[theme] or THEME_COLORS.Volcano
 	if theme == "Candy" then
-		createPart(parent, "LollipopStick_" .. index, Vector3.new(1, 16, 1), position + Vector3.new(-12, 8, -8), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
-		local ball = createPart(parent, "LollipopTop_" .. index, Vector3.new(8, 8, 2), position + Vector3.new(-12, 18, -8), colors.hazard, Enum.Material.Neon)
+		createPart(parent, "LollipopStick_" .. index, Vector3.new(1, 16, 1), position + Vector3.new(-14, 8, -18), Color3.fromRGB(255, 255, 255), Enum.Material.SmoothPlastic)
+		local ball = createPart(parent, "LollipopTop_" .. index, Vector3.new(8, 8, 2), position + Vector3.new(-14, 18, -18), colors.hazard, Enum.Material.Neon)
 		ball.Shape = Enum.PartType.Ball
+		addLight(ball, colors.hazard, 18, 1)
+		local gumdrop = createPart(parent, "GumdropProp_" .. index, Vector3.new(7, 5, 7), position + Vector3.new(18, 2.5, 20), colors.accent, Enum.Material.Neon)
+		gumdrop.Shape = Enum.PartType.Ball
+		createPart(parent, "SprinkleRail_" .. index, Vector3.new(18, 0.7, 0.7), position + Vector3.new(2, 8, -24), Color3.fromRGB(255, 255, 255), Enum.Material.Neon)
 	elseif theme == "Space" then
 		local asteroid = makeKillZone(createPart(parent, "FlyingMeteor_" .. index, Vector3.new(7, 7, 7), position + Vector3.new(28, 22, -10), Color3.fromRGB(90, 92, 108), Enum.Material.Slate))
 		asteroid.Shape = Enum.PartType.Ball
 		asteroid:SetAttribute("OPREALM_FlyingHazard", true)
 		asteroid:SetAttribute("OPREALM_FlyDistance", 68)
+		addParticles(asteroid, colors.hazard, 12, 0.9, 4, 1.5)
+		local satellite = createPart(parent, "SatelliteBody_" .. index, Vector3.new(4, 2, 2), position + Vector3.new(-20, 18, 22), Color3.fromRGB(185, 198, 216), Enum.Material.Metal)
+		createPart(parent, "SatellitePanelA_" .. index, Vector3.new(1, 5, 8), satellite.Position + Vector3.new(-4, 0, 0), colors.accent, Enum.Material.Neon)
+		createPart(parent, "SatellitePanelB_" .. index, Vector3.new(1, 5, 8), satellite.Position + Vector3.new(4, 0, 0), colors.accent, Enum.Material.Neon)
 	elseif theme == "Jungle" then
-		createPart(parent, "Vine_" .. index, Vector3.new(1, 18, 1), position + Vector3.new(-12, 9, -8), colors.accent, Enum.Material.Grass)
+		createPart(parent, "Vine_" .. index, Vector3.new(1, 18, 1), position + Vector3.new(-15, 9, -18), colors.accent, Enum.Material.Grass)
+		local torch = createPart(parent, "TempleTorch_" .. index, Vector3.new(2, 8, 2), position + Vector3.new(16, 4, 20), Color3.fromRGB(90, 62, 38), Enum.Material.Wood)
+		local flame = createPart(parent, "TorchFlame_" .. index, Vector3.new(3, 3, 3), torch.Position + Vector3.new(0, 5, 0), colors.hazard, Enum.Material.Neon)
+		flame.Shape = Enum.PartType.Ball
+		addLight(flame, colors.hazard, 18, 1.8)
+		addParticles(flame, Color3.fromRGB(255, 180, 70), 10, 0.8, 1.5, 0.8)
+		createPart(parent, "TempleStone_" .. index, Vector3.new(10, 7, 4), position + Vector3.new(-22, 3.5, 22), colors.base, Enum.Material.Slate)
 	elseif theme == "Cyber" then
-		createPart(parent, "NeonPillar_" .. index, Vector3.new(2, 18, 2), position + Vector3.new(-12, 9, -8), colors.hazard, Enum.Material.Neon)
+		local pillar = createPart(parent, "NeonPillar_" .. index, Vector3.new(2, 18, 2), position + Vector3.new(-16, 9, -20), colors.hazard, Enum.Material.Neon)
+		addLight(pillar, colors.hazard, 20, 1.5)
+		createPart(parent, "HologramArrow_" .. index, Vector3.new(10, 5, 0.5), position + Vector3.new(18, 10, 22), colors.accent, Enum.Material.Neon)
+		createPart(parent, "CircuitLine_" .. index, Vector3.new(22, 0.4, 0.4), position + Vector3.new(0, 2, -25), colors.hazard, Enum.Material.Neon)
 	else
-		createPart(parent, "VolcanoRock_" .. index, Vector3.new(7, 7, 7), position + Vector3.new(-12, 3.5, -8), colors.base, Enum.Material.Slate)
+		local rock = createPart(parent, "VolcanoRock_" .. index, Vector3.new(7, 7, 7), position + Vector3.new(-16, 3.5, -18), colors.base, Enum.Material.Slate)
+		rock.Shape = Enum.PartType.Ball
+		local vent = createPart(parent, "SmokeVent_" .. index, Vector3.new(5, 1, 5), position + Vector3.new(18, 1, 20), colors.hazard, Enum.Material.Neon)
+		vent.Shape = Enum.PartType.Cylinder
+		addLight(vent, colors.hazard, 16, 1.4)
+		addParticles(vent, Color3.fromRGB(80, 80, 80), 10, 2.2, 2.5, 2)
+		createPart(parent, "WarningMarker_" .. index, Vector3.new(4, 8, 1), position + Vector3.new(-24, 4, 18), colors.accent, Enum.Material.Neon)
 	end
 end
 
@@ -643,6 +747,7 @@ local function buildObby(payload)
 	lava.Transparency = 0.08
 	createPart(folder, "ThemeBackdrop_Left", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, -40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
 	createPart(folder, "ThemeBackdrop_Right", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, 40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
+	createThemeVista(folder, theme, sectionCount, colors)
 	createLedSign(folder, "OPREALM\nANIMATION", Vector3.new(36, 20, -41), 0)
 	createLedSign(folder, "OPREALM\nANIMATION", Vector3.new(math.max(82, sectionCount * 72 - 10), 20, 41), 180)
 	createPart(folder, "SpawnPad", Vector3.new(18, 1.5, 18), Vector3.new(0, 4, 0), Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
