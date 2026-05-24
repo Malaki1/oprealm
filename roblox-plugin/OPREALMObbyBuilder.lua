@@ -159,6 +159,126 @@ local function createPart(parent, name, size, position, color, material, anchore
 	return part
 end
 
+local function addRuntimeScript(parent)
+	local runtime = Instance.new("Script")
+	runtime.Name = "OPREALM_Runtime"
+	runtime.Source = [[
+local TweenService = game:GetService("TweenService")
+
+local folder = script.Parent
+local checkpoints = {}
+
+local function humanoidFromHit(hit)
+	local character = hit and hit.Parent
+	if not character then return nil end
+	return character:FindFirstChildWhichIsA("Humanoid")
+end
+
+local function rootFromHumanoid(humanoid)
+	return humanoid and humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
+end
+
+local function killPlayer(hit)
+	local humanoid = humanoidFromHit(hit)
+	if humanoid then
+		humanoid.Health = 0
+	end
+end
+
+for _, item in ipairs(folder:GetDescendants()) do
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Kill") then
+		item.Touched:Connect(killPlayer)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Checkpoint") then
+		item.Touched:Connect(function(hit)
+			local humanoid = humanoidFromHit(hit)
+			local root = rootFromHumanoid(humanoid)
+			if humanoid and root then
+				checkpoints[humanoid.Parent] = item.CFrame + Vector3.new(0, 5, 0)
+			end
+		end)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_SpeedBoost") then
+		item.Touched:Connect(function(hit)
+			local humanoid = humanoidFromHit(hit)
+			if humanoid then
+				humanoid.WalkSpeed = 34
+				task.delay(3, function()
+					if humanoid then humanoid.WalkSpeed = 16 end
+				end)
+			end
+		end)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Disappearing") then
+		task.spawn(function()
+			while item.Parent do
+				item.Transparency = 0
+				item.CanCollide = true
+				task.wait(1.4)
+				item.Transparency = 0.75
+				item.CanCollide = false
+				task.wait(1.0)
+			end
+		end)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Moving") then
+		task.spawn(function()
+			local start = item.CFrame
+			local distance = item:GetAttribute("OPREALM_MoveDistance") or 18
+			local goal = start * CFrame.new(0, 0, distance)
+			local info = TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+			TweenService:Create(item, info, { CFrame = goal }):Play()
+		end)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Spinning") then
+		task.spawn(function()
+			while item.Parent do
+				item.CFrame = item.CFrame * CFrame.Angles(0, math.rad(5), 0)
+				task.wait()
+			end
+		end)
+	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_Conveyor") then
+		item.Touched:Connect(function(hit)
+			local root = rootFromHumanoid(humanoidFromHit(hit))
+			if root then
+				root.AssemblyLinearVelocity = Vector3.new(34, root.AssemblyLinearVelocity.Y, 0)
+			end
+		end)
+	end
+end
+
+game.Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		local humanoid = character:WaitForChild("Humanoid", 8)
+		if not humanoid then return end
+		humanoid.Died:Connect(function()
+			task.wait(0.2)
+			local checkpoint = checkpoints[character]
+			if checkpoint and player.Character then
+				local root = player.Character:FindFirstChild("HumanoidRootPart")
+				if root then root.CFrame = checkpoint end
+			end
+		end)
+	end)
+end)
+]]
+	runtime.Parent = parent
+	return runtime
+end
+
+local function makeKillZone(part)
+	part:SetAttribute("OPREALM_Kill", true)
+	part.CanCollide = false
+	return part
+end
+
 local function createLabel(parent, text, position)
 	local sign = createPart(parent, "Label_" .. text, Vector3.new(12, 5, 1), position, Color3.fromRGB(8, 18, 47), Enum.Material.SmoothPlastic)
 	local gui = Instance.new("SurfaceGui")
@@ -186,21 +306,22 @@ end
 local function createHazard(parent, obstacle, position, theme)
 	local colors = THEME_COLORS[theme] or THEME_COLORS.Volcano
 	if obstacle == "Spinning hammers" then
-		local center = createPart(parent, "SpinningHammerPivot", Vector3.new(2, 2, 2), position + Vector3.new(0, 5, 0), colors.accent, Enum.Material.Neon)
-		local arm = createPart(parent, "SpinningHammerArm", Vector3.new(22, 1.2, 1.2), position + Vector3.new(0, 5, 0), colors.hazard, Enum.Material.Neon)
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = center
-		weld.Part1 = arm
-		weld.Parent = center
-		return center
+		local arm = createPart(parent, "SpinningHammerArm", Vector3.new(26, 1.2, 1.2), position + Vector3.new(0, 5, 0), colors.hazard, Enum.Material.Neon)
+		arm:SetAttribute("OPREALM_Spinning", true)
+		arm:SetAttribute("OPREALM_Kill", true)
+		createPart(parent, "SpinningHammerPivot", Vector3.new(2, 6, 2), position + Vector3.new(0, 3, 0), colors.accent, Enum.Material.Neon)
+		return arm
 	end
 
 	if obstacle == "Speed boosts" then
-		return createPart(parent, "SpeedBoost", Vector3.new(12, 0.6, 8), position + Vector3.new(0, 0.8, 0), colors.accent, Enum.Material.Neon)
+		local boost = createPart(parent, "SpeedBoost", Vector3.new(12, 0.6, 8), position + Vector3.new(0, 0.8, 0), colors.accent, Enum.Material.Neon)
+		boost:SetAttribute("OPREALM_SpeedBoost", true)
+		return boost
 	end
 
 	if obstacle == "Conveyor belts" then
 		local belt = createPart(parent, "ConveyorBelt", Vector3.new(18, 1, 10), position, Color3.fromRGB(35, 38, 50), Enum.Material.Metal)
+		belt:SetAttribute("OPREALM_Conveyor", true)
 		createPart(parent, "ConveyorArrow", Vector3.new(6, 0.4, 2), position + Vector3.new(0, 1, -1), colors.accent, Enum.Material.Neon)
 		return belt
 	end
@@ -208,10 +329,11 @@ local function createHazard(parent, obstacle, position, theme)
 	if obstacle == "Disappearing platforms" then
 		local ghost = createPart(parent, "DisappearingPlatform", Vector3.new(14, 1, 10), position, colors.platform, Enum.Material.Glass)
 		ghost.Transparency = 0.24
+		ghost:SetAttribute("OPREALM_Disappearing", true)
 		return ghost
 	end
 
-	return createPart(parent, "Hazard_" .. obstacle, Vector3.new(18, 0.8, 12), position + Vector3.new(0, -1.4, 0), colors.hazard, Enum.Material.Neon)
+	return makeKillZone(createPart(parent, "LavaJumpKillZone_" .. obstacle, Vector3.new(24, 0.8, 16), position + Vector3.new(0, -1.4, 0), colors.hazard, Enum.Material.Neon))
 end
 
 local function addThemeDecor(parent, theme, position, index)
@@ -263,7 +385,10 @@ local function buildObby(payload)
 
 	local folder = getOrCreateFolder()
 
-	createPart(folder, "Baseplate", Vector3.new(sectionCount * 72 + 90, 2, 70), Vector3.new(sectionCount * 36, -2, 0), colors.base, Enum.Material.SmoothPlastic)
+	addRuntimeScript(folder)
+	createPart(folder, "ObsidianUnderplate", Vector3.new(sectionCount * 72 + 90, 2, 70), Vector3.new(sectionCount * 36, -5, 0), colors.base, Enum.Material.Slate)
+	local lava = makeKillZone(createPart(folder, "FloorIsLava_KillZone", Vector3.new(sectionCount * 72 + 120, 1, 78), Vector3.new(sectionCount * 36, 0.5, 0), colors.hazard, Enum.Material.Neon))
+	lava.Transparency = 0.08
 	createPart(folder, "SpawnPad", Vector3.new(18, 1.5, 18), Vector3.new(0, 4, 0), Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
 	createLabel(folder, "OPREALM " .. theme .. " Obby", Vector3.new(0, 14, -12))
 
@@ -290,9 +415,11 @@ local function buildObby(payload)
 			local y = 5 + math.min(sectionIndex, 5) * 0.25
 			local platform = createPart(folder, "Section_" .. sectionIndex .. "_Platform_" .. platformIndex, platformSize, Vector3.new(x, y, z), colors.platform, Enum.Material.SmoothPlastic)
 
-			if obstacle == "Moving platforms" then
-				platform.Name = platform.Name .. "_MovingPreview"
+			if obstacle == "Moving platforms" and platformIndex % 2 == 0 then
+				platform.Name = platform.Name .. "_Moving"
 				platform.Color = colors.accent
+				platform:SetAttribute("OPREALM_Moving", true)
+				platform:SetAttribute("OPREALM_MoveDistance", 18)
 			end
 		end
 
