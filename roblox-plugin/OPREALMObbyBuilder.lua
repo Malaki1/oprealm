@@ -4,6 +4,7 @@
 
 local HttpService = game:GetService("HttpService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
 local toolbar = plugin:CreateToolbar("OPREALM")
 local button = toolbar:CreateButton("Obby Builder", "Open OPREALM Obby Builder", "")
@@ -252,6 +253,21 @@ for _, item in ipairs(folder:GetDescendants()) do
 			end
 		end)
 	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_FlyingHazard") then
+		task.spawn(function()
+			local start = item.CFrame
+			local travel = item:GetAttribute("OPREALM_FlyDistance") or 58
+			while item.Parent do
+				item.CFrame = start
+				local goal = start * CFrame.new(-travel, -16, 0)
+				local tween = TweenService:Create(item, TweenInfo.new(2.4, Enum.EasingStyle.Linear), { CFrame = goal })
+				tween:Play()
+				tween.Completed:Wait()
+				task.wait(0.8)
+			end
+		end)
+	end
 end
 
 game.Players.PlayerAdded:Connect(function(player)
@@ -303,6 +319,35 @@ local function createCheckpoint(parent, index, position)
 	return pad
 end
 
+local function applyThemeEnvironment(theme)
+	if theme == "Space" then
+		Lighting.ClockTime = 0
+		Lighting.Brightness = 1.5
+		Lighting.Ambient = Color3.fromRGB(60, 72, 130)
+		Lighting.OutdoorAmbient = Color3.fromRGB(20, 24, 64)
+	elseif theme == "Candy" then
+		Lighting.ClockTime = 13
+		Lighting.Brightness = 2.4
+		Lighting.Ambient = Color3.fromRGB(255, 186, 229)
+		Lighting.OutdoorAmbient = Color3.fromRGB(255, 220, 246)
+	elseif theme == "Cyber" then
+		Lighting.ClockTime = 21
+		Lighting.Brightness = 1.8
+		Lighting.Ambient = Color3.fromRGB(38, 72, 106)
+		Lighting.OutdoorAmbient = Color3.fromRGB(8, 18, 47)
+	elseif theme == "Jungle" then
+		Lighting.ClockTime = 16
+		Lighting.Brightness = 2
+		Lighting.Ambient = Color3.fromRGB(80, 122, 72)
+		Lighting.OutdoorAmbient = Color3.fromRGB(42, 84, 54)
+	else
+		Lighting.ClockTime = 18
+		Lighting.Brightness = 1.7
+		Lighting.Ambient = Color3.fromRGB(120, 72, 48)
+		Lighting.OutdoorAmbient = Color3.fromRGB(72, 44, 44)
+	end
+end
+
 local function createHazard(parent, obstacle, position, theme)
 	local colors = THEME_COLORS[theme] or THEME_COLORS.Volcano
 	if obstacle == "Spinning hammers" then
@@ -343,8 +388,10 @@ local function addThemeDecor(parent, theme, position, index)
 		local ball = createPart(parent, "LollipopTop_" .. index, Vector3.new(8, 8, 2), position + Vector3.new(-12, 18, -8), colors.hazard, Enum.Material.Neon)
 		ball.Shape = Enum.PartType.Ball
 	elseif theme == "Space" then
-		local asteroid = createPart(parent, "Asteroid_" .. index, Vector3.new(6, 6, 6), position + Vector3.new(-12, 10, -8), Color3.fromRGB(90, 92, 108), Enum.Material.Slate)
+		local asteroid = makeKillZone(createPart(parent, "FlyingMeteor_" .. index, Vector3.new(7, 7, 7), position + Vector3.new(28, 22, -10), Color3.fromRGB(90, 92, 108), Enum.Material.Slate))
 		asteroid.Shape = Enum.PartType.Ball
+		asteroid:SetAttribute("OPREALM_FlyingHazard", true)
+		asteroid:SetAttribute("OPREALM_FlyDistance", 68)
 	elseif theme == "Jungle" then
 		createPart(parent, "Vine_" .. index, Vector3.new(1, 18, 1), position + Vector3.new(-12, 9, -8), colors.accent, Enum.Material.Grass)
 	elseif theme == "Cyber" then
@@ -384,11 +431,14 @@ local function buildObby(payload)
 	local obstacles = plan.obstacles or { "Moving platforms", "Lava jumps", "Disappearing platforms" }
 
 	local folder = getOrCreateFolder()
+	applyThemeEnvironment(theme)
 
 	addRuntimeScript(folder)
 	createPart(folder, "ObsidianUnderplate", Vector3.new(sectionCount * 72 + 90, 2, 70), Vector3.new(sectionCount * 36, -5, 0), colors.base, Enum.Material.Slate)
 	local lava = makeKillZone(createPart(folder, "FloorIsLava_KillZone", Vector3.new(sectionCount * 72 + 120, 1, 78), Vector3.new(sectionCount * 36, 0.5, 0), colors.hazard, Enum.Material.Neon))
 	lava.Transparency = 0.08
+	createPart(folder, "ThemeBackdrop_Left", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, -40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
+	createPart(folder, "ThemeBackdrop_Right", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, 40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
 	createPart(folder, "SpawnPad", Vector3.new(18, 1.5, 18), Vector3.new(0, 4, 0), Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
 	createLabel(folder, "OPREALM " .. theme .. " Obby", Vector3.new(0, 14, -12))
 
@@ -401,17 +451,20 @@ local function buildObby(payload)
 	spawn.Material = Enum.Material.Neon
 	spawn.Parent = folder
 
-	local gap = difficulty == "Hard" and 15 or difficulty == "Medium" and 13 or 11
-	local platformSize = difficulty == "Hard" and Vector3.new(11, 1.5, 10) or Vector3.new(14, 1.5, 12)
+	local gap = difficulty == "Hard" and 11 or difficulty == "Medium" and 9.5 or 8
+	local sectionStride = difficulty == "Hard" and 68 or difficulty == "Medium" and 58 or 48
+	local sideOffset = difficulty == "Hard" and 19 or difficulty == "Medium" and 16 or 13
+	local platformSize = difficulty == "Hard" and Vector3.new(11, 1.5, 8) or difficulty == "Medium" and Vector3.new(13, 1.5, 9) or Vector3.new(15, 1.5, 10)
+	local lastCheckpointX = 0
 
 	for sectionIndex = 1, sectionCount do
 		local obstacle = obstacles[((sectionIndex - 1) % #obstacles) + 1]
-		local baseX = sectionIndex * 58
+		local baseX = 14 + (sectionIndex - 1) * sectionStride
 		local platformCount = difficulty == "Hard" and 5 or difficulty == "Medium" and 4 or 3
 
 		for platformIndex = 1, platformCount do
 			local x = baseX + platformIndex * gap
-			local z = ((platformIndex % 2 == 0) and 8 or -8)
+			local z = ((platformIndex % 2 == 0) and sideOffset or -sideOffset)
 			local y = 5 + math.min(sectionIndex, 5) * 0.25
 			local platform = createPart(folder, "Section_" .. sectionIndex .. "_Platform_" .. platformIndex, platformSize, Vector3.new(x, y, z), colors.platform, Enum.Material.SmoothPlastic)
 
@@ -425,10 +478,11 @@ local function buildObby(payload)
 
 		createHazard(folder, obstacle, Vector3.new(baseX + gap * 2.5, 4, 0), theme)
 		addThemeDecor(folder, theme, Vector3.new(baseX + gap * 2.5, 4, 0), sectionIndex)
-		createCheckpoint(folder, sectionIndex, Vector3.new(baseX + gap * (platformCount + 1), 5, 0))
+		lastCheckpointX = baseX + gap * (platformCount + 1)
+		createCheckpoint(folder, sectionIndex, Vector3.new(lastCheckpointX, 5, 0))
 	end
 
-	local finishX = (sectionCount + 1) * 70
+	local finishX = lastCheckpointX + 18
 	createPart(folder, "FinishPad", Vector3.new(22, 2, 22), Vector3.new(finishX, 6, 0), Color3.fromRGB(49, 214, 139), Enum.Material.Neon)
 	createLabel(folder, "FINISH", Vector3.new(finishX, 16, -12))
 
