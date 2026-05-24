@@ -137,7 +137,7 @@
         line-height: 1.4;
       }
 
-      .discord-login {
+      .account-login {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -371,8 +371,8 @@
             <input id="secret" type="password" autocomplete="off" placeholder="Optional admin access token" />
             <button type="submit">Admin Load</button>
           </div>
-          <p class="login-copy" id="loginStatus">Creator Pro and Elite members can log in with Discord.</p>
-          <a class="discord-login" href="/api/auth/discord-start">Log in with Discord</a>
+          <p class="login-copy" id="loginStatus">Creator Pro and Elite members can access approved audio assets from their OPREALM account.</p>
+          <a class="account-login" href="/login">Log in with OPREALM</a>
         </form>
       </section>
 
@@ -454,7 +454,7 @@
             loginStatus.textContent = "Logged in, but the shared Audio Library requires Creator Pro or Elite.";
           }
         } catch (error) {
-          loginStatus.textContent = "Creator Pro and Elite members can log in with Discord.";
+          loginStatus.textContent = "Creator Pro and Elite members can access approved audio assets from their OPREALM account.";
         }
       }
 
