@@ -27,6 +27,8 @@ const characterPreviewStyle = document.querySelector("#characterPreviewStyle");
 const characterPreviewStatus = document.querySelector("#characterPreviewStatus");
 const generateCharacterImageButton = document.querySelector("#generateCharacterImageButton");
 const characterImageStatus = document.querySelector("#characterImageStatus");
+const characterLoadingSticker = document.querySelector("#characterLoadingSticker");
+const characterLoadingLine = document.querySelector("#characterLoadingLine");
 const characterImageFrame = document.querySelector("#characterImageFrame");
 const saveCharacterPreviewButton = document.querySelector("#saveCharacterPreviewButton");
 const createCharacterVariationButton = document.querySelector("#createCharacterVariationButton");
@@ -117,7 +119,14 @@ const COVER_LOADING_LINES = [
   "Laughing cat says this cover is about to go feral.",
   "Loading... please do not feed the pixels after midnight.",
 ];
+const CHARACTER_LOADING_LINES = [
+  "Drawing the hero. The pixels are doing push-ups.",
+  "Sad kitten eyes are begging the AI for maximum cuteness.",
+  "Laughing cat found the character drip. It is yelling respectfully.",
+  "Hold still. The hero is choosing their best side.",
+];
 let coverLoadingTimer = null;
+let characterLoadingTimer = null;
 
 function saveStoryProject() {
   try {
@@ -609,6 +618,37 @@ function stopCoverLoadingSticker() {
   clearInterval(coverLoadingTimer);
   coverLoadingTimer = null;
   coverLoadingSticker?.classList.add("is-hidden");
+}
+
+function startCharacterLoadingSticker(variation = false) {
+  if (!characterLoadingSticker) return;
+  characterLoadingSticker.classList.remove("is-hidden");
+  let index = variation ? 3 : 0;
+  if (characterLoadingLine) characterLoadingLine.textContent = CHARACTER_LOADING_LINES[index];
+  clearInterval(characterLoadingTimer);
+  characterLoadingTimer = setInterval(() => {
+    index = (index + 1) % CHARACTER_LOADING_LINES.length;
+    if (characterLoadingLine) characterLoadingLine.textContent = CHARACTER_LOADING_LINES[index];
+  }, 2600);
+}
+
+function stopCharacterLoadingSticker() {
+  clearInterval(characterLoadingTimer);
+  characterLoadingTimer = null;
+  characterLoadingSticker?.classList.add("is-hidden");
+}
+
+async function waitForGenerationJob(jobId, { timeoutMs = 90000, intervalMs = 1800 } = {}) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    const response = await fetch(`/api/generation-job?id=${encodeURIComponent(jobId)}`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Could not check generation status.");
+    if (result.status === "completed") return result;
+    if (result.status === "failed") throw new Error(result.error || "Generation failed.");
+  }
+  throw new Error("This generation is still running. Wait a moment, then try refreshing the project.");
 }
 
 function renderCharacterMethod() {
@@ -1552,23 +1592,33 @@ async function generateCharacterImage({ variation = false } = {}) {
   saveStoryProject();
   renderStoryDashboard();
 
-  characterImageStatus.textContent = variation ? "Creating a new character look..." : "Generating your character image...";
+  characterImageStatus.textContent = "";
+  startCharacterLoadingSticker(variation);
   generateCharacterImageButton.disabled = true;
   createCharacterVariationButton.disabled = true;
 
   try {
+    const idempotencyKey = crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`;
     const response = await fetch("/api/story-character-image", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-idempotency-key": idempotencyKey,
+      },
       body: JSON.stringify({
         ...data,
         variation,
+        idempotencyKey,
       }),
     });
-    const result = await response.json();
+    let result = await response.json();
     if (!response.ok || !result.ok) {
       throw new Error(result.error || "Character image generation failed.");
     }
+    if (result.status === "queued" || result.status === "processing") {
+      result = await waitForGenerationJob(result.jobId);
+    }
+    if (!result.imageDataUrl) throw new Error("Character image result was empty.");
 
     storyProject.characterDrafts[activeHeroIndex] = {
       ...(storyProject.characterDrafts[activeHeroIndex] || {}),
@@ -1581,6 +1631,7 @@ async function generateCharacterImage({ variation = false } = {}) {
   } catch (error) {
     characterImageStatus.textContent = error.message || "Could not generate the character image.";
   } finally {
+    stopCharacterLoadingSticker();
     generateCharacterImageButton.disabled = false;
     createCharacterVariationButton.disabled = false;
   }

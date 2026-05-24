@@ -1,57 +1,118 @@
+import { requireUser } from "../_lib/auth.js";
+import {
+  assertRateLimit,
+  createGenerationJob,
+  findCachedJob,
+  findIdempotentJob,
+  jobResponse,
+  markJobCompleted,
+  markJobFailed,
+  markJobProcessing,
+  sha256Text,
+} from "../_lib/generation-jobs.js";
+import { json, readJson } from "../_lib/http.js";
+import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/validate.js";
+
 const CHARACTER_IMAGE_COST = 18;
 const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.068;
 const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
 const CHARACTER_IMAGE_QUALITY = "high";
+const CHARACTER_TOOL = "story_character_image";
 
-export async function onRequestPost({ request, env }) {
-  if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
-  if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
-
-  const user = await currentUser(request, env);
-  if (!user) return json({ ok: false, error: "Please log in before generating a character image." }, 401);
-  if (Number(user.credits_remaining || 0) < CHARACTER_IMAGE_COST) {
-    return json({ ok: false, error: `You need ${CHARACTER_IMAGE_COST} Creator credits to generate a character image.` }, 402);
-  }
-
-  let body;
+export async function onRequestPost({ request, env, waitUntil }) {
   try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: "Invalid character image request." }, 400);
-  }
+    if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
 
-  const safetyWarning = checkPromptSafety([
-    body.name,
-    body.prompt,
-    body.type,
-    body.personality,
-    body.style,
-    body.safety,
-  ].join(" "));
-  if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
+    const user = await requireUser(request, env);
+    if (Number(user.credits_remaining || 0) < CHARACTER_IMAGE_COST) {
+      return json({ ok: false, error: `You need ${CHARACTER_IMAGE_COST} Creator credits to generate a character image.` }, 402);
+    }
 
-  const prompt = buildCharacterImagePrompt(body);
-  let result;
-  try {
-    result = await generateCharacterImage(env, prompt);
+    const body = validateCharacterBody(await readJson(request, "Invalid character image request."));
+    const prompt = buildCharacterImagePrompt(body);
+    const promptHash = await sha256Text(`${CHARACTER_TOOL}:${CHARACTER_IMAGE_MODEL}:${CHARACTER_IMAGE_QUALITY}:${prompt}`);
+    const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
+
+    const existingJob = await findIdempotentJob(env, user.id, CHARACTER_TOOL, idempotencyKey);
+    if (existingJob) return json(jobResponse(existingJob));
+
+    const cachedJob = await findCachedJob(env, user.id, CHARACTER_TOOL, promptHash);
+    if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
+
+    await assertRateLimit(env, user.id, CHARACTER_TOOL, { limit: 4, windowSeconds: 60 });
+
+    const jobId = crypto.randomUUID();
+    await createGenerationJob(env, {
+      id: jobId,
+      userId: user.id,
+      tool: CHARACTER_TOOL,
+      promptHash,
+      idempotencyKey,
+      creditsReserved: CHARACTER_IMAGE_COST,
+      metadata: {
+        source: "ai_story_game_creator",
+        route: "/api/story-character-image",
+        variation: Boolean(body.variation),
+      },
+    });
+
+    const task = processCharacterImageJob(env, {
+      jobId,
+      user,
+      prompt,
+      body,
+    });
+    if (typeof waitUntil === "function") {
+      waitUntil(task);
+      return json({
+        ok: true,
+        jobId,
+        status: "queued",
+        creditsReserved: CHARACTER_IMAGE_COST,
+        message: "Character image generation started.",
+      }, 202);
+    }
+
+    await task;
+    const completedJob = await env.OPREALM_DB.prepare("SELECT * FROM generation_jobs WHERE id = ? LIMIT 1").bind(jobId).first();
+    return json(jobResponse(completedJob));
   } catch (error) {
-    return json({ ok: false, error: error.message || "Character image generation failed." }, 502);
+    return json({ ok: false, error: error.message || "Character image generation failed." }, error.status || 500);
   }
+}
 
-  await env.OPREALM_DB.prepare(
-    "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ?",
+async function processCharacterImageJob(env, { jobId, user, prompt }) {
+  try {
+    await markJobProcessing(env, jobId);
+    const result = await generateCharacterImage(env, prompt);
+    const charged = await chargeCredits(env, user.id, CHARACTER_IMAGE_COST);
+    if (!charged) throw Object.assign(new Error(`You need ${CHARACTER_IMAGE_COST} Creator credits to finish this character image.`), { status: 402 });
+
+    const responseResult = {
+      imageDataUrl: `data:image/png;base64,${result.b64}`,
+      creditsUsed: CHARACTER_IMAGE_COST,
+      model: result.model,
+      quality: result.quality,
+    };
+    await logAiUsage(env, user, prompt, result);
+    await markJobCompleted(env, jobId, {
+      result: responseResult,
+      creditsCharged: CHARACTER_IMAGE_COST,
+      model: result.model,
+      quality: result.quality,
+    });
+  } catch (error) {
+    await markJobFailed(env, jobId, error);
+  }
+}
+
+async function chargeCredits(env, userId, credits) {
+  const result = await env.OPREALM_DB.prepare(
+    "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ? AND credits_remaining >= ?",
   )
-    .bind(CHARACTER_IMAGE_COST, user.id)
+    .bind(credits, userId, credits)
     .run();
-  await logAiUsage(env, user, prompt, result);
-
-  return json({
-    ok: true,
-    imageDataUrl: `data:image/png;base64,${result.b64}`,
-    creditsUsed: CHARACTER_IMAGE_COST,
-    model: result.model,
-    quality: result.quality,
-  });
+  return Number(result?.meta?.changes || 0) > 0;
 }
 
 async function generateCharacterImage(env, prompt) {
@@ -147,6 +208,49 @@ function buildCharacterImagePrompt(body) {
   ].join("\n");
 }
 
+function validateCharacterBody(body) {
+  const normalized = {
+    name: cleanText(body.name || "New OPRealm hero", 80),
+    prompt: requireMinText(body.prompt || "A beginner-friendly pick-a-path story hero.", "Character prompt", 5, 800),
+    type: enumValue(body.type, [
+      "Custom",
+      "Young explorer",
+      "Robot helper",
+      "Fantasy creature",
+      "Space adventurer",
+      "Everyday kid hero",
+    ], "Custom"),
+    personality: enumValue(body.personality, [
+      "Brave and kind",
+      "Curious and funny",
+      "Calm problem-solver",
+      "Inventive and energetic",
+      "Shy but growing confident",
+    ], "Brave and kind"),
+    style: enumValue(body.style, [
+      "Bright 3D game mascot",
+      "Fantasy RPG",
+      "Cozy storybook",
+      "Pixel game hero",
+      "Cartoon adventure",
+      "Futuristic OPREALM style",
+      "Anime adventure",
+      "Manga hero",
+      "Chibi character",
+    ], "Bright 3D game mascot"),
+    safety: enumValue(body.safety, [
+      "Friendly and safe for all ages",
+      "Funny with no bullying",
+      "Mysterious but not scary",
+      "Adventure with safe choices",
+    ], "Friendly and safe for all ages"),
+    variation: Boolean(body.variation),
+    idempotencyKey: cleanText(body.idempotencyKey || "", 120),
+  };
+  assertSafePrompt(Object.values(normalized).join(" "));
+  return normalized;
+}
+
 function styleGuidance(style) {
   const key = String(style || "").toLowerCase();
   if (key.includes("anime")) {
@@ -162,70 +266,4 @@ function styleGuidance(style) {
     return "Style guidance: premium kid-friendly fantasy RPG character art, readable game silhouette, tasteful adventurer outfit, expressive heroic pose, polished painterly lighting, magical details without scary realism, no weapons pointed at viewer.";
   }
   return "Style guidance: keep the chosen visual style clear, kid-friendly, original, and suitable for a game character asset.";
-}
-
-function checkPromptSafety(value) {
-  const text = String(value || "").toLowerCase();
-  const blocked = [
-    "dm me",
-    "message me",
-    "add me",
-    "phone number",
-    "address",
-    "school name",
-    "password",
-    "free robux",
-    "private chat",
-    "meet me",
-    "snapchat",
-    "instagram",
-    "tiktok",
-    "whatsapp",
-  ];
-  const phrase = blocked.find((item) => text.includes(item));
-  return phrase ? `Please remove unsafe personal/contact wording like "${phrase}" before generating.` : "";
-}
-
-async function currentUser(request, env) {
-  const sessionId = parseCookies(request.headers.get("cookie") || "").oprealm_session;
-  if (!sessionId) return null;
-  return env.OPREALM_DB.prepare(
-    `
-      SELECT web_users.*
-      FROM web_sessions
-      JOIN web_users ON web_users.id = web_sessions.web_user_id
-      WHERE web_sessions.id = ?
-        AND web_sessions.expires_at > datetime('now')
-      LIMIT 1
-    `,
-  )
-    .bind(sessionId)
-    .first();
-}
-
-function parseCookies(header) {
-  return Object.fromEntries(
-    header
-      .split(";")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const index = part.indexOf("=");
-        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
-      }),
-  );
-}
-
-function cleanText(value, maxLength) {
-  return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data, null, 2), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-    },
-  });
 }

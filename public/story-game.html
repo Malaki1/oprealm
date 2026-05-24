@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=35" />
+    <link rel="stylesheet" href="/studio.css?v=36" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=34" defer></script>
+    <script src="/story-game.js?v=35" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -206,6 +206,14 @@
                 <button class="button button-secondary danger-button" type="button" id="clearCharactersButton">Clear Saved Characters</button>
               </div>
               <p class="form-note" id="characterImageStatus"></p>
+              <div class="gen-alpha-loader is-hidden" id="characterLoadingSticker" aria-live="polite">
+                <div class="sticker-stage" aria-hidden="true">
+                  <div class="sticker-cat sticker-cat-dance"><span></span></div>
+                  <div class="sticker-cat sticker-cat-sad"><span></span></div>
+                  <div class="sticker-cat sticker-cat-laugh"><span></span></div>
+                </div>
+                <strong id="characterLoadingLine">Drawing the hero. The pixels are doing push-ups.</strong>
+              </div>
             </form>
 
             <article class="story-card-preview">
