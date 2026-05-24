@@ -598,6 +598,118 @@ select option {
   display: none;
 }
 
+.obby-dashboard[hidden] {
+  display: none;
+}
+
+.obby-dashboard {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.obby-dashboard-head {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255, 232, 166, 0.14), transparent 14rem),
+    linear-gradient(135deg, rgba(24, 217, 255, 0.11), rgba(139, 67, 255, 0.14));
+}
+
+.obby-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(340px, 1.08fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.obby-form,
+.obby-preview-card {
+  border: 1px solid rgba(160, 218, 255, 0.18);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.obby-preview-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.obby-preview-card h4 {
+  margin: 0;
+  color: var(--white);
+  font-size: clamp(1.3rem, 2.4vw, 2.2rem);
+  line-height: 1;
+}
+
+.obby-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.obby-meta-row span,
+.obby-section-list small {
+  border: 1px solid rgba(143, 240, 255, 0.18);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #c8f7ff;
+  background: rgba(24, 217, 255, 0.08);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.obby-track {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(74px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(24, 217, 255, 0.22), rgba(139, 67, 255, 0.16)),
+    rgba(3, 9, 21, 0.42);
+}
+
+.obby-track span {
+  display: grid;
+  min-height: 54px;
+  place-items: center;
+  border: 1px solid rgba(143, 240, 255, 0.22);
+  border-radius: 12px;
+  color: var(--white);
+  background:
+    linear-gradient(135deg, rgba(24, 217, 255, 0.18), rgba(139, 67, 255, 0.18)),
+    rgba(255, 255, 255, 0.06);
+  font-weight: 1000;
+}
+
+.obby-section-list {
+  display: grid;
+  gap: 10px;
+  max-height: 380px;
+  overflow: auto;
+}
+
+.obby-section-list article {
+  padding: 13px;
+  border: 1px solid rgba(160, 218, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(3, 9, 21, 0.26);
+}
+
+.obby-section-list strong {
+  display: block;
+  color: var(--white);
+}
+
+.obby-section-list p {
+  margin: 6px 0 10px;
+  color: var(--muted);
+}
+
 .story-dashboard-head {
   display: flex;
   align-items: flex-start;
@@ -2446,6 +2558,7 @@ body.story-map-open .story-map-tools {
   }
 
   .story-workspace,
+  .obby-workspace,
   .publish-checklist {
     grid-template-columns: 1fr;
   }

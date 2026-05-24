@@ -11,8 +11,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=9" />
-    <script src="/studio.js?v=5" defer></script>
+    <link rel="stylesheet" href="/studio.css?v=10" />
+    <script src="/studio.js?v=6" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -89,6 +89,71 @@
             </div>
             <div id="projectBoard" class="project-board"></div>
           </div>
+
+          <section class="obby-dashboard" id="obbyDashboard" hidden>
+            <div class="story-dashboard-head obby-dashboard-head">
+              <div>
+                <p class="eyebrow">AI Roblox Obby Generator</p>
+                <h3>Prompt to playable obby spec</h3>
+                <p>Keep the loop fast: type an idea, generate a safe constrained plan, then send it to the Roblox Studio plugin.</p>
+              </div>
+              <span class="status-pill">Target: &lt; 60 sec win</span>
+            </div>
+
+            <div class="obby-workspace">
+              <form class="story-form obby-form" id="obbyForm">
+                <div>
+                  <p class="eyebrow">Core loop</p>
+                  <h4>Imagine an obby</h4>
+                </div>
+                <label>
+                  Obby idea
+                  <textarea id="obbyPrompt" name="prompt" rows="5" maxlength="500" placeholder="Make me a volcano obby with lava sharks and disappearing rainbow platforms."></textarea>
+                </label>
+                <div class="story-form-grid">
+                  <label>
+                    Difficulty
+                    <select id="obbyDifficulty" name="difficulty">
+                      <option value="">Auto pick from prompt</option>
+                      <option>Easy</option>
+                      <option>Medium</option>
+                      <option>Hard</option>
+                    </select>
+                  </label>
+                  <label>
+                    Generation mode
+                    <select name="mode">
+                      <option>Constrained procedural</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="prompt-actions">
+                  <button class="button button-primary" type="submit">Generate Obby Spec</button>
+                  <button class="button button-secondary" type="button" id="obbyVoiceButton">Speak Idea</button>
+                  <button class="button button-secondary" type="button" id="copyObbyJsonButton">Copy Plugin JSON</button>
+                </div>
+                <p class="form-note" id="obbyStatus">AI interprets the idea. The engine only uses approved themes, obstacles and safe Roblox prefabs.</p>
+              </form>
+
+              <article class="obby-preview-card">
+                <p class="eyebrow">Playable blueprint</p>
+                <h4 id="obbyTitle">No obby yet</h4>
+                <div class="obby-meta-row">
+                  <span id="obbyTheme">Theme</span>
+                  <span id="obbyDifficultyLabel">Difficulty</span>
+                  <span id="obbySections">0 sections</span>
+                </div>
+                <div class="obby-track" id="obbyTrack">
+                  <span>Spawn</span>
+                  <span>Checkpoint</span>
+                  <span>Finish</span>
+                </div>
+                <div class="obby-section-list" id="obbySectionList">
+                  <article><strong>Waiting for an idea</strong><p>The first version creates deterministic JSON for the Roblox plugin.</p></article>
+                </div>
+              </article>
+            </div>
+          </section>
 
           <section class="story-dashboard" id="storyDashboard" hidden>
             <div class="story-dashboard-head">
