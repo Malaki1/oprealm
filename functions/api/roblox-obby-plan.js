@@ -1,4 +1,4 @@
-import { requireUser } from "../_lib/auth.js";
+import { currentUser } from "../_lib/auth.js";
 import {
   assertRateLimit,
   createGenerationJob,
@@ -12,6 +12,7 @@ import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/validate.js";
 
 const TOOL = "roblox_obby_plan";
+const PLAN_VERSION = "obby-plan-v2";
 const THEMES = ["Volcano", "Candy", "Space", "Cyber", "Jungle"];
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const OBSTACLES = [
@@ -41,14 +42,18 @@ const OBSTACLE_KEYWORDS = [
 ];
 
 export async function onRequestPost({ request, env }) {
+  try {
+    return await handleObbyPlanRequest(request, env);
+  } catch (error) {
+    console.error("Roblox obby planner failed", error);
+    return json({ ok: false, error: error.message || "Could not generate the obby spec." }, error.status || 500);
+  }
+}
+
+async function handleObbyPlanRequest(request, env) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
 
-  let user;
-  try {
-    user = await requireUser(request, env);
-  } catch (error) {
-    return json({ ok: false, error: error.message || "Please log in before generating an obby plan." }, error.status || 401);
-  }
+  const user = await resolvePlanningUser(request, env);
 
   let body;
   let prompt;
@@ -61,7 +66,7 @@ export async function onRequestPost({ request, env }) {
   } catch (error) {
     return json({ ok: false, error: error.message || "Invalid obby generator request." }, error.status || 400);
   }
-  const promptHash = await sha256Text([TOOL, prompt, requestedDifficulty].join("\n"));
+  const promptHash = await sha256Text([TOOL, PLAN_VERSION, prompt, requestedDifficulty].join("\n"));
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey, 120) || null;
 
   if (idempotencyKey) {
@@ -79,7 +84,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   const jobId = crypto.randomUUID();
-  const job = await createGenerationJob(env, {
+  await createGenerationJob(env, {
     id: jobId,
     userId: user.id,
     tool: TOOL,
@@ -90,15 +95,32 @@ export async function onRequestPost({ request, env }) {
   });
 
   const plan = buildObbyPlan(prompt, requestedDifficulty);
-  await markJobCompleted(env, job.id, {
+  await markJobCompleted(env, jobId, {
     result: plan,
     creditsCharged: 0,
     model: "oprealm-deterministic-v1",
     quality: "constrained",
   });
 
-  const completed = await env.OPREALM_DB.prepare("SELECT * FROM generation_jobs WHERE id = ?").bind(job.id).first();
-  return json(jobResponse(completed || job));
+  const completed = await env.OPREALM_DB.prepare("SELECT * FROM generation_jobs WHERE id = ?").bind(jobId).first();
+  return json(jobResponse(completed));
+}
+
+async function resolvePlanningUser(request, env) {
+  try {
+    const user = await currentUser(request, env);
+    if (user?.id) return user;
+  } catch (error) {
+    console.warn("Obby planner account lookup failed; using anonymous planning user", error);
+  }
+
+  const fingerprint = [
+    request.headers.get("cf-connecting-ip") || "",
+    request.headers.get("user-agent") || "",
+    request.headers.get("accept-language") || "",
+  ].join("|");
+  const hash = await sha256Text(fingerprint || crypto.randomUUID());
+  return { id: `anon:${hash.slice(0, 48)}` };
 }
 
 function buildObbyPlan(prompt, requestedDifficulty) {
@@ -155,6 +177,12 @@ function buildObbyPlan(prompt, requestedDifficulty) {
 
 function detectTheme(prompt) {
   const text = prompt.toLowerCase();
+  for (const theme of THEMES) {
+    const key = theme.toLowerCase();
+    if (text.includes(`${key} themed`) || text.includes(`${key} theme`) || text.includes(`${key} obby`)) {
+      return theme;
+    }
+  }
   const match = THEME_KEYWORDS
     .map(([theme, words]) => ({ theme, score: words.filter((word) => text.includes(word)).length }))
     .sort((a, b) => b.score - a.score)[0];

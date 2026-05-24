@@ -70,7 +70,7 @@ async function generateObbyPlan() {
     },
     body: JSON.stringify(payload),
   });
-  const result = await response.json();
+  const result = await readJsonResponse(response);
   if (!response.ok || !result.ok) throw new Error(result.error || "Could not generate the obby spec.");
 
   obbyProject = { plan: result, updatedAt: new Date().toISOString() };
@@ -79,6 +79,18 @@ async function generateObbyPlan() {
   obbyStatus.textContent = result.cached
     ? "Loaded from cache. No credits used."
     : "Obby spec ready. No credits used in this deterministic v1.";
+}
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    if (response.status === 401) {
+      return { ok: false, error: "Please log in, then try generating again." };
+    }
+    return { ok: false, error: "The obby generator returned a web page instead of data. Please refresh and try again." };
+  }
 }
 
 function startObbyVoiceInput() {
