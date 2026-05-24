@@ -59,10 +59,33 @@ function renderObbyDashboard() {
 }
 
 function renderJsonExport() {
-  const payload = obbyProject?.plan?.pluginPayload;
+  const payload = pluginPayloadForCurrentPlan();
   if (!obbyJsonExportWrap || !obbyJsonExport) return;
   obbyJsonExportWrap.hidden = !payload;
   obbyJsonExport.value = payload ? JSON.stringify(payload, null, 2) : "";
+}
+
+function pluginPayloadForCurrentPlan() {
+  const plan = obbyProject?.plan;
+  if (!plan) return null;
+  if (plan.pluginPayload) return plan.pluginPayload;
+
+  const sections = plan.obby?.sections || [];
+  const obstacles = [...new Set(sections.map((section) => section.obstacle).filter(Boolean))];
+  return {
+    version: "oprealm-obby-v1",
+    command: "BuildObbyFromSpec",
+    prefabPack: `${String(plan.theme || "Volcano").toLowerCase()}_starter_pack`,
+    gridUnit: 12,
+    maxPartsEstimate: Math.max(120, sections.length * 36),
+    plan: {
+      theme: plan.theme || "Volcano",
+      difficulty: plan.difficulty || "Easy",
+      obstacles,
+      sectionCount: sections.length,
+      seed: plan.obby?.seed || Date.now(),
+    },
+  };
 }
 
 async function generateObbyPlan() {
@@ -126,7 +149,7 @@ function startObbyVoiceInput() {
 }
 
 async function copyObbyJson() {
-  const payload = obbyProject?.plan?.pluginPayload;
+  const payload = pluginPayloadForCurrentPlan();
   if (!payload) {
     obbyStatus.textContent = "Generate an obby spec first.";
     return;

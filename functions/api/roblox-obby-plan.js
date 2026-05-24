@@ -12,7 +12,7 @@ import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/validate.js";
 
 const TOOL = "roblox_obby_plan";
-const PLAN_VERSION = "obby-plan-v2";
+const PLAN_VERSION = "obby-plan-v3";
 const THEMES = ["Volcano", "Candy", "Space", "Cyber", "Jungle"];
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const OBSTACLES = [
@@ -179,7 +179,7 @@ function detectTheme(prompt) {
   const text = prompt.toLowerCase();
   for (const theme of THEMES) {
     const key = theme.toLowerCase();
-    if (text.includes(`${key} themed`) || text.includes(`${key} theme`) || text.includes(`${key} obby`)) {
+    if (text.includes(`${key} themed`) || text.includes(`${key} theme`) || text.includes(`${key} obby`) || text.includes(`${key} land`)) {
       return theme;
     }
   }
