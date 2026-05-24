@@ -4,6 +4,8 @@ const obbyDifficulty = document.querySelector("#obbyDifficulty");
 const obbyVoiceButton = document.querySelector("#obbyVoiceButton");
 const copyObbyJsonButton = document.querySelector("#copyObbyJsonButton");
 const obbyStatus = document.querySelector("#obbyStatus");
+const obbyJsonExportWrap = document.querySelector("#obbyJsonExportWrap");
+const obbyJsonExport = document.querySelector("#obbyJsonExport");
 const obbyTitle = document.querySelector("#obbyTitle");
 const obbyTheme = document.querySelector("#obbyTheme");
 const obbyDifficultyLabel = document.querySelector("#obbyDifficultyLabel");
@@ -52,6 +54,15 @@ function renderObbyDashboard() {
         </article>
       `).join("")
     : `<article><strong>Waiting for an idea</strong><p>The first version creates deterministic JSON for the Roblox plugin.</p></article>`;
+
+  renderJsonExport();
+}
+
+function renderJsonExport() {
+  const payload = obbyProject?.plan?.pluginPayload;
+  if (!obbyJsonExportWrap || !obbyJsonExport) return;
+  obbyJsonExportWrap.hidden = !payload;
+  obbyJsonExport.value = payload ? JSON.stringify(payload, null, 2) : "";
 }
 
 async function generateObbyPlan() {
@@ -115,12 +126,49 @@ function startObbyVoiceInput() {
 }
 
 async function copyObbyJson() {
-  if (!obbyProject?.plan) {
+  const payload = obbyProject?.plan?.pluginPayload;
+  if (!payload) {
     obbyStatus.textContent = "Generate an obby spec first.";
     return;
   }
-  await navigator.clipboard.writeText(JSON.stringify(obbyProject.plan.pluginPayload, null, 2));
-  obbyStatus.textContent = "Plugin JSON copied.";
+
+  const text = JSON.stringify(payload, null, 2);
+  try {
+    await copyTextToClipboard(text);
+    if (obbyJsonExport) {
+      obbyJsonExport.focus();
+      obbyJsonExport.select();
+    }
+    obbyStatus.textContent = "Plugin JSON copied. Paste it into the OPREALM Roblox Studio plugin.";
+  } catch (error) {
+    console.error("Copy plugin JSON failed", error);
+    if (obbyJsonExport) {
+      obbyJsonExport.focus();
+      obbyJsonExport.select();
+    }
+    obbyStatus.textContent = "Copy was blocked. The Plugin JSON box is selected, so press Ctrl+C.";
+  }
+}
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard?.writeText && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  const copied = document.execCommand("copy");
+  document.body.removeChild(textArea);
+  if (!copied) throw new Error("Clipboard copy was blocked.");
 }
 
 function escapeHtml(value) {

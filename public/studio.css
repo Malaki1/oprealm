@@ -959,6 +959,19 @@ select option {
   color: var(--muted);
 }
 
+.obby-json-export {
+  margin-top: 4px;
+}
+
+.obby-json-export textarea {
+  min-height: 180px;
+  color: #dffbff;
+  background: rgba(3, 9, 21, 0.42);
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .story-dashboard-head {
   display: flex;
   align-items: flex-start;
