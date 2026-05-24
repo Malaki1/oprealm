@@ -156,24 +156,25 @@ async function copyObbyJson() {
   }
 
   const text = JSON.stringify(payload, null, 2);
+  if (obbyJsonExport) {
+    obbyJsonExport.value = text;
+    obbyJsonExportWrap.hidden = false;
+  }
+
   try {
     await copyTextToClipboard(text);
-    if (obbyJsonExport) {
-      obbyJsonExport.focus();
-      obbyJsonExport.select();
-    }
+    selectPluginJson();
     obbyStatus.textContent = "Plugin JSON copied. Paste it into the OPREALM Roblox Studio plugin.";
   } catch (error) {
     console.error("Copy plugin JSON failed", error);
-    if (obbyJsonExport) {
-      obbyJsonExport.focus();
-      obbyJsonExport.select();
-    }
+    selectPluginJson();
     obbyStatus.textContent = "Copy was blocked. The Plugin JSON box is selected, so press Ctrl+C.";
   }
 }
 
 async function copyTextToClipboard(text) {
+  if (copyFromVisibleExportBox()) return;
+
   if (navigator.clipboard?.writeText && window.isSecureContext) {
     await navigator.clipboard.writeText(text);
     return;
@@ -192,6 +193,23 @@ async function copyTextToClipboard(text) {
   const copied = document.execCommand("copy");
   document.body.removeChild(textArea);
   if (!copied) throw new Error("Clipboard copy was blocked.");
+}
+
+function copyFromVisibleExportBox() {
+  if (!obbyJsonExport) return false;
+  selectPluginJson();
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  }
+}
+
+function selectPluginJson() {
+  if (!obbyJsonExport) return;
+  obbyJsonExport.focus();
+  obbyJsonExport.select();
+  obbyJsonExport.setSelectionRange(0, obbyJsonExport.value.length);
 }
 
 function escapeHtml(value) {
