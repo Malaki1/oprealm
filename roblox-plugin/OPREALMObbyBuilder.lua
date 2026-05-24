@@ -164,10 +164,100 @@ local function addRuntimeScript(parent)
 	local runtime = Instance.new("Script")
 	runtime.Name = "OPREALM_Runtime"
 	runtime.Source = [[
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local folder = script.Parent
-local checkpoints = {}
+local playerCheckpoints = {}
+
+local function ensureStats(player)
+	local leaderstats = player:FindFirstChild("leaderstats")
+	if not leaderstats then
+		leaderstats = Instance.new("Folder")
+		leaderstats.Name = "leaderstats"
+		leaderstats.Parent = player
+	end
+
+	local checkpoint = leaderstats:FindFirstChild("Checkpoint")
+	if not checkpoint then
+		checkpoint = Instance.new("IntValue")
+		checkpoint.Name = "Checkpoint"
+		checkpoint.Value = 0
+		checkpoint.Parent = leaderstats
+	end
+
+	local deaths = leaderstats:FindFirstChild("Deaths")
+	if not deaths then
+		deaths = Instance.new("IntValue")
+		deaths.Name = "Deaths"
+		deaths.Value = 0
+		deaths.Parent = leaderstats
+	end
+
+	return checkpoint, deaths
+end
+
+local function ensureHud(player)
+	local checkpoint, deaths = ensureStats(player)
+	local gui = player:WaitForChild("PlayerGui", 10)
+	if not gui then return end
+
+	local existing = gui:FindFirstChild("OPREALMStatsGui")
+	if existing then existing:Destroy() end
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "OPREALMStatsGui"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = gui
+
+	local panel = Instance.new("Frame")
+	panel.Name = "StatsPanel"
+	panel.AnchorPoint = Vector2.new(0, 0)
+	panel.Position = UDim2.new(0, 18, 0, 86)
+	panel.Size = UDim2.new(0, 250, 0, 82)
+	panel.BackgroundColor3 = Color3.fromRGB(7, 14, 35)
+	panel.BackgroundTransparency = 0.12
+	panel.BorderSizePixel = 0
+	panel.Parent = screenGui
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = panel
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(24, 217, 255)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.2
+	stroke.Parent = panel
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Position = UDim2.new(0, 14, 0, 8)
+	title.Size = UDim2.new(1, -28, 0, 22)
+	title.Text = "OPREALM RUN"
+	title.TextColor3 = Color3.fromRGB(140, 245, 255)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Parent = panel
+
+	local statsText = Instance.new("TextLabel")
+	statsText.BackgroundTransparency = 1
+	statsText.Position = UDim2.new(0, 14, 0, 38)
+	statsText.Size = UDim2.new(1, -28, 0, 34)
+	statsText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	statsText.TextXAlignment = Enum.TextXAlignment.Left
+	statsText.Font = Enum.Font.GothamBold
+	statsText.TextScaled = true
+	statsText.Parent = panel
+
+	local function update()
+		statsText.Text = "Checkpoint: " .. checkpoint.Value .. "    Deaths: " .. deaths.Value
+	end
+	checkpoint.Changed:Connect(update)
+	deaths.Changed:Connect(update)
+	update()
+end
 
 local function humanoidFromHit(hit)
 	local character = hit and hit.Parent
@@ -196,7 +286,15 @@ for _, item in ipairs(folder:GetDescendants()) do
 			local humanoid = humanoidFromHit(hit)
 			local root = rootFromHumanoid(humanoid)
 			if humanoid and root then
-				checkpoints[humanoid.Parent] = item.CFrame + Vector3.new(0, 5, 0)
+				local player = Players:GetPlayerFromCharacter(humanoid.Parent)
+				if player then
+					local checkpointValue = item:GetAttribute("OPREALM_Checkpoint") or 0
+					local checkpointStat = ensureStats(player)
+					if checkpointValue >= checkpointStat.Value then
+						checkpointStat.Value = checkpointValue
+						playerCheckpoints[player.UserId] = item.CFrame + Vector3.new(0, 6, 0)
+					end
+				end
 			end
 		end)
 	end
@@ -268,22 +366,58 @@ for _, item in ipairs(folder:GetDescendants()) do
 			end
 		end)
 	end
+
+	if item:IsA("BasePart") and item:GetAttribute("OPREALM_LED_SIGN") then
+		task.spawn(function()
+			local gui = item:FindFirstChildWhichIsA("SurfaceGui")
+			local label = gui and gui:FindFirstChildWhichIsA("TextLabel")
+			local colors = {
+				Color3.fromRGB(24, 217, 255),
+				Color3.fromRGB(126, 66, 255),
+				Color3.fromRGB(255, 77, 196),
+				Color3.fromRGB(49, 214, 139)
+			}
+			local i = 1
+			while item.Parent do
+				item.Color = colors[i]
+				if label then label.TextColor3 = colors[i] end
+				i = (i % #colors) + 1
+				task.wait(0.28)
+			end
+		end)
+	end
 end
 
-game.Players.PlayerAdded:Connect(function(player)
+local function wirePlayer(player)
+	ensureStats(player)
+	task.spawn(function()
+		ensureHud(player)
+	end)
+
 	player.CharacterAdded:Connect(function(character)
+		task.spawn(function()
+			ensureHud(player)
+		end)
+		local root = character:WaitForChild("HumanoidRootPart", 8)
+		if root and playerCheckpoints[player.UserId] then
+			task.wait(0.15)
+			root.CFrame = playerCheckpoints[player.UserId]
+		end
+
 		local humanoid = character:WaitForChild("Humanoid", 8)
 		if not humanoid then return end
 		humanoid.Died:Connect(function()
-			task.wait(0.2)
-			local checkpoint = checkpoints[character]
-			if checkpoint and player.Character then
-				local root = player.Character:FindFirstChild("HumanoidRootPart")
-				if root then root.CFrame = checkpoint end
-			end
+			local _, deaths = ensureStats(player)
+			deaths.Value += 1
 		end)
 	end)
-end)
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+	wirePlayer(player)
+end
+
+Players.PlayerAdded:Connect(wirePlayer)
 ]]
 	runtime.Parent = parent
 	return runtime
@@ -312,11 +446,81 @@ local function createLabel(parent, text, position)
 	return sign
 end
 
+local function createLedSign(parent, text, position, yaw)
+	local sign = createPart(parent, "LED_" .. text:gsub("%s+", "_"), Vector3.new(34, 12, 1.5), position, Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
+	sign.CFrame = CFrame.new(position) * CFrame.Angles(0, math.rad(yaw or 0), 0)
+	sign:SetAttribute("OPREALM_LED_SIGN", true)
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 34
+	gui.Parent = sign
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextStrokeColor3 = Color3.fromRGB(7, 14, 35)
+	label.TextStrokeTransparency = 0
+	label.Font = Enum.Font.GothamBlack
+	label.TextScaled = true
+	label.Parent = gui
+	return sign
+end
+
 local function createCheckpoint(parent, index, position)
 	local pad = createPart(parent, "Checkpoint_" .. index, Vector3.new(10, 1, 10), position, Color3.fromRGB(49, 214, 139), Enum.Material.Neon)
 	pad:SetAttribute("OPREALM_Checkpoint", index)
 	createLabel(parent, "Checkpoint " .. index, position + Vector3.new(0, 6, -6))
 	return pad
+end
+
+local function horizontalHalfExtent(size, direction)
+	local flat = Vector3.new(direction.X, 0, direction.Z)
+	if flat.Magnitude <= 0 then return size.X * 0.5 end
+	local unit = flat.Unit
+	return math.abs(unit.X) * size.X * 0.5 + math.abs(unit.Z) * size.Z * 0.5
+end
+
+local function edgeGapBetween(aPosition, aSize, bPosition, bSize)
+	local delta = Vector3.new(bPosition.X - aPosition.X, 0, bPosition.Z - aPosition.Z)
+	local distance = delta.Magnitude
+	if distance <= 0 then return 0 end
+	local reverse = Vector3.new(-delta.X, 0, -delta.Z)
+	return distance - horizontalHalfExtent(aSize, delta) - horizontalHalfExtent(bSize, reverse)
+end
+
+local function maxSafeJumpGap(difficulty)
+	-- Roblox default Humanoid values are WalkSpeed 16 and JumpPower 50.
+	-- Air time at normal gravity is roughly 2 * 50 / 196.2 = 0.51s, so flat
+	-- travel is about 8.15 studs before animation/controller variance.
+	if difficulty == "Hard" then return 6.0 end
+	if difficulty == "Medium" then return 5.0 end
+	return 3.8
+end
+
+local function nextPlatformPosition(previousPosition, previousSize, nextSize, desiredEdgeGap, laneZ, difficulty)
+	local targetZ = laneZ or previousPosition.Z
+	local dx = previousSize.X * 0.5 + nextSize.X * 0.5 + desiredEdgeGap
+	local candidate = Vector3.new(previousPosition.X + dx, previousPosition.Y, targetZ)
+	local measuredGap = edgeGapBetween(previousPosition, previousSize, candidate, nextSize)
+	local safety = maxSafeJumpGap(difficulty)
+
+	while measuredGap > safety and math.abs(targetZ - previousPosition.Z) > 0.25 do
+		targetZ = previousPosition.Z + (targetZ - previousPosition.Z) * 0.82
+		candidate = Vector3.new(previousPosition.X + dx, previousPosition.Y, targetZ)
+		measuredGap = edgeGapBetween(previousPosition, previousSize, candidate, nextSize)
+	end
+
+	while measuredGap > safety do
+		dx -= 0.5
+		candidate = Vector3.new(previousPosition.X + dx, previousPosition.Y, targetZ)
+		measuredGap = edgeGapBetween(previousPosition, previousSize, candidate, nextSize)
+	end
+
+	return candidate
 end
 
 local function applyThemeEnvironment(theme)
@@ -439,6 +643,8 @@ local function buildObby(payload)
 	lava.Transparency = 0.08
 	createPart(folder, "ThemeBackdrop_Left", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, -40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
 	createPart(folder, "ThemeBackdrop_Right", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, 40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
+	createLedSign(folder, "OPREALM\nANIMATION", Vector3.new(36, 20, -41), 0)
+	createLedSign(folder, "OPREALM\nANIMATION", Vector3.new(math.max(82, sectionCount * 72 - 10), 20, 41), 180)
 	createPart(folder, "SpawnPad", Vector3.new(18, 1.5, 18), Vector3.new(0, 4, 0), Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
 	createLabel(folder, "OPREALM " .. theme .. " Obby", Vector3.new(0, 14, -12))
 
@@ -451,22 +657,27 @@ local function buildObby(payload)
 	spawn.Material = Enum.Material.Neon
 	spawn.Parent = folder
 
-	local gap = difficulty == "Hard" and 11 or difficulty == "Medium" and 9.5 or 8
-	local sectionStride = difficulty == "Hard" and 68 or difficulty == "Medium" and 58 or 48
-	local sideOffset = difficulty == "Hard" and 19 or difficulty == "Medium" and 16 or 13
+	local desiredJumpGap = maxSafeJumpGap(difficulty) * 0.92
+	local laneWidth = difficulty == "Hard" and 10 or difficulty == "Medium" and 8 or 6
 	local platformSize = difficulty == "Hard" and Vector3.new(11, 1.5, 8) or difficulty == "Medium" and Vector3.new(13, 1.5, 9) or Vector3.new(15, 1.5, 10)
 	local lastCheckpointX = 0
+	local previousPosition = spawn.Position
+	local previousSize = spawn.Size
 
 	for sectionIndex = 1, sectionCount do
 		local obstacle = obstacles[((sectionIndex - 1) % #obstacles) + 1]
-		local baseX = 14 + (sectionIndex - 1) * sectionStride
 		local platformCount = difficulty == "Hard" and 5 or difficulty == "Medium" and 4 or 3
+		local sectionStartX = previousPosition.X
 
 		for platformIndex = 1, platformCount do
-			local x = baseX + platformIndex * gap
-			local z = ((platformIndex % 2 == 0) and sideOffset or -sideOffset)
+			local z = ((platformIndex + sectionIndex) % 2 == 0) and laneWidth or -laneWidth
+			if sectionIndex == 1 and platformIndex == 1 then
+				z = 0
+			end
 			local y = 5 + math.min(sectionIndex, 5) * 0.25
-			local platform = createPart(folder, "Section_" .. sectionIndex .. "_Platform_" .. platformIndex, platformSize, Vector3.new(x, y, z), colors.platform, Enum.Material.SmoothPlastic)
+			local position = nextPlatformPosition(previousPosition, previousSize, platformSize, desiredJumpGap, z, difficulty)
+			position = Vector3.new(position.X, y, position.Z)
+			local platform = createPart(folder, "Section_" .. sectionIndex .. "_Platform_" .. platformIndex, platformSize, position, colors.platform, Enum.Material.SmoothPlastic)
 
 			if obstacle == "Moving platforms" and platformIndex % 2 == 0 then
 				platform.Name = platform.Name .. "_Moving"
@@ -474,16 +685,28 @@ local function buildObby(payload)
 				platform:SetAttribute("OPREALM_Moving", true)
 				platform:SetAttribute("OPREALM_MoveDistance", 18)
 			end
+
+			previousPosition = position
+			previousSize = platformSize
 		end
 
-		createHazard(folder, obstacle, Vector3.new(baseX + gap * 2.5, 4, 0), theme)
-		addThemeDecor(folder, theme, Vector3.new(baseX + gap * 2.5, 4, 0), sectionIndex)
-		lastCheckpointX = baseX + gap * (platformCount + 1)
-		createCheckpoint(folder, sectionIndex, Vector3.new(lastCheckpointX, 5, 0))
+		local sectionCenter = Vector3.new((sectionStartX + previousPosition.X) * 0.5, 4, 0)
+		createHazard(folder, obstacle, sectionCenter, theme)
+		addThemeDecor(folder, theme, sectionCenter, sectionIndex)
+
+		local checkpointSize = Vector3.new(10, 1, 10)
+		local checkpointPosition = nextPlatformPosition(previousPosition, previousSize, checkpointSize, desiredJumpGap, 0, difficulty)
+		checkpointPosition = Vector3.new(checkpointPosition.X, 5, checkpointPosition.Z)
+		lastCheckpointX = checkpointPosition.X
+		createCheckpoint(folder, sectionIndex, checkpointPosition)
+		previousPosition = checkpointPosition
+		previousSize = checkpointSize
 	end
 
-	local finishX = lastCheckpointX + 18
-	createPart(folder, "FinishPad", Vector3.new(22, 2, 22), Vector3.new(finishX, 6, 0), Color3.fromRGB(49, 214, 139), Enum.Material.Neon)
+	local finishSize = Vector3.new(22, 2, 22)
+	local finishPosition = nextPlatformPosition(previousPosition, previousSize, finishSize, desiredJumpGap, 0, difficulty)
+	local finishX = math.max(lastCheckpointX + 10, finishPosition.X)
+	createPart(folder, "FinishPad", finishSize, Vector3.new(finishX, 6, finishPosition.Z), Color3.fromRGB(49, 214, 139), Enum.Material.Neon)
 	createLabel(folder, "FINISH", Vector3.new(finishX, 16, -12))
 
 	Workspace.CurrentCamera.CFrame = CFrame.new(Vector3.new(sectionCount * 38, 95, 120), Vector3.new(sectionCount * 38, 4, 0))
