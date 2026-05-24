@@ -86,19 +86,6 @@ const saveProjectButton = document.querySelector("#saveProjectButton");
 const clearBoardButton = document.querySelector("#clearBoardButton");
 const publishForm = document.querySelector("#publishForm");
 const publishStatus = document.querySelector("#publishStatus");
-const obbyDashboard = document.querySelector("#obbyDashboard");
-const obbyForm = document.querySelector("#obbyForm");
-const obbyPrompt = document.querySelector("#obbyPrompt");
-const obbyDifficulty = document.querySelector("#obbyDifficulty");
-const obbyVoiceButton = document.querySelector("#obbyVoiceButton");
-const copyObbyJsonButton = document.querySelector("#copyObbyJsonButton");
-const obbyStatus = document.querySelector("#obbyStatus");
-const obbyTitle = document.querySelector("#obbyTitle");
-const obbyTheme = document.querySelector("#obbyTheme");
-const obbyDifficultyLabel = document.querySelector("#obbyDifficultyLabel");
-const obbySections = document.querySelector("#obbySections");
-const obbyTrack = document.querySelector("#obbyTrack");
-const obbySectionList = document.querySelector("#obbySectionList");
 const storyDashboard = document.querySelector("#storyDashboard");
 const storyTabs = document.querySelectorAll("[data-story-tab]");
 const storyPanels = document.querySelectorAll("[data-story-panel]");
@@ -124,10 +111,9 @@ const storyPreviewChoices = document.querySelector("#storyPreviewChoices");
 const checkCharacter = document.querySelector("#checkCharacter");
 const checkScenes = document.querySelector("#checkScenes");
 
-let activeTool = tools[0];
+let activeTool = tools.find((tool) => tool.id === "idea") || tools[0];
 let boardItems = loadBoard();
 let storyProject = loadStoryProject();
-let obbyProject = loadObbyProject();
 
 async function loadStudioAccount() {
   const creditCount = document.querySelector("#creditCount");
@@ -180,13 +166,10 @@ function renderActiveTool() {
   activeToolTitle.textContent = activeTool.id === "idea" ? "Creation Planner" : activeTool.title;
   activeToolCost.textContent = activeTool.cost;
   const isStoryGame = activeTool.id === "story_game";
-  const isObby = activeTool.id === "roblox_obby";
-  promptForm.hidden = isStoryGame || isObby;
-  outputBoard.hidden = isStoryGame || isObby;
-  if (obbyDashboard) obbyDashboard.hidden = !isObby;
+  promptForm.hidden = isStoryGame;
+  outputBoard.hidden = isStoryGame;
   storyDashboard.hidden = !isStoryGame;
   renderTools();
-  if (isObby) renderObbyDashboard();
   if (isStoryGame) renderStoryDashboard();
 }
 
@@ -253,103 +236,6 @@ function loadStoryProject() {
   }
 }
 
-function saveObbyProject() {
-  localStorage.setItem("oprealm_roblox_obby_project", JSON.stringify(obbyProject || {}));
-}
-
-function loadObbyProject() {
-  try {
-    return JSON.parse(localStorage.getItem("oprealm_roblox_obby_project") || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function renderObbyDashboard() {
-  const plan = obbyProject?.plan;
-  const obby = plan?.obby;
-  const sections = obby?.sections || [];
-
-  obbyTitle.textContent = obby?.title || "No obby yet";
-  obbyTheme.textContent = plan?.theme || "Theme";
-  obbyDifficultyLabel.textContent = plan?.difficulty || "Difficulty";
-  obbySections.textContent = `${sections.length} section${sections.length === 1 ? "" : "s"}`;
-
-  obbyTrack.innerHTML = sections.length
-    ? [
-      `<span>Spawn</span>`,
-      ...sections.map((section, index) => `<span title="${escapeHtml(section.label)}">${String(index + 1).padStart(2, "0")}</span>`),
-      `<span>Finish</span>`,
-    ].join("")
-    : `<span>Spawn</span><span>Checkpoint</span><span>Finish</span>`;
-
-  obbySectionList.innerHTML = sections.length
-    ? sections.map((section) => `
-        <article>
-          <strong>${escapeHtml(section.label)}</strong>
-          <p>${escapeHtml(section.obstacle)} - ${escapeHtml(section.intensity)} - max gap ${escapeHtml(section.playabilityRules?.maxJumpGapStuds)} studs</p>
-          <small>${(section.themeDressing || []).map(escapeHtml).join(" / ")}</small>
-        </article>
-      `).join("")
-    : `<article><strong>Waiting for an idea</strong><p>The first version creates deterministic JSON for the Roblox plugin.</p></article>`;
-}
-
-async function generateObbyPlan() {
-  const payload = {
-    prompt: obbyPrompt.value,
-    difficulty: obbyDifficulty.value,
-    idempotencyKey: crypto.randomUUID?.() || `obby-${Date.now()}`,
-  };
-
-  obbyStatus.textContent = "Generating constrained obby spec...";
-  const response = await fetch("/api/roblox-obby-plan", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-idempotency-key": payload.idempotencyKey,
-    },
-    body: JSON.stringify(payload),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.ok) throw new Error(result.error || "Could not generate the obby spec.");
-
-  obbyProject = { plan: result, updatedAt: new Date().toISOString() };
-  saveObbyProject();
-  renderObbyDashboard();
-  obbyStatus.textContent = result.cached
-    ? "Loaded from cache. No credits used."
-    : "Obby spec ready. No credits used in this deterministic v1.";
-}
-
-function startObbyVoiceInput() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    obbyStatus.textContent = "Voice input is not supported in this browser yet. Type the idea instead.";
-    return;
-  }
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-AU";
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-  obbyStatus.textContent = "Listening for your obby idea...";
-  recognition.onresult = (event) => {
-    obbyPrompt.value = event.results?.[0]?.[0]?.transcript || obbyPrompt.value;
-    obbyStatus.textContent = "Voice idea added. Hit Generate Obby Spec.";
-  };
-  recognition.onerror = () => {
-    obbyStatus.textContent = "Voice input stopped. You can type the idea instead.";
-  };
-  recognition.start();
-}
-
-async function copyObbyJson() {
-  if (!obbyProject?.plan) {
-    obbyStatus.textContent = "Generate an obby spec first.";
-    return;
-  }
-  await navigator.clipboard.writeText(JSON.stringify(obbyProject.plan.pluginPayload, null, 2));
-  obbyStatus.textContent = "Plugin JSON copied.";
-}
 
 function renderStoryDashboard() {
   const character = storyProject.character || {};
@@ -499,6 +385,10 @@ function titleFromPrompt(prompt, fallback) {
 toolList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-tool]");
   if (!button) return;
+  if (button.dataset.tool === "roblox_obby") {
+    location.href = "/roblox-obby.html";
+    return;
+  }
   if (button.dataset.tool === "story_game") {
     location.href = "/story-game.html";
     return;
@@ -603,18 +493,6 @@ clearBoardButton.addEventListener("click", () => {
   saveBoard();
   renderBoard();
 });
-
-obbyForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    await generateObbyPlan();
-  } catch (error) {
-    obbyStatus.textContent = error.message || "Could not generate the obby spec.";
-  }
-});
-
-obbyVoiceButton?.addEventListener("click", startObbyVoiceInput);
-copyObbyJsonButton?.addEventListener("click", copyObbyJson);
 
 publishForm.addEventListener("submit", async (event) => {
   event.preventDefault();

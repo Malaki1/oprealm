@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Turn a Roblox obby idea into a safe constrained procedural game spec with OPREALM."
+    />
+    <title>OPREALM Roblox Obby Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/studio.css?v=11" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/roblox-obby.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="studio-header">
+      <a class="studio-brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM Obby Generator</span>
+      </a>
+      <nav aria-label="Obby generator navigation">
+        <a href="/studio">Creator Studio</a>
+        <a href="/story-game.html">Story Creator</a>
+        <a href="/library">Public Library</a>
+        <a href="/account.html" data-account-link>My Account</a>
+      </nav>
+    </header>
+
+    <main class="studio-shell obby-page-shell">
+      <section class="obby-hero">
+        <div class="obby-hero-copy">
+          <p class="eyebrow">AI Roblox Obby Generator</p>
+          <h1>Turn one wild idea into a playable Roblox obby.</h1>
+          <p>Type or speak an idea, then OPREALM turns it into a safe constrained obby plan with checkpoints, obstacles and plugin-ready JSON.</p>
+          <div class="obby-hero-actions">
+            <a class="button button-primary" href="#obbyBuilder">Make An Obby</a>
+            <span class="status-pill">Time to first win: under 60 seconds</span>
+          </div>
+        </div>
+
+        <figure class="obby-cover-art" aria-label="Roblox style floor is lava obby cover image">
+          <div class="lava-sky"></div>
+          <div class="lava-glow"></div>
+          <div class="obby-platform platform-one"></div>
+          <div class="obby-platform platform-two"></div>
+          <div class="obby-platform platform-three"></div>
+          <div class="obby-platform platform-four"></div>
+          <div class="obby-platform platform-five"></div>
+          <div class="obby-avatar avatar-one"><span></span></div>
+          <div class="obby-avatar avatar-two"><span></span></div>
+          <div class="lava-shark shark-one"></div>
+          <div class="lava-shark shark-two"></div>
+          <div class="obby-checkpoint"></div>
+          <figcaption>Floor Is Lava: generated obby preview</figcaption>
+        </figure>
+      </section>
+
+      <section class="obby-dashboard obby-page-dashboard" id="obbyBuilder">
+        <div class="story-dashboard-head obby-dashboard-head">
+          <div>
+            <p class="eyebrow">Core loop</p>
+            <h3>Prompt to playable obby spec</h3>
+            <p>AI interprets the idea. The engine only uses approved themes, obstacles and safe Roblox prefabs.</p>
+          </div>
+          <span class="status-pill">0 credits in v1</span>
+        </div>
+
+        <div class="obby-workspace">
+          <form class="story-form obby-form" id="obbyForm">
+            <div>
+              <p class="eyebrow">Imagine</p>
+              <h4>Describe the obby</h4>
+            </div>
+            <label>
+              Obby idea
+              <textarea id="obbyPrompt" name="prompt" rows="5" maxlength="500" placeholder="Make me a volcano obby with lava sharks and disappearing rainbow platforms."></textarea>
+            </label>
+            <div class="story-form-grid">
+              <label>
+                Difficulty
+                <select id="obbyDifficulty" name="difficulty">
+                  <option value="">Auto pick from prompt</option>
+                  <option>Easy</option>
+                  <option>Medium</option>
+                  <option>Hard</option>
+                </select>
+              </label>
+              <label>
+                Generation mode
+                <select name="mode">
+                  <option>Constrained procedural</option>
+                </select>
+              </label>
+            </div>
+            <div class="prompt-actions">
+              <button class="button button-primary" type="submit">Generate Obby Spec</button>
+              <button class="button button-secondary" type="button" id="obbyVoiceButton">Speak Idea</button>
+              <button class="button button-secondary" type="button" id="copyObbyJsonButton">Copy Plugin JSON</button>
+            </div>
+            <p class="form-note" id="obbyStatus">Start with a fast, funny idea. OPREALM keeps the build constrained so the plugin can make it playable.</p>
+          </form>
+
+          <article class="obby-preview-card">
+            <p class="eyebrow">Playable blueprint</p>
+            <h4 id="obbyTitle">No obby yet</h4>
+            <div class="obby-meta-row">
+              <span id="obbyTheme">Theme</span>
+              <span id="obbyDifficultyLabel">Difficulty</span>
+              <span id="obbySections">0 sections</span>
+            </div>
+            <div class="obby-track" id="obbyTrack">
+              <span>Spawn</span>
+              <span>Checkpoint</span>
+              <span>Finish</span>
+            </div>
+            <div class="obby-section-list" id="obbySectionList">
+              <article><strong>Waiting for an idea</strong><p>The first version creates deterministic JSON for the Roblox plugin.</p></article>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
