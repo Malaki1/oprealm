@@ -7,6 +7,42 @@ const tools = [
     output: "Theme, difficulty, obstacle sequence, checkpoints and Roblox plugin JSON.",
   },
   {
+    id: "roblox_props",
+    title: "Procedural Roblox Props",
+    cost: "Guide",
+    description: "Design safe Roblox props from approved procedural parts, lights and effects.",
+    output: "Prop type, Roblox part recipe, material palette, safe placement notes and plugin-ready build direction.",
+  },
+  {
+    id: "roblox_prop_concepts",
+    title: "AI Prop Concept Images",
+    cost: "4 credits",
+    description: "Create concept art for Roblox props before importing or rebuilding them safely.",
+    output: "Prop concept prompt, visual references, silhouette notes, Roblox-safe simplification and child-safe style checks.",
+  },
+  {
+    id: "roblox_textures",
+    title: "Roblox Texture Style Lab",
+    cost: "4 credits",
+    description: "Generate texture and style ideas for safe simple Roblox shapes.",
+    output: "Texture direction, color palette, material notes, repeatable pattern prompt and Roblox application plan.",
+  },
+  {
+    id: "roblox_asset_packs",
+    title: "Curated Roblox Asset Packs",
+    cost: "Guide",
+    description: "Plan approved themed prop packs that the plugin can clone into games.",
+    output: "Approved asset pack list, theme rules, prop scale guide, safety checklist and placement logic.",
+  },
+  {
+    id: "ai_3d_models",
+    title: "AI 3D Model Creator",
+    cost: "Coming soon",
+    description: "Text or image to 3D Roblox-ready models after moderation and optimization are ready.",
+    output: "Coming soon: moderated 3D generation, optimization, upload testing and Roblox compatibility checks.",
+    comingSoon: true,
+  },
+  {
     id: "idea",
     title: "Idea Builder",
     cost: "0.5 credits",
@@ -138,8 +174,8 @@ function renderTools() {
   toolList.innerHTML = tools
     .map(
       (tool) => `
-        <button class="tool-button ${tool.id === activeTool.id ? "is-active" : ""}" type="button" data-tool="${tool.id}">
-          <strong>${tool.title}</strong>
+        <button class="tool-button ${tool.id === activeTool.id ? "is-active" : ""} ${tool.comingSoon ? "is-coming-soon" : ""}" type="button" data-tool="${tool.id}" ${tool.comingSoon ? "aria-disabled=\"true\"" : ""}>
+          <strong>${tool.title}${tool.comingSoon ? "<em>Coming soon</em>" : ""}</strong>
           <span>${tool.description}</span>
         </button>
       `,
@@ -385,6 +421,22 @@ function titleFromPrompt(prompt, fallback) {
 toolList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-tool]");
   if (!button) return;
+  const selectedTool = tools.find((tool) => tool.id === button.dataset.tool);
+  if (selectedTool?.comingSoon) {
+    activeToolKicker.textContent = selectedTool.title;
+    activeToolTitle.textContent = "Coming Soon";
+    activeToolCost.textContent = selectedTool.cost;
+    promptForm.hidden = true;
+    outputBoard.hidden = false;
+    storyDashboard.hidden = true;
+    projectBoard.innerHTML = `
+      <article class="board-card">
+        <strong>${selectedTool.title}</strong>
+        <p>We will add AI 3D generation after moderation, mesh optimization, Roblox upload testing and approved asset checks are solid.</p>
+      </article>
+    `;
+    return;
+  }
   if (button.dataset.tool === "roblox_obby") {
     location.href = "/roblox-obby.html";
     return;
@@ -393,7 +445,7 @@ toolList.addEventListener("click", (event) => {
     location.href = "/story-game.html";
     return;
   }
-  activeTool = tools.find((tool) => tool.id === button.dataset.tool) || tools[0];
+  activeTool = selectedTool || tools[0];
   renderActiveTool();
 });
 

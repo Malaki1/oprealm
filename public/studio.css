@@ -501,11 +501,41 @@ h1::after {
   display: block;
 }
 
+.tool-button strong {
+  padding-right: 72px;
+}
+
+.tool-button strong em {
+  position: absolute;
+  top: 12px;
+  right: 34px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 214, 111, 0.34);
+  border-radius: 999px;
+  color: #ffe6a4;
+  background: rgba(255, 214, 111, 0.12);
+  font-size: 0.64rem;
+  font-style: normal;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
 .tool-button span {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+.tool-button.is-coming-soon {
+  cursor: not-allowed;
+  border-color: rgba(255, 214, 111, 0.18);
+  background: rgba(255, 214, 111, 0.06);
+}
+
+.tool-button.is-coming-soon::before {
+  background: rgba(255, 214, 111, 0.72);
+  box-shadow: 0 0 16px rgba(255, 214, 111, 0.34);
 }
 
 .workspace-top,
