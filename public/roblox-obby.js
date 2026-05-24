@@ -3,6 +3,7 @@ const obbyPrompt = document.querySelector("#obbyPrompt");
 const obbyDifficulty = document.querySelector("#obbyDifficulty");
 const obbyVoiceButton = document.querySelector("#obbyVoiceButton");
 const copyObbyJsonButton = document.querySelector("#copyObbyJsonButton");
+const clearObbyJsonButton = document.querySelector("#clearObbyJsonButton");
 const obbyStatus = document.querySelector("#obbyStatus");
 const obbyJsonExportWrap = document.querySelector("#obbyJsonExportWrap");
 const obbyJsonExport = document.querySelector("#obbyJsonExport");
@@ -14,6 +15,7 @@ const obbyTrack = document.querySelector("#obbyTrack");
 const obbySectionList = document.querySelector("#obbySectionList");
 
 let obbyProject = loadObbyProject();
+let obbyJsonVisible = false;
 
 function saveObbyProject() {
   localStorage.setItem("oprealm_roblox_obby_project", JSON.stringify(obbyProject || {}));
@@ -61,8 +63,8 @@ function renderObbyDashboard() {
 function renderJsonExport() {
   const payload = pluginPayloadForCurrentPlan();
   if (!obbyJsonExportWrap || !obbyJsonExport) return;
-  obbyJsonExportWrap.hidden = !payload;
-  obbyJsonExport.value = payload ? JSON.stringify(payload, null, 2) : "";
+  obbyJsonExportWrap.hidden = !payload || !obbyJsonVisible;
+  obbyJsonExport.value = payload && obbyJsonVisible ? JSON.stringify(payload, null, 2) : "";
 }
 
 function pluginPayloadForCurrentPlan() {
@@ -108,6 +110,7 @@ async function generateObbyPlan() {
   if (!response.ok || !result.ok) throw new Error(result.error || "Could not generate the obby spec.");
 
   obbyProject = { plan: result, updatedAt: new Date().toISOString() };
+  obbyJsonVisible = true;
   saveObbyProject();
   renderObbyDashboard();
   obbyStatus.textContent = result.cached
@@ -156,6 +159,7 @@ async function copyObbyJson() {
   }
 
   const text = JSON.stringify(payload, null, 2);
+  obbyJsonVisible = true;
   if (obbyJsonExport) {
     obbyJsonExport.value = text;
     obbyJsonExportWrap.hidden = false;
@@ -170,6 +174,13 @@ async function copyObbyJson() {
     selectPluginJson();
     obbyStatus.textContent = "Copy was blocked. The Plugin JSON box is selected, so press Ctrl+C.";
   }
+}
+
+function clearObbyJson() {
+  obbyJsonVisible = false;
+  if (obbyJsonExport) obbyJsonExport.value = "";
+  if (obbyJsonExportWrap) obbyJsonExportWrap.hidden = true;
+  obbyStatus.textContent = "Plugin JSON cleared. Generate or copy again when you need fresh code.";
 }
 
 async function copyTextToClipboard(text) {
@@ -227,5 +238,6 @@ obbyForm.addEventListener("submit", async (event) => {
 
 obbyVoiceButton.addEventListener("click", startObbyVoiceInput);
 copyObbyJsonButton.addEventListener("click", copyObbyJson);
+clearObbyJsonButton?.addEventListener("click", clearObbyJson);
 
 renderObbyDashboard();
