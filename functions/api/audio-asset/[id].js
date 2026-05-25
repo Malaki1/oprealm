@@ -1,5 +1,4 @@
 export async function onRequestGet({ params, request, env }) {
-  const url = new URL(request.url);
   const access = await resolveAudioLibraryAccess(request, env);
 
   if (!access.canAccess) {
@@ -51,10 +50,8 @@ export async function onRequestGet({ params, request, env }) {
 
 async function resolveAudioLibraryAccess(request, env) {
   const auth = request.headers.get("authorization") || "";
-  const url = new URL(request.url);
-  const accessToken = url.searchParams.get("access") || "";
 
-  if (env.OPREALM_WEBHOOK_SECRET && (auth === `Bearer ${env.OPREALM_WEBHOOK_SECRET}` || accessToken === env.OPREALM_WEBHOOK_SECRET)) {
+  if (env.OPREALM_WEBHOOK_SECRET && auth === `Bearer ${env.OPREALM_WEBHOOK_SECRET}`) {
     return { authenticated: true, canAccess: true, canModerate: true, tier: "admin" };
   }
 

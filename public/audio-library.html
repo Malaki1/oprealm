@@ -417,11 +417,9 @@
 
       let type = "sfx";
       let canModerate = false;
-      secretInput.value = localStorage.getItem("oprealmAudioLibrarySecret") || "";
 
       accessForm.addEventListener("submit", (event) => {
         event.preventDefault();
-        saveSecret();
         loadLibrary();
       });
 
@@ -460,7 +458,6 @@
 
       async function loadLibrary() {
         const secret = secretInput.value.trim();
-        saveSecret();
         showNotice("Loading audio library...");
 
         const params = new URLSearchParams({
@@ -548,9 +545,15 @@
         const secret = secretInput.value.trim();
 
         try {
-          const url = secret
-            ? `/api/audio-asset/${encodeURIComponent(id)}?access=${encodeURIComponent(secret)}`
-            : `/api/audio-asset/${encodeURIComponent(id)}`;
+          const response = await fetch(`/api/audio-asset/${encodeURIComponent(id)}`, {
+            headers: secret ? { Authorization: `Bearer ${secret}` } : {},
+          });
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error || "Audio asset could not be loaded.");
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
           const player = document.querySelector(`audio[data-audio-id="${CSS.escape(id)}"]`);
           if (player) {
             player.src = url;
@@ -564,6 +567,7 @@
             a.click();
             a.remove();
           }
+          setTimeout(() => URL.revokeObjectURL(url), download ? 30000 : 5 * 60 * 1000);
           showNotice(download ? "Download started." : "Audio loaded.");
         } catch (error) {
           showNotice(error.message, true);
@@ -604,10 +608,6 @@
         } catch (error) {
           showNotice(error.message, true);
         }
-      }
-
-      function saveSecret() {
-        localStorage.setItem("oprealmAudioLibrarySecret", secretInput.value.trim());
       }
 
       function showNotice(text, isError = false) {

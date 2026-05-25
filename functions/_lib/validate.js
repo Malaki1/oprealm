@@ -1,8 +1,20 @@
 export function cleanText(value, maxLength = 500) {
-  return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+  const raw = String(value || "");
+  if (raw.length > maxLength * 4) {
+    const error = new Error("Input is too large.");
+    error.status = 413;
+    throw error;
+  }
+  return raw.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
 export function requireMinText(value, label, minLength = 2, maxLength = 500) {
+  const raw = String(value || "");
+  if (raw.length > maxLength) {
+    const error = new Error(`${label} is too long. Keep it under ${maxLength} characters.`);
+    error.status = 413;
+    throw error;
+  }
   const text = cleanText(value, maxLength);
   if (text.length < minLength) {
     const error = new Error(`${label} is too short.`);

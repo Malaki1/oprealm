@@ -64,7 +64,7 @@ async function handleAccountPost(request, env) {
     return json(
       {
         ok: false,
-        error: `Account database error: ${error?.message || "unknown database issue"}`,
+        error: "The account service could not complete that request. Please try again.",
       },
       500,
     );
@@ -80,7 +80,7 @@ async function register(request, env, body) {
   const parentEmail = cleanEmail(body.parentEmail || body.parent_email || "");
   const ageBand = cleanText(body.ageBand || body.age_band || "", 24);
 
-  if (!email || !displayName || password.length < 10) {
+  if (!email || !displayName || password.length < 10 || password.length > 200) {
     return json({ ok: false, error: "Use a valid email, display name and password of at least 10 characters." }, 400);
   }
 
@@ -105,6 +105,9 @@ async function register(request, env, body) {
 async function login(request, env, body) {
   const email = cleanEmail(body.email);
   const password = String(body.password || "");
+  if (!email || password.length < 1 || password.length > 200) {
+    return json({ ok: false, error: "Email or password was not recognised." }, 401);
+  }
   const user = await env.OPREALM_DB.prepare("SELECT * FROM web_users WHERE email = ? LIMIT 1").bind(email).first();
 
   if (!user || !(await verifyPassword(password, user.password_hash))) {
@@ -150,7 +153,7 @@ async function changePassword(request, env, body) {
     return json({ ok: false, error: "Current password was not recognised." }, 401);
   }
 
-  if (newPassword.length < 10) {
+  if (currentPassword.length > 200 || newPassword.length < 10 || newPassword.length > 200) {
     return json({ ok: false, error: "Use a new password of at least 10 characters." }, 400);
   }
 
@@ -198,7 +201,7 @@ async function resetPassword(env, body) {
   const token = String(body.token || "").trim();
   const password = String(body.password || "");
 
-  if (!token || password.length < 10) {
+  if (!token || token.length > 160 || password.length < 10 || password.length > 200) {
     return json({ ok: false, error: "Use a valid reset link and a password of at least 10 characters." }, 400);
   }
 
@@ -411,11 +414,14 @@ function fromBase64url(value) {
 
 function cleanEmail(value) {
   const email = String(value || "").trim().toLowerCase();
+  if (email.length > 160) return "";
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email.slice(0, 160) : "";
 }
 
 function cleanText(value, maxLength) {
-  return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+  const raw = String(value || "");
+  if (raw.length > maxLength * 4) return "";
+  return raw.replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
 function escapeHtml(value) {

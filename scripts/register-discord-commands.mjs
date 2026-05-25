@@ -1,9 +1,14 @@
-const applicationId = process.env.DISCORD_APPLICATION_ID || "1505815651103539280";
+const applicationId = process.env.DISCORD_APPLICATION_ID;
 const guildId = process.env.DISCORD_GUILD_ID;
 const token = process.env.DISCORD_BOT_TOKEN;
 
 if (!token) {
   console.error("Missing DISCORD_BOT_TOKEN");
+  process.exit(1);
+}
+
+if (!applicationId) {
+  console.error("Missing DISCORD_APPLICATION_ID");
   process.exit(1);
 }
 
