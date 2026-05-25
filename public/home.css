@@ -298,6 +298,21 @@ h1 span {
   border-radius: 30px;
 }
 
+.image-slot.filled {
+  background-position: center;
+  background-size: cover;
+}
+
+.image-slot.filled::before {
+  display: none;
+}
+
+.hero-world-art {
+  background-image:
+    linear-gradient(90deg, rgba(3, 7, 22, 0.12), transparent 42%),
+    url("/assets/home-hero-world.png");
+}
+
 .home-section {
   padding: 34px 0 48px;
   border-top: 1px solid rgba(145, 190, 255, 0.16);
