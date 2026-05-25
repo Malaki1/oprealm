@@ -481,6 +481,13 @@ h1 span {
   font-size: 0.82rem;
 }
 
+.mini-link {
+  display: block;
+  margin-top: 8px;
+  color: #93f0ff;
+  font-weight: 900;
+}
+
 .card-icon {
   position: absolute;
   right: 18px;
