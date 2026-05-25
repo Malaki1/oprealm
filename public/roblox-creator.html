@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/roblox-creator.css?v=1" />
+    <link rel="stylesheet" href="/roblox-creator.css?v=2" />
   </head>
   <body>
     <header class="creator-shell creator-topbar">
@@ -25,24 +25,39 @@
         <a href="/library">Library</a>
         <a href="/account">Account</a>
       </nav>
-      <a class="creator-button primary" href="#start">Start Building</a>
+      <div class="player-strip" aria-label="Creator progress">
+        <span>Level 12</span>
+        <strong><i></i></strong>
+        <span>4,250 XP</span>
+      </div>
+      <a class="creator-button primary" href="#world-forge">Enter Forge</a>
     </header>
 
     <main class="creator-shell">
       <section class="creator-hero" id="start">
         <div class="hero-copy">
-          <p class="mode-pill">Create • Play • Publish</p>
+          <p class="mode-pill">Creator Hangar</p>
           <h1>Build your Roblox world from one wild idea.</h1>
           <p>
-            Make obbies, props, story worlds, sounds, thumbnails and safe publish packs from a guided creator hub built for young Roblox fans.
+            A creator universe for obbies, props, worlds, thumbnails and safe publish packs. Kids imagine it, OPREALM helps shape it, then the Roblox plugin brings it to life.
           </p>
           <div class="hero-actions">
-            <a class="creator-button primary" href="/roblox-obby.html">Launch Obby Builder</a>
-            <a class="creator-button secondary" href="#tools">Explore Tools</a>
+            <a class="creator-button primary forge-cta" href="/roblox-obby.html">AI World Forge</a>
+            <a class="creator-button secondary" href="#tools">Choose A Station</a>
+          </div>
+          <div class="hero-stats" aria-label="Creator engine status">
+            <span><strong>8</strong> Creator stations</span>
+            <span><strong>16:9</strong> Cover ready</span>
+            <span><strong>Safe</strong> Guided builds</span>
           </div>
         </div>
         <figure class="hero-world" aria-label="Roblox style floating obby world preview">
           <img src="/assets/roblox-creator-world.png" alt="A colorful Roblox-style lava obby world with floating islands, coins and portals" />
+          <span class="floating-cube cube-one" aria-hidden="true"></span>
+          <span class="floating-cube cube-two" aria-hidden="true"></span>
+          <span class="portal-ring" aria-hidden="true"></span>
+          <span class="coin-orb" aria-hidden="true"></span>
+          <span class="moving-platform" aria-hidden="true"></span>
           <figcaption>Live world inspiration</figcaption>
         </figure>
       </section>
@@ -51,7 +66,7 @@
         <article class="tool-card featured">
           <span class="tool-icon cube"></span>
           <div>
-            <p>Playable worlds</p>
+            <p>Station 01</p>
             <h2>Obby Builder</h2>
             <span>Prompt to safe procedural Roblox obby JSON.</span>
           </div>
@@ -60,33 +75,33 @@
         <article class="tool-card">
           <span class="tool-icon props"></span>
           <div>
-            <p>Procedural decor</p>
+            <p>Station 02</p>
             <h2>Prop Forge</h2>
-            <span>Design approved props, portals, checkpoints and scenery recipes.</span>
+            <span>Approved props, portals, checkpoints and scenery recipes.</span>
           </div>
         </article>
         <article class="tool-card">
           <span class="tool-icon image"></span>
           <div>
-            <p>Visual ideas</p>
+            <p>Station 03</p>
             <h2>Concept Lab</h2>
-            <span>Create prop, thumbnail and world art direction before building.</span>
+            <span>Prop, thumbnail and world art direction before building.</span>
           </div>
         </article>
         <article class="tool-card">
           <span class="tool-icon texture"></span>
           <div>
-            <p>Safe styles</p>
+            <p>Station 04</p>
             <h2>Texture Lab</h2>
-            <span>Generate material palettes for simple Roblox shapes.</span>
+            <span>Material palettes for safe simple Roblox shapes.</span>
           </div>
         </article>
         <article class="tool-card">
           <span class="tool-icon pack"></span>
           <div>
-            <p>Approved assets</p>
+            <p>Station 05</p>
             <h2>Mega Asset Library</h2>
-            <span>Reusable props and decor saved for richer procedural worlds.</span>
+            <span>Reusable props and decor for richer procedural worlds.</span>
           </div>
         </article>
         <article class="tool-card locked">
@@ -99,19 +114,20 @@
         </article>
       </section>
 
-      <section class="creator-grid">
+      <section class="creator-grid" id="world-forge">
         <article class="forge-panel">
           <div class="panel-head">
             <div>
-              <p class="eyebrow">World forge</p>
-              <h2>Turn imagination into a playable Roblox build loop.</h2>
+              <p class="eyebrow">AI World Forge</p>
+              <h2>Watch the engine assemble a playable Roblox loop.</h2>
             </div>
             <span>Beta</span>
           </div>
           <div class="prompt-card">
-            <p>Try an idea</p>
+            <p>Prompt console</p>
             <strong>Make a lava sky obby with speed pads, floating coins, checkpoints and glowing portal gates.</strong>
           </div>
+          <a class="creator-button primary forge-wide" href="/roblox-obby.html">Generate A Roblox Obby</a>
           <div class="build-steps" aria-label="Build progress">
             <span class="done">Terrain</span>
             <span class="done">Checkpoints</span>
@@ -123,11 +139,14 @@
         </article>
 
         <aside class="preview-panel">
-          <p class="eyebrow">World preview</p>
-          <img src="/assets/roblox-creator-world.png" alt="Roblox style obby preview" />
+          <p class="eyebrow">Live World Preview</p>
+          <div class="preview-stage">
+            <img src="/assets/roblox-creator-world.png" alt="Roblox style obby preview" />
+            <span class="scan-line" aria-hidden="true"></span>
+          </div>
           <div class="preview-actions">
-            <a href="/roblox-obby.html">Build Obby</a>
-            <a href="/library">View Library</a>
+            <a href="/roblox-obby.html">Playtest</a>
+            <a href="/library">Publish Library</a>
           </div>
         </aside>
 
@@ -139,7 +158,14 @@
             </div>
             <a href="#asset-library">Browse</a>
           </div>
-          <img src="/assets/roblox-creator-items.png" alt="Roblox style glowing game props including platforms, portals, coins and hazards" />
+          <div class="asset-backpack-grid" aria-label="Approved Roblox build pieces">
+            <span class="asset-piece lava">Lava</span>
+            <span class="asset-piece checkpoint">Checkpoint</span>
+            <span class="asset-piece portal">Portal</span>
+            <span class="asset-piece coin">Coin</span>
+            <span class="asset-piece trap">Trap</span>
+            <span class="asset-piece decor">Decor</span>
+          </div>
           <div class="asset-tags">
             <span>Lava floor</span>
             <span>Checkpoint</span>
@@ -154,9 +180,27 @@
           <p class="eyebrow">Orbit helper</p>
           <h2>Creator companion</h2>
           <p>Helps kids shape ideas, keep builds safe and prepare creations for review.</p>
+          <ul class="copilot-timeline" aria-label="Orbit build timeline">
+            <li class="done">Creating terrain</li>
+            <li class="done">Adding checkpoints</li>
+            <li class="active">Balancing jumps</li>
+            <li>Saving assets</li>
+            <li>Preparing publish pack</li>
+          </ul>
           <img src="/assets/oprealm-ai-coach-small.png" alt="OPREALM Orbit AI coach mascot" />
           <a class="creator-button secondary" href="/ai-coach.html">Ask Orbit</a>
         </aside>
+      </section>
+
+      <section class="recent-projects" aria-label="Recent Roblox creator projects">
+        <div>
+          <p class="eyebrow">Recent projects</p>
+          <h2>Pick up a world or start fresh.</h2>
+        </div>
+        <article><img src="/assets/roblox-creator-world.png" alt="" /><span>Lava Escape 2</span></article>
+        <article><img src="/assets/roblox-creator-portal-world.png" alt="" /><span>Portal Forest</span></article>
+        <article><img src="/assets/roblox-creator-world.png" alt="" /><span>Candy Sky Run</span></article>
+        <a class="new-project" href="/roblox-obby.html">New Project</a>
       </section>
 
       <section class="asset-library" id="asset-library">
@@ -168,8 +212,8 @@
           </p>
         </div>
         <div class="library-row">
-          <article><img src="/assets/roblox-creator-icons.png" alt="Creator tool icons" /><h3>Creator tools</h3><p>Icons, buttons and game UI references for kid-friendly build flows.</p></article>
-          <article><img src="/assets/roblox-creator-items.png" alt="Game item set" /><h3>World pieces</h3><p>Platforms, hazards, portals, checkpoints and decorative props.</p></article>
+          <article><div class="tool-icon-grid" aria-label="Individual creator tool icons"><span></span><span></span><span></span><span></span><span></span><span></span></div><h3>Creator tools</h3><p>Icon-ready stations for obbies, props, music, trailers, thumbnails and publishing.</p></article>
+          <article><div class="asset-backpack-grid compact" aria-label="Individual world piece icons"><span class="asset-piece lava">Lava</span><span class="asset-piece checkpoint">Flag</span><span class="asset-piece portal">Portal</span><span class="asset-piece coin">Coin</span><span class="asset-piece trap">Trap</span><span class="asset-piece decor">Rock</span></div><h3>World pieces</h3><p>Platforms, hazards, portals, checkpoints and decorative props.</p></article>
           <article><img src="/assets/roblox-creator-portal-world.png" alt="Roblox fantasy world" /><h3>World styles</h3><p>Lighting, atmosphere, color palettes and theme direction for procedural worlds.</p></article>
         </div>
       </section>
