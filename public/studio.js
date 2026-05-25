@@ -438,7 +438,7 @@ toolList.addEventListener("click", (event) => {
     return;
   }
   if (button.dataset.tool === "roblox_obby") {
-    location.href = "/roblox-obby.html";
+    location.href = "/roblox-creator.html";
     return;
   }
   if (button.dataset.tool === "story_game") {
