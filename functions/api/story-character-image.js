@@ -19,7 +19,7 @@ const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
 const CHARACTER_IMAGE_QUALITY = "high";
 const CHARACTER_TOOL = "story_character_image";
 
-export async function onRequestPost({ request, env, waitUntil }) {
+export async function onRequestPost({ request, env }) {
   try {
     if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
 
@@ -56,24 +56,13 @@ export async function onRequestPost({ request, env, waitUntil }) {
       },
     });
 
-    const task = processCharacterImageJob(env, {
+    await processCharacterImageJob(env, {
       jobId,
       user,
       prompt,
       body,
     });
-    if (typeof waitUntil === "function") {
-      waitUntil(task);
-      return json({
-        ok: true,
-        jobId,
-        status: "queued",
-        creditsReserved: CHARACTER_IMAGE_COST,
-        message: "Character image generation started.",
-      }, 202);
-    }
 
-    await task;
     const completedJob = await env.OPREALM_DB.prepare("SELECT * FROM generation_jobs WHERE id = ? LIMIT 1").bind(jobId).first();
     return json(jobResponse(completedJob));
   } catch (error) {

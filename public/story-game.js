@@ -489,11 +489,12 @@ function renderStoryDashboard() {
 
   storyMapBoard.classList.toggle("is-move-mode", activeMapTool === "move");
   storyMapBoard.classList.toggle("is-connect-mode", activeMapTool === "connect");
-  storyMapBoard.style.minHeight = scenes.length
-    ? `${Math.max(340, ...scenes.map((scene) => Number(scene.y || 0) + 170))}px`
-    : "340px";
-  storyMapBoard.innerHTML = scenes.length
-    ? scenes
+  const mapWidth = scenes.length ? Math.max(720, ...scenes.map((scene) => Number(scene.x || 0) + 300)) : 720;
+  const mapHeight = scenes.length ? Math.max(360, ...scenes.map((scene) => Number(scene.y || 0) + 220)) : 360;
+  storyMapBoard.style.minWidth = `${mapWidth}px`;
+  storyMapBoard.style.minHeight = `${mapHeight}px`;
+  const storyNodeMarkup = scenes.length
+    ? `${renderStoryMapConnectors(scenes, mapWidth, mapHeight)}${scenes
       .map(
         (scene, index) => `
           <article class="story-node ${index === selectedSceneIndex ? "is-selected" : ""}" style="left:${Number(scene.x || 40)}px; top:${Number(scene.y || 40)}px;" data-scene-index="${index}">
@@ -503,7 +504,8 @@ function renderStoryDashboard() {
             <button class="node-port port-left" type="button" data-connect-scene="${index}" data-direction="left" aria-label="Add one branch left"></button>
             <span>${index === 0 ? "Start" : `Scene ${index + 1}`}</span>
             <strong>${escapeHtml(scene.title)}</strong>
-            <p>${escapeHtml(scene.type)}</p>
+            <em class="story-node-type">${escapeHtml(scene.outcome || scene.type || "Story beat")}</em>
+            <p>${escapeHtml(sceneStoryText(scene))}</p>
             <div class="node-mini-actions">
               <button type="button" data-edit-scene="${index}">Edit</button>
               ${index === 0 ? "" : `<button type="button" data-delete-scene="${index}">Delete</button>`}
@@ -512,8 +514,9 @@ function renderStoryDashboard() {
           </article>
         `,
       )
-      .join("")
+      .join("")}`
     : `<article class="story-node"><span>Start</span><strong>Blank Scene Card</strong><p>Add your first scene to begin the map.</p></article>`;
+  storyMapBoard.innerHTML = storyNodeMarkup;
 
   renderRouteControls(scenes);
   renderSelectedSceneEditor(scenes);
@@ -526,7 +529,7 @@ function renderStoryDashboard() {
 
   const firstScene = scenes[0];
   storyPreviewTitle.textContent = firstScene?.title || "Your story will appear here";
-  storyPreviewText.textContent = firstScene?.prompt || "Create a character and at least one scene card to preview the pick-a-path flow.";
+  storyPreviewText.textContent = firstScene ? sceneStoryText(firstScene) : "Create a character and at least one scene card to preview the pick-a-path flow.";
   storyPreviewChoices.innerHTML = firstScene
     ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${escapeHtml(firstScene.choiceTexts?.[index] || choiceLabel(index))}</button>`).join("")
     : "";
@@ -643,6 +646,7 @@ function renderStoryEnginePreview() {
           <span>${String(index + 1).padStart(2, "0")}</span>
           <strong>${escapeHtml(scene.title || `Scene ${index + 1}`)}</strong>
           <em>${escapeHtml(scene.outcome || scene.type || "Choice")}</em>
+          <p>${escapeHtml(sceneStoryText(scene))}</p>
         </button>
       `).join("")
     : `<p class="form-note">Generate the tree to see each scripted scene and ending here.</p>`;
@@ -674,6 +678,7 @@ function generateAutomatedStoryTree() {
   const makeScene = (id, titleText, type, outcome, prompt, choices, x, y) => ({
     id,
     title: titleText,
+    storyText: prompt,
     prompt: `${commonPrompt}\nScene brief: ${prompt}\nImage prompt: create one polished 16:9 interactive story game scene card with clear foreground, midground and background. No readable text or logos. Leave clean lower space for UI banners and choice buttons.`,
     camera: type === "Ending" ? "Wide cinematic reveal" : "Over-the-shoulder",
     background: "Custom background",
@@ -873,6 +878,61 @@ function ensureSceneLayout(scenes) {
   return nextScenes;
 }
 
+function sceneStoryText(scene) {
+  const explicit = String(scene?.storyText || scene?.banner?.bannerText || "").trim();
+  if (explicit) return explicit;
+  const prompt = String(scene?.prompt || "").trim();
+  const match = prompt.match(/Scene brief:\s*([\s\S]*?)(?:\nImage prompt:|$)/i);
+  const text = (match?.[1] || prompt).replace(/\s+/g, " ").trim();
+  return text.length > 190 ? `${text.slice(0, 187)}...` : text || "A story moment will appear here.";
+}
+
+function renderStoryMapConnectors(scenes, width, height) {
+  const links = [];
+  scenes.forEach((scene, sourceIndex) => {
+    (scene.routes || []).forEach((route) => {
+      const targetIndex = Number(route.targetIndex);
+      const target = scenes[targetIndex];
+      if (!target) return;
+      const sourcePoint = nodePortPoint(scene, route.direction || "right", "source");
+      const targetPoint = nodePortPoint(target, oppositeDirection(route.direction || "right"), "target");
+      const midX = Math.round((sourcePoint.x + targetPoint.x) / 2);
+      const labelX = Math.round((sourcePoint.x + targetPoint.x) / 2);
+      const labelY = Math.round((sourcePoint.y + targetPoint.y) / 2) - 8;
+      const path = `M ${sourcePoint.x} ${sourcePoint.y} C ${midX} ${sourcePoint.y}, ${midX} ${targetPoint.y}, ${targetPoint.x} ${targetPoint.y}`;
+      const label = escapeHtml(route.label || scene.choiceTexts?.[route.choiceIndex] || choiceLabel(route.choiceIndex));
+      links.push(`
+        <g class="story-link">
+          <path d="${path}" />
+          <circle cx="${sourcePoint.x}" cy="${sourcePoint.y}" r="5" />
+          <circle cx="${targetPoint.x}" cy="${targetPoint.y}" r="5" />
+          <text x="${labelX}" y="${labelY}">${label}</text>
+        </g>
+      `);
+    });
+  });
+  return `<svg class="story-map-connectors" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true">${links.join("")}</svg>`;
+}
+
+function nodePortPoint(scene, direction, side) {
+  const x = Number(scene?.x || 40);
+  const y = Number(scene?.y || 40);
+  const width = 260;
+  const height = 188;
+  const offset = side === "source" ? 3 : -3;
+  if (direction === "left") return { x: x - offset, y: y + height / 2 };
+  if (direction === "up") return { x: x + width / 2, y: y - offset };
+  if (direction === "down") return { x: x + width / 2, y: y + height + offset };
+  return { x: x + width + offset, y: y + height / 2 };
+}
+
+function oppositeDirection(direction) {
+  if (direction === "left") return "right";
+  if (direction === "up") return "down";
+  if (direction === "down") return "up";
+  return "left";
+}
+
 function renderRouteChips(scene) {
   const routes = scene.routes || [];
   if (!routes.length) return `<div class="route-chip-row"><small>No routes yet</small></div>`;
@@ -957,6 +1017,7 @@ function addConnectedScene(sourceIndex, direction) {
   }[direction] || { x: 270, y: 0 };
   scenes.push({
     title: `${choiceLabel(routeCount)} Branch`,
+    storyText: `A new ${direction} branch from ${source.title}.`,
     prompt: `A new ${direction} branch from ${source.title}.`,
     camera: "Wide cinematic reveal",
     background: source.background || "Custom background",
@@ -977,6 +1038,7 @@ function addBlankScene() {
   const scenes = storyProject.scenes || [];
   scenes.push({
     title: scenes.length ? `Scene ${scenes.length + 1}` : "Start Scene",
+    storyText: "Describe what happens in this scene.",
     prompt: "Describe what happens in this scene.",
     camera: "Wide cinematic reveal",
     background: "Custom background",
@@ -1034,6 +1096,7 @@ function addSceneFromCurrentPreview({ stayOnSceneTab = true, prepareNext = false
     ...draftImages,
     banner,
     title: titleFromPrompt(data.prompt, nextIndex ? `Scene ${nextIndex + 1}` : "Start Scene"),
+    storyText: data.prompt,
     routes: [],
     x: 60 + (nextIndex % 3) * 270,
     y: 60 + Math.floor(nextIndex / 3) * 190,
@@ -1094,6 +1157,7 @@ function updateSelectedScene() {
     ...scene,
     title: selectedSceneTitle.value.trim() || scene.title,
     prompt: selectedScenePrompt.value.trim() || scene.prompt,
+    storyText: selectedScenePrompt.value.trim() || scene.storyText || scene.prompt,
     type: selectedSceneType.value,
     choices: selectedSceneChoices.value,
   };
@@ -1622,7 +1686,7 @@ storyMapBoard.addEventListener("pointermove", (event) => {
   const scene = scenes[draggedScene.index];
   if (!scene) return;
   const boardRect = storyMapBoard.getBoundingClientRect();
-  scene.x = Math.max(16, Math.min(boardRect.width - 230, event.clientX - boardRect.left - draggedScene.offsetX));
+  scene.x = Math.max(16, Math.min(boardRect.width - 260, event.clientX - boardRect.left - draggedScene.offsetX));
   scene.y = Math.max(16, event.clientY - boardRect.top - draggedScene.offsetY);
   storyProject.scenes = scenes;
   const node = storyMapBoard.querySelector(`[data-scene-index="${draggedScene.index}"]`);

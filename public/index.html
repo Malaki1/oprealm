@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/home.css?v=1" />
+    <link rel="stylesheet" href="/home.css?v=2" />
     <script src="/account-nav.js?v=1" defer></script>
   </head>
   <body>
@@ -128,13 +128,13 @@
           <h2>Everything kids need to create.</h2>
         </div>
         <div class="tool-strip">
-          <article><div class="tool-image-slot"></div><h3>AI Obby Builder</h3></article>
-          <article><div class="tool-image-slot"></div><h3>NPC Creator</h3></article>
-          <article><div class="tool-image-slot"></div><h3>Terrain Generator</h3></article>
-          <article><div class="tool-image-slot"></div><h3>Music Studio</h3></article>
-          <article><div class="tool-image-slot"></div><h3>AI Movie Maker</h3></article>
-          <article><div class="tool-image-slot"></div><h3>Asset Library</h3></article>
-          <article><div class="tool-image-slot"></div><h3>Code Lab</h3></article>
+          <article><div class="tool-image-slot tool-obby" aria-hidden="true"></div><h3>AI Obby Builder</h3></article>
+          <article><div class="tool-image-slot tool-npc" aria-hidden="true"></div><h3>NPC Creator</h3></article>
+          <article><div class="tool-image-slot tool-terrain" aria-hidden="true"></div><h3>Terrain Generator</h3></article>
+          <article><div class="tool-image-slot tool-music" aria-hidden="true"></div><h3>Music Studio</h3></article>
+          <article><div class="tool-image-slot tool-movie" aria-hidden="true"></div><h3>AI Movie Maker</h3></article>
+          <article><div class="tool-image-slot tool-assets" aria-hidden="true"></div><h3>Asset Library</h3></article>
+          <article><div class="tool-image-slot tool-code" aria-hidden="true"></div><h3>Code Lab</h3></article>
         </div>
       </section>
 
@@ -147,11 +147,11 @@
           <a class="button primary" href="/library">Explore More Worlds</a>
         </div>
         <div class="world-grid">
-          <article><div class="image-slot world-image"><span>Lava Escape cover</span></div><h3>Lava Escape</h3><p>BuilderMax11 (Age 10)</p><div><span>12.4K</span><span>2.1K</span></div></article>
-          <article><div class="image-slot world-image"><span>Pet Simulator cover</span></div><h3>Pet Simulator World</h3><p>FluffyDev (Age 9)</p><div><span>18.7K</span><span>3.2K</span></div></article>
-          <article><div class="image-slot world-image"><span>Haunted School cover</span></div><h3>Haunted High School</h3><p>GhostyGames (Age 11)</p><div><span>9.8K</span><span>1.4K</span></div></article>
-          <article><div class="image-slot world-image"><span>Space Tycoon cover</span></div><h3>Space Tycoon</h3><p>StarGirl (Age 12)</p><div><span>15.2K</span><span>2.7K</span></div></article>
-          <article><div class="image-slot world-image"><span>Dragon Quest cover</span></div><h3>Dragon Quest</h3><p>QuestCreator (Age 10)</p><div><span>11.1K</span><span>1.8K</span></div></article>
+          <article><div class="image-slot world-image filled world-lava" role="img" aria-label="Lava Escape creator world"></div><h3>Lava Escape</h3><p>BuilderMax11 (Age 10)</p><div><span>12.4K</span><span>2.1K</span></div></article>
+          <article><div class="image-slot world-image filled world-pets" role="img" aria-label="Pet Simulator creator world"></div><h3>Pet Simulator World</h3><p>FluffyDev (Age 9)</p><div><span>18.7K</span><span>3.2K</span></div></article>
+          <article><div class="image-slot world-image filled world-haunted" role="img" aria-label="Haunted High School creator world"></div><h3>Haunted High School</h3><p>GhostyGames (Age 11)</p><div><span>9.8K</span><span>1.4K</span></div></article>
+          <article><div class="image-slot world-image filled world-space" role="img" aria-label="Space Tycoon creator world"></div><h3>Space Tycoon</h3><p>StarGirl (Age 12)</p><div><span>15.2K</span><span>2.7K</span></div></article>
+          <article><div class="image-slot world-image filled world-dragon" role="img" aria-label="Dragon Quest creator world"></div><h3>Dragon Quest</h3><p>QuestCreator (Age 10)</p><div><span>11.1K</span><span>1.8K</span></div></article>
         </div>
       </section>
 
@@ -180,7 +180,7 @@
           <div class="billing-toggle"><span>Monthly</span><span>Yearly</span><strong>Save 20%</strong></div>
         </div>
         <div class="pricing-layout">
-          <div class="image-slot membership-art"><span>Membership character art</span></div>
+          <div class="image-slot membership-art filled" role="img" aria-label="Young OPREALM creator standing on a floating world"></div>
           <article class="price-card">
             <p>Explorer</p>
             <h3>Free</h3>
@@ -202,7 +202,7 @@
             <ul><li>1,000 Creator credits</li><li>Everything in Creator+</li><li>Exclusive assets</li><li>VIP support</li></ul>
             <a class="button dark" href="/billing">Start 7-Day Free Trial</a>
           </article>
-          <div class="image-slot mascot-art"><span>Orbit mascot art</span></div>
+          <div class="image-slot mascot-art filled" role="img" aria-label="Orbit the OPREALM mascot holding a glowing star"></div>
         </div>
       </section>
 
@@ -212,7 +212,7 @@
           <h2>You help them build it.</h2>
           <span>Join families of kids creating the future.</span>
         </div>
-        <div class="image-slot cta-art"><span>CTA mini world art</span></div>
+        <div class="image-slot cta-art filled" role="img" aria-label="Mini OPREALM floating world with Orbit"></div>
         <a class="button primary large" href="/studio">Start Creating Now</a>
       </section>
     </main>

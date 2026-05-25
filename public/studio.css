@@ -2277,6 +2277,40 @@ select option {
   background-size: 44px 44px;
 }
 
+.story-map-connectors {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.story-link path {
+  fill: none;
+  stroke: rgba(24, 217, 255, 0.72);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 10px rgba(24, 217, 255, 0.38));
+}
+
+.story-link circle {
+  fill: #8ff0ff;
+  stroke: rgba(255, 255, 255, 0.86);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px rgba(139, 67, 255, 0.62));
+}
+
+.story-link text {
+  fill: rgba(255, 255, 255, 0.84);
+  paint-order: stroke;
+  stroke: rgba(3, 9, 21, 0.88);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  font-size: 11px;
+  font-weight: 900;
+  text-anchor: middle;
+}
+
 .map-tool-row {
   display: flex;
   align-items: center;
@@ -2373,14 +2407,42 @@ body.story-map-open .story-map-tools {
 
 .story-node {
   position: absolute;
-  width: 230px;
-  min-height: 118px;
+  z-index: 2;
+  width: 260px;
+  min-height: 188px;
   padding: 14px;
   border: 1px solid rgba(24, 217, 255, 0.24);
   border-radius: 14px;
   background: linear-gradient(145deg, rgba(15, 31, 73, 0.94), rgba(5, 14, 37, 0.95));
   box-shadow: 0 18px 42px rgba(4, 11, 31, 0.2);
   user-select: none;
+}
+
+.story-node strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.story-node-type {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(24, 217, 255, 0.18);
+  border-radius: 999px;
+  color: #8ff0ff;
+  background: rgba(24, 217, 255, 0.08);
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.story-node p {
+  margin-top: 9px;
+  color: rgba(224, 234, 255, 0.78);
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .story-node.is-selected {
@@ -2804,7 +2866,7 @@ body.story-map-open .story-map-tools {
 }
 
 .story-tree-item span {
-  grid-row: span 2;
+  grid-row: span 3;
   display: inline-grid;
   place-items: center;
   width: 38px;
@@ -2826,6 +2888,12 @@ body.story-map-open .story-map-tools {
   font-size: 0.82rem;
   font-style: normal;
   text-transform: capitalize;
+}
+
+.story-tree-item p {
+  color: rgba(224, 234, 255, 0.76);
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .builder-card p {
