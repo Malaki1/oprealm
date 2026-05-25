@@ -313,6 +313,26 @@ h1 span {
     url("/assets/home-hero-world.png");
 }
 
+.path-roblox {
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-roblox.png");
+}
+
+.path-story {
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-story-games.png");
+}
+
+.path-music {
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-music-sound.png");
+}
+
+.path-movies {
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-ai-movies.png");
+}
+
+.path-art {
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-art-studio.png");
+}
+
 .home-section {
   padding: 34px 0 48px;
   border-top: 1px solid rgba(145, 190, 255, 0.16);
