@@ -2699,6 +2699,55 @@ body.story-map-open .story-map-tools {
   padding: 20px;
 }
 
+.marketplace-card {
+  min-height: 410px;
+}
+
+.market-price {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(24, 217, 255, 0.92), rgba(139, 67, 255, 0.92));
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 16px 38px rgba(24, 217, 255, 0.22);
+}
+
+.market-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 16px;
+}
+
+.market-meta span {
+  display: inline-flex;
+  padding: 7px 10px;
+  border: 1px solid rgba(160, 218, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.marketplace-submit {
+  margin-top: 28px;
+}
+
+.wide-field {
+  grid-column: 1 / -1;
+}
+
 .builder-card p {
   position: relative;
   z-index: 1;

@@ -3,22 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Browse public OPREALM creations made by young creators after safety review." />
-    <title>OPREALM Public Library</title>
+    <meta name="description" content="Browse and list reviewed OPREALM creator assets, templates, sounds and game packs." />
+    <title>OPREALM Marketplace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=1" />
-    <script src="/library.js?v=1" defer></script>
+    <link rel="stylesheet" href="/studio.css?v=12" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/library.js?v=2" defer></script>
   </head>
   <body>
     <header class="studio-header">
       <a class="studio-brand" href="/">
         <span class="brand-mark" aria-hidden="true"><span></span></span>
-        <span>OPREALM Library</span>
+        <span>OPREALM Marketplace</span>
       </a>
-      <nav aria-label="Library navigation">
+      <nav aria-label="Marketplace navigation">
         <a href="/studio">Creator Studio</a>
+        <a href="/account.html" data-account-link>My Account</a>
         <a href="/">Home</a>
       </nav>
     </header>
@@ -26,39 +28,116 @@
     <main class="studio-shell">
       <section class="studio-hero">
         <div>
-          <p class="eyebrow">Public showcase</p>
-          <h1>Play, watch and listen to safe reviewed creations.</h1>
-          <p>Finished games, music, sound packs, trailers, stories and digital creations appear here after OPREALM review.</p>
+          <p class="eyebrow">Creator marketplace</p>
+          <h1>Buy, sell and remix safe creator assets.</h1>
+          <p>Approved Roblox props, UI kits, music loops, templates, art packs and sound packs can be listed by creators with a price after OPREALM review.</p>
+          <div class="obby-hero-actions">
+            <a class="button button-primary" href="#listAsset">List An Asset</a>
+            <span class="status-pill">Reviewed before public sale</span>
+          </div>
         </div>
         <aside class="credits-card">
-          <span>Review-first library</span>
+          <span>Marketplace listings</span>
           <strong id="libraryCount">0</strong>
-          <p>Approved creations currently visible.</p>
+          <p>Approved assets currently visible.</p>
         </aside>
       </section>
 
-      <section class="publish-form" aria-label="Library filters">
+      <section class="publish-form" aria-label="Marketplace filters">
         <label>
-          Search creations
-          <input id="librarySearch" placeholder="Search by title, type or description" />
+          Search assets
+          <input id="librarySearch" placeholder="Search by title, type, seller or description" />
         </label>
         <label>
-          Type
+          Asset type
           <select id="libraryType">
-            <option value="all">All creations</option>
-            <option value="web_game">Web games</option>
-            <option value="pixel_game">2D pixel games</option>
-            <option value="story_game">AI story games</option>
-            <option value="music">Music and songs</option>
-            <option value="sound">Sound packs</option>
-            <option value="trailer">Trailers and mini movies</option>
-            <option value="comic">Comics and storybooks</option>
+            <option value="all">All assets</option>
+            <option value="roblox_asset">Roblox assets</option>
+            <option value="ui_kit">UI kits</option>
+            <option value="sound_pack">Sound packs</option>
+            <option value="music_loop">Music loops</option>
+            <option value="story_template">Story templates</option>
+            <option value="game_template">Game templates</option>
+            <option value="art_pack">Art packs</option>
+          </select>
+        </label>
+        <label>
+          Price
+          <select id="libraryPrice">
+            <option value="all">All prices</option>
+            <option value="free">Free</option>
+            <option value="paid">Paid</option>
           </select>
         </label>
       </section>
 
       <section class="builders-section">
         <div class="builder-grid" id="libraryGrid"></div>
+      </section>
+
+      <section class="publish-section marketplace-submit" id="listAsset">
+        <div>
+          <p class="eyebrow">Sell your creator asset</p>
+          <h2>List an asset for marketplace review.</h2>
+          <p>Creators can submit asset packs, Roblox props, UI kits, sounds, music loops and templates. OPREALM reviews each listing before it appears publicly.</p>
+        </div>
+        <form class="publish-form" id="marketplaceForm">
+          <label>
+            Asset title
+            <input id="marketTitle" maxlength="80" required placeholder="Cyber Portal Checkpoint Pack" />
+          </label>
+          <label>
+            Asset type
+            <select id="marketType">
+              <option value="roblox_asset">Roblox asset</option>
+              <option value="ui_kit">UI kit</option>
+              <option value="sound_pack">Sound pack</option>
+              <option value="music_loop">Music loop</option>
+              <option value="story_template">Story template</option>
+              <option value="game_template">Game template</option>
+              <option value="art_pack">Art pack</option>
+            </select>
+          </label>
+          <label>
+            Price
+            <input id="marketPrice" inputmode="decimal" maxlength="8" required placeholder="4.99" />
+          </label>
+          <label>
+            Currency
+            <select id="marketCurrency">
+              <option>USD</option>
+              <option>AUD</option>
+              <option>GBP</option>
+              <option>EUR</option>
+            </select>
+          </label>
+          <label>
+            Preview image URL
+            <input id="marketThumbnail" type="url" placeholder="https://..." />
+          </label>
+          <label>
+            Asset download or demo URL
+            <input id="marketAssetUrl" type="url" placeholder="https://..." />
+          </label>
+          <label>
+            License
+            <select id="marketLicense">
+              <option value="personal_use">Personal use</option>
+              <option value="commercial_use">Commercial use</option>
+              <option value="oprealm_remix">OPREALM remix allowed</option>
+            </select>
+          </label>
+          <label>
+            Tags
+            <input id="marketTags" maxlength="120" placeholder="Roblox, portal, sci-fi, checkpoint" />
+          </label>
+          <label class="wide-field">
+            Description
+            <textarea id="marketDescription" rows="4" maxlength="700" required placeholder="Describe what the buyer gets, how it can be used, and what makes it fun."></textarea>
+          </label>
+          <button class="button button-primary" type="submit">Submit Listing For Review</button>
+          <p class="form-note" id="marketStatus">Log in before listing paid assets. Public marketplace listings stay hidden until approved.</p>
+        </form>
       </section>
     </main>
   </body>
