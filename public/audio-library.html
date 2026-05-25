@@ -383,7 +383,7 @@
         </div>
 
         <form class="filters" id="filters">
-          <input id="search" type="search" placeholder="Search by title, prompt, tag, or course" />
+          <input id="search" type="search" placeholder="Search by title, prompt, tag, or creator path" />
           <select id="category">
             <option value="all">All categories</option>
           </select>
@@ -508,7 +508,7 @@
                 <p>${escapeHtml(asset.prompt)}</p>
                 <div class="meta">
                   <span class="chip">${escapeHtml(asset.category)}</span>
-                  <span class="chip">${escapeHtml(asset.course || "General")}</span>
+                  <span class="chip">${escapeHtml(asset.creator_path || asset.course || "General")}</span>
                   <span class="chip">${escapeHtml(asset.review_status)}</span>
                 </div>
                 <audio controls preload="none" data-audio-id="${escapeHtml(asset.id)}"></audio>

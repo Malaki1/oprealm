@@ -716,7 +716,7 @@ function generateAutomatedStoryTree() {
   if (full) {
     scenes.push(
       makeScene("sad", "The Quiet Goodbye", "Ending", "sad ending", `${heroName} saves the day but must say goodbye to something they cared about. Keep it gentle and age-safe.`, ["Try a kinder path"], 1260, 70),
-      makeScene("tragic-safe", "The Lesson Path", "Ending", "tragic but safe ending", `${heroName}'s rushed choice causes a setback, but the scene frames it as a safe lesson and a chance to retry.`, ["Try again"], 1260, 215),
+      makeScene("tragic-safe", "The Retry Path", "Ending", "tragic but safe ending", `${heroName}'s rushed choice causes a setback, but the scene frames it as a safe chance to learn, regroup and retry.`, ["Try again"], 1260, 215),
       makeScene("fulfilling", "The Full Circle", "Ending", "fulfilling ending", `${heroName} understands the true meaning of the journey and helps the whole world change for the better.`, ["Share this ending"], 1260, 360),
       makeScene("secret", "The Hidden Chapter", "Discovery", "secret bonus twist", `${heroName} discovers a bonus scene that changes what the first clue really meant.`, ["Reveal the truth", "Keep the secret"], 650, 585),
       makeScene("retry", "The Remix Door", "Ending", "retry ending", `A playful ending invites the player to remix choices and discover a better route.`, ["Remix the story"], 980, 515),

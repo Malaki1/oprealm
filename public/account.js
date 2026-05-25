@@ -12,9 +12,9 @@ const logoutButton = document.querySelector("#logoutButton");
 
 const tierCopy = {
   explorer: "Free safety-first access with starter credits and beginner onboarding.",
-  creator: "Creator Membership access for one creation path, reviewed library submissions and AI tools.",
-  pro: "Creator Pro access for the full course library, priority AI tools and advanced support.",
-  elite: "Elite Creator Intensive access with guided mentorship and advanced project support.",
+  creator: "Creator Membership access for guided creator engines, reviewed marketplace submissions and AI tools.",
+  pro: "Creator Pro access for premium creator engines, priority AI tools and advanced support.",
+  elite: "Elite Creator access with advanced project support, premium credits and deeper creator tools.",
 };
 
 async function accountRequest(action, payload = {}) {
