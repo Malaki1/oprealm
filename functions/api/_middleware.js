@@ -2,6 +2,12 @@ const WINDOW_SECONDS = 15 * 60;
 const GENERAL_LIMIT = 120;
 const MUTATION_LIMIT = 60;
 const LOGIN_LIMIT = 5;
+const ROUTE_MUTATION_LIMITS = new Map([
+  ["/api/story-character-image", 180],
+  ["/api/story-scene-images", 180],
+  ["/api/story-game-cover", 120],
+  ["/api/story-image-download", 240],
+]);
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;
 const LARGE_BODY_PATHS = new Set([
@@ -67,7 +73,9 @@ async function enforceRateLimits(request, env) {
   const url = new URL(request.url);
   const ip = clientIp(request);
   const routeKey = `${request.method}:${url.pathname}`;
-  const generalLimit = request.method === "GET" ? GENERAL_LIMIT : MUTATION_LIMIT;
+  const generalLimit = request.method === "GET"
+    ? GENERAL_LIMIT
+    : ROUTE_MUTATION_LIMITS.get(url.pathname) || MUTATION_LIMIT;
 
   await hitRateLimit(env, `ip:${ip}:route:${routeKey}`, generalLimit, WINDOW_SECONDS);
 

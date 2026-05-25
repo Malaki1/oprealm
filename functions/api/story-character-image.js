@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env, waitUntil }) {
     const cachedJob = await findCachedJob(env, user.id, CHARACTER_TOOL, promptHash);
     if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
 
-    await assertRateLimit(env, user.id, CHARACTER_TOOL, { limit: 4, windowSeconds: 60 });
+    await assertRateLimit(env, user.id, CHARACTER_TOOL, { limit: 8, windowSeconds: 60 });
 
     const jobId = crypto.randomUUID();
     await createGenerationJob(env, {
