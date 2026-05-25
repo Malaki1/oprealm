@@ -129,6 +129,34 @@ local THEME_COLORS = {
 	},
 }
 
+local THEME_WORLD_META = {
+	Volcano = {
+		hazardName = "MagmaFlow_KillZone",
+		depthName = "CharredDepthPlane",
+		routeName = "Basalt safe route",
+	},
+	Candy = {
+		hazardName = "StickySyrupVoid_KillZone",
+		depthName = "CandyCloudDepthPlane",
+		routeName = "Frosting safe route",
+	},
+	Space = {
+		hazardName = "StarVoid_KillZone",
+		depthName = "OrbitalDepthPlane",
+		routeName = "Orbital safe route",
+	},
+	Cyber = {
+		hazardName = "NeonDataVoid_KillZone",
+		depthName = "CyberGridDepthPlane",
+		routeName = "Circuit safe route",
+	},
+	Jungle = {
+		hazardName = "QuicksandSwamp_KillZone",
+		depthName = "JungleRavineDepthPlane",
+		routeName = "Temple safe route",
+	},
+}
+
 local function setStatus(message)
 	status.Text = message
 	print("[OPREALM]", message)
@@ -157,6 +185,13 @@ local function createPart(parent, name, size, position, color, material, anchore
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.Parent = parent
+	return part
+end
+
+local function makeNonWalkable(part)
+	part.CanCollide = false
+	part.CanTouch = true
+	part.CanQuery = false
 	return part
 end
 
@@ -453,8 +488,7 @@ end
 
 local function makeKillZone(part)
 	part:SetAttribute("OPREALM_Kill", true)
-	part.CanCollide = false
-	return part
+	return makeNonWalkable(part)
 end
 
 local function createLabel(parent, text, position)
@@ -732,9 +766,10 @@ end
 
 local function buildObby(payload)
 	local plan = payload.plan or {}
-	local theme = plan.theme or "Volcano"
+	local theme = plan.theme or "Space"
 	local difficulty = plan.difficulty or "Easy"
-	local colors = THEME_COLORS[theme] or THEME_COLORS.Volcano
+	local colors = THEME_COLORS[theme] or THEME_COLORS.Space
+	local worldMeta = THEME_WORLD_META[theme] or THEME_WORLD_META.Space
 	local sectionCount = tonumber(plan.sectionCount) or 4
 	local obstacles = plan.obstacles or { "Moving platforms", "Lava jumps", "Disappearing platforms" }
 
@@ -742,9 +777,17 @@ local function buildObby(payload)
 	applyThemeEnvironment(theme)
 
 	addRuntimeScript(folder)
-	createPart(folder, "ObsidianUnderplate", Vector3.new(sectionCount * 72 + 90, 2, 70), Vector3.new(sectionCount * 36, -5, 0), colors.base, Enum.Material.Slate)
-	local lava = makeKillZone(createPart(folder, "FloorIsLava_KillZone", Vector3.new(sectionCount * 72 + 120, 1, 78), Vector3.new(sectionCount * 36, 0.5, 0), colors.hazard, Enum.Material.Neon))
-	lava.Transparency = 0.08
+	local depthPlane = createPart(folder, worldMeta.depthName, Vector3.new(sectionCount * 72 + 90, 2, 70), Vector3.new(sectionCount * 36, -7, 0), colors.base, Enum.Material.Slate)
+	depthPlane.Transparency = 0.72
+	makeNonWalkable(depthPlane)
+
+	local hazardSurface = makeKillZone(createPart(folder, worldMeta.hazardName, Vector3.new(sectionCount * 72 + 120, 1, 78), Vector3.new(sectionCount * 36, 0.5, 0), colors.hazard, Enum.Material.Neon))
+	hazardSurface.Transparency = 0.18
+	addLight(hazardSurface, colors.hazard, 42, 0.9)
+
+	local fallCatcher = makeKillZone(createPart(folder, "OPREALM_FallCatcher_KillZone", Vector3.new(sectionCount * 72 + 160, 2, 120), Vector3.new(sectionCount * 36, -24, 0), colors.hazard, Enum.Material.SmoothPlastic))
+	fallCatcher.Transparency = 1
+
 	createPart(folder, "ThemeBackdrop_Left", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, -40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
 	createPart(folder, "ThemeBackdrop_Right", Vector3.new(sectionCount * 72 + 80, 24, 2), Vector3.new(sectionCount * 36, 10, 40), colors.base, Enum.Material.SmoothPlastic).Transparency = 0.25
 	createThemeVista(folder, theme, sectionCount, colors)
@@ -752,6 +795,7 @@ local function buildObby(payload)
 	createLedSign(folder, "OPREALM\nANIMATION", Vector3.new(math.max(82, sectionCount * 72 - 10), 20, 41), 180)
 	createPart(folder, "SpawnPad", Vector3.new(18, 1.5, 18), Vector3.new(0, 4, 0), Color3.fromRGB(24, 217, 255), Enum.Material.Neon)
 	createLabel(folder, "OPREALM " .. theme .. " Obby", Vector3.new(0, 14, -12))
+	createLabel(folder, worldMeta.routeName, Vector3.new(24, 11, 16))
 
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "OPREALM_Spawn"
