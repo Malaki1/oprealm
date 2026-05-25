@@ -13,7 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/studio.css?v=11" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/roblox-obby.js?v=4" defer></script>
+    <script src="/roblox-obby.js?v=5" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -77,9 +77,20 @@
             </div>
             <label>
               Obby idea
-              <textarea id="obbyPrompt" name="prompt" rows="5" maxlength="500" placeholder="Make me a volcano obby with lava sharks and disappearing rainbow platforms."></textarea>
+              <textarea id="obbyPrompt" name="prompt" rows="5" maxlength="500" placeholder="Make me a space obby with floating asteroids, laser gates and moving platforms."></textarea>
             </label>
             <div class="story-form-grid">
+              <label>
+                Theme
+                <select id="obbyThemeSelect" name="theme">
+                  <option value="">Auto detect from idea</option>
+                  <option>Volcano</option>
+                  <option>Candy</option>
+                  <option>Space</option>
+                  <option>Cyber</option>
+                  <option>Jungle</option>
+                </select>
+              </label>
               <label>
                 Difficulty
                 <select id="obbyDifficulty" name="difficulty">

@@ -57,16 +57,18 @@ async function handleObbyPlanRequest(request, env) {
 
   let body;
   let prompt;
+  let requestedTheme;
   let requestedDifficulty;
   try {
     body = await readJson(request, "Invalid obby generator request.");
     prompt = requireMinText(body.prompt, "Obby idea", 6, 500);
     assertSafePrompt(prompt);
+    requestedTheme = enumValue(body.theme, THEMES, "");
     requestedDifficulty = enumValue(body.difficulty, DIFFICULTIES, "");
   } catch (error) {
     return json({ ok: false, error: error.message || "Invalid obby generator request." }, error.status || 400);
   }
-  const promptHash = await sha256Text([TOOL, PLAN_VERSION, prompt, requestedDifficulty].join("\n"));
+  const promptHash = await sha256Text([TOOL, PLAN_VERSION, prompt, requestedTheme, requestedDifficulty].join("\n"));
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey, 120) || null;
 
   if (idempotencyKey) {
@@ -91,10 +93,10 @@ async function handleObbyPlanRequest(request, env) {
     promptHash,
     idempotencyKey,
     creditsReserved: 0,
-    metadata: { source: "studio", deterministic: true },
+    metadata: { source: "studio", deterministic: true, requestedTheme: requestedTheme || "auto" },
   });
 
-  const plan = buildObbyPlan(prompt, requestedDifficulty);
+  const plan = buildObbyPlan(prompt, requestedTheme, requestedDifficulty);
   await markJobCompleted(env, jobId, {
     result: plan,
     creditsCharged: 0,
@@ -123,8 +125,8 @@ async function resolvePlanningUser(request, env) {
   return { id: `anon:${hash.slice(0, 48)}` };
 }
 
-function buildObbyPlan(prompt, requestedDifficulty) {
-  const theme = detectTheme(prompt);
+function buildObbyPlan(prompt, requestedTheme, requestedDifficulty) {
+  const theme = requestedTheme || detectTheme(prompt);
   const difficulty = requestedDifficulty || detectDifficulty(prompt);
   const obstacles = detectObstacles(prompt, theme, difficulty);
   const sectionCount = difficulty === "Hard" ? 8 : difficulty === "Medium" ? 6 : 4;
@@ -186,7 +188,7 @@ function detectTheme(prompt) {
   const match = THEME_KEYWORDS
     .map(([theme, words]) => ({ theme, score: words.filter((word) => text.includes(word)).length }))
     .sort((a, b) => b.score - a.score)[0];
-  return match?.score ? match.theme : "Volcano";
+  return match?.score ? match.theme : "Space";
 }
 
 function detectDifficulty(prompt) {

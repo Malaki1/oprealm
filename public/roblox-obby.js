@@ -1,5 +1,6 @@
 const obbyForm = document.querySelector("#obbyForm");
 const obbyPrompt = document.querySelector("#obbyPrompt");
+const obbyThemeSelect = document.querySelector("#obbyThemeSelect");
 const obbyDifficulty = document.querySelector("#obbyDifficulty");
 const obbyVoiceButton = document.querySelector("#obbyVoiceButton");
 const copyObbyJsonButton = document.querySelector("#copyObbyJsonButton");
@@ -77,11 +78,11 @@ function pluginPayloadForCurrentPlan() {
   return {
     version: "oprealm-obby-v1",
     command: "BuildObbyFromSpec",
-    prefabPack: `${String(plan.theme || "Volcano").toLowerCase()}_starter_pack`,
+    prefabPack: `${String(plan.theme || "Space").toLowerCase()}_starter_pack`,
     gridUnit: 12,
     maxPartsEstimate: Math.max(120, sections.length * 36),
     plan: {
-      theme: plan.theme || "Volcano",
+      theme: plan.theme || "Space",
       difficulty: plan.difficulty || "Easy",
       obstacles,
       sectionCount: sections.length,
@@ -93,6 +94,7 @@ function pluginPayloadForCurrentPlan() {
 async function generateObbyPlan() {
   const payload = {
     prompt: obbyPrompt.value,
+    theme: obbyThemeSelect?.value || "",
     difficulty: obbyDifficulty.value,
     idempotencyKey: crypto.randomUUID?.() || `obby-${Date.now()}`,
   };
