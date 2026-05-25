@@ -34,22 +34,22 @@ export async function onRequestGet({ request, env }) {
   const params = [];
 
   if (status === "all") {
-    filters.push("review_status != 'deleted'");
+    filters.push("marketplace_listings.review_status != 'deleted'");
   } else if (status === "mine") {
-    filters.push("seller_web_user_id = ?");
+    filters.push("marketplace_listings.seller_web_user_id = ?");
     params.push(user.id);
   } else {
-    filters.push("review_status = ?");
+    filters.push("marketplace_listings.review_status = ?");
     params.push(status);
   }
 
   if (type !== "all") {
-    filters.push("type = ?");
+    filters.push("marketplace_listings.type = ?");
     params.push(type);
   }
 
   if (query) {
-    filters.push("(title LIKE ? OR description LIKE ? OR tags LIKE ?)");
+    filters.push("(marketplace_listings.title LIKE ? OR marketplace_listings.description LIKE ? OR marketplace_listings.tags LIKE ?)");
     const like = `%${query}%`;
     params.push(like, like, like);
   }
@@ -74,7 +74,7 @@ export async function onRequestGet({ request, env }) {
       FROM marketplace_listings
       LEFT JOIN web_users ON web_users.id = marketplace_listings.seller_web_user_id
       WHERE ${filters.join(" AND ")}
-      ORDER BY COALESCE(approved_at, created_at) DESC
+      ORDER BY COALESCE(marketplace_listings.approved_at, marketplace_listings.created_at) DESC
       LIMIT ?
     `,
   )
