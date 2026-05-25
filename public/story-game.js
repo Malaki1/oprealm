@@ -11,6 +11,16 @@ const useDrawingAsPromptButton = document.querySelector("#useDrawingAsPromptButt
 const storySceneForm = document.querySelector("#storySceneForm");
 const storyBannerForm = document.querySelector("#storyBannerForm");
 const storyCoverForm = document.querySelector("#storyCoverForm");
+const storyEngineForm = document.querySelector("#storyEngineForm");
+const storyEngineStatus = document.querySelector("#storyEngineStatus");
+const storyTreeTitle = document.querySelector("#storyTreeTitle");
+const storyTreeSummary = document.querySelector("#storyTreeSummary");
+const storyTreeSceneCount = document.querySelector("#storyTreeSceneCount");
+const storyTreeEndingCount = document.querySelector("#storyTreeEndingCount");
+const storyTreeAudience = document.querySelector("#storyTreeAudience");
+const storyTreeList = document.querySelector("#storyTreeList");
+const loadSelectedSceneToBuilderButton = document.querySelector("#loadSelectedSceneToBuilderButton");
+const clearStoryTreeButton = document.querySelector("#clearStoryTreeButton");
 const bannerWorkspace = document.querySelector("#bannerWorkspace");
 const bannerPreviewResizer = document.querySelector("#bannerPreviewResizer");
 const characterPromptButton = document.querySelector("#characterPromptButton");
@@ -431,6 +441,7 @@ function renderStoryDashboard() {
   renderHeroSlots(characters);
   renderCharacterMethod();
   renderCoverSetup();
+  renderStoryEnginePreview();
 
   sceneCardList.innerHTML = scenes.length
     ? scenes
@@ -517,7 +528,7 @@ function renderStoryDashboard() {
   storyPreviewTitle.textContent = firstScene?.title || "Your story will appear here";
   storyPreviewText.textContent = firstScene?.prompt || "Create a character and at least one scene card to preview the pick-a-path flow.";
   storyPreviewChoices.innerHTML = firstScene
-    ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${choiceLabel(index)}</button>`).join("")
+    ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${escapeHtml(firstScene.choiceTexts?.[index] || choiceLabel(index))}</button>`).join("")
     : "";
 
   checkCharacter.textContent = character.name ? `${characters.filter((item) => item?.name).length || 1} hero character${characters.filter((item) => item?.name).length === 1 ? "" : "s"} ready` : "Not ready yet";
@@ -602,6 +613,192 @@ function saveCoverSetup(message = "") {
   if (message && coverImageStatus) coverImageStatus.textContent = message;
 }
 
+function currentStoryEngineFormData() {
+  if (!storyEngineForm) return {};
+  const data = Object.fromEntries(new FormData(storyEngineForm).entries());
+  data.audience = data.audience || "Kids 8-12";
+  data.genre = data.genre || "Mystery adventure";
+  data.tone = data.tone || "Exciting but safe";
+  data.branchSize = data.branchSize || "full";
+  data.direction = String(data.direction || "").trim().slice(0, 900);
+  data.twists = String(data.twists || "").trim().slice(0, 180);
+  return data;
+}
+
+function renderStoryEnginePreview() {
+  if (!storyTreeList) return;
+  const tree = storyProject.storyTree || {};
+  const scenes = storyProject.scenes || [];
+  const endings = scenes.filter((scene) => String(scene.type || "").toLowerCase().includes("ending"));
+  if (storyTreeTitle) storyTreeTitle.textContent = tree.title || "No automated story tree yet";
+  if (storyTreeSummary) {
+    storyTreeSummary.textContent = tree.summary || "The engine will create opening scenes, branch scenes, plot twists, choice buttons and multiple endings.";
+  }
+  if (storyTreeSceneCount) storyTreeSceneCount.textContent = `${scenes.length} scene${scenes.length === 1 ? "" : "s"}`;
+  if (storyTreeEndingCount) storyTreeEndingCount.textContent = `${endings.length} ending${endings.length === 1 ? "" : "s"}`;
+  if (storyTreeAudience) storyTreeAudience.textContent = tree.audience || "Audience";
+  storyTreeList.innerHTML = scenes.length
+    ? scenes.map((scene, index) => `
+        <button class="story-tree-item ${index === selectedSceneIndex ? "is-active" : ""}" type="button" data-tree-scene="${index}">
+          <span>${String(index + 1).padStart(2, "0")}</span>
+          <strong>${escapeHtml(scene.title || `Scene ${index + 1}`)}</strong>
+          <em>${escapeHtml(scene.outcome || scene.type || "Choice")}</em>
+        </button>
+      `).join("")
+    : `<p class="form-note">Generate the tree to see each scripted scene and ending here.</p>`;
+}
+
+function generateAutomatedStoryTree() {
+  normalizeStoryCharacters();
+  const engine = currentStoryEngineFormData();
+  const cover = { ...(storyProject.cover || {}), ...(storyProject.coverDraft || {}) };
+  const characters = storyProject.characters || [];
+  const hero = characters[0] || {};
+  const secondHero = characters[1] || {};
+  const title = cover.title || "Untitled Story Quest";
+  const heroName = hero.name || "the hero";
+  const allyName = secondHero.name || "a surprising ally";
+  const style = hero.style || cover.coverStyle || "Bright 3D game mascot";
+  const direction = engine.direction || `${heroName} enters a strange new world and must make brave, funny and meaningful choices.`;
+  const twists = engine.twists || "secret ally, false clue, hidden door";
+  const commonPrompt = [
+    `Game title: ${title}.`,
+    `Audience: ${engine.audience}. Genre: ${engine.genre}. Tone: ${engine.tone}.`,
+    `Story direction: ${direction}`,
+    `Plot twist ingredients: ${twists}.`,
+    `Hero consistency lock: ${heroName}; ${hero.type || "original hero"}; ${hero.personality || "brave and kind"}; style ${style}; visual bible: ${hero.prompt || "preserve the saved character exactly"}.`,
+    secondHero.name ? `Second hero consistency lock: ${allyName}; ${secondHero.type || "original hero"}; ${secondHero.personality || "friendly"}; style ${secondHero.style || style}; visual bible: ${secondHero.prompt || "preserve the saved second character exactly"}.` : "",
+    "Preserve eye color, face shape, ears or hair shape, outfit, accessories, proportions, art style, and clothing colors across every scene.",
+  ].filter(Boolean).join("\n");
+
+  const makeScene = (id, titleText, type, outcome, prompt, choices, x, y) => ({
+    id,
+    title: titleText,
+    prompt: `${commonPrompt}\nScene brief: ${prompt}\nImage prompt: create one polished 16:9 interactive story game scene card with clear foreground, midground and background. No readable text or logos. Leave clean lower space for UI banners and choice buttons.`,
+    camera: type === "Ending" ? "Wide cinematic reveal" : "Over-the-shoulder",
+    background: "Custom background",
+    character: secondHero.name && !["opening", "lone-risk"].includes(id) ? "Use saved character + sidekick" : "Use saved character",
+    sceneStyle: "inherit",
+    mood: outcome.includes("tragic") || outcome.includes("sad") ? "Mysterious but safe" : outcome.includes("funny") ? "Funny" : "Exciting",
+    type,
+    outcome,
+    choices: `${Math.max(choices.length, 1)} choice${choices.length === 1 ? "" : "s"}`,
+    choiceTexts: choices,
+    banner: {
+      ...(storyProject.banner || {}),
+      bannerText: prompt.slice(0, 170),
+      bannerTone: type === "Ending" ? "Narration" : "Question",
+    },
+    routes: [],
+    x,
+    y,
+  });
+
+  const full = engine.branchSize !== "starter";
+  const scenes = [
+    makeScene("opening", "The Spark", "Start scene", "opening hook", `${heroName} sees the first impossible clue and must decide how to begin.`, ["Investigate the clue", "Ask for help", "Take the risky shortcut"], 40, 60),
+    makeScene("clue", "The First Clue", "Discovery", "curious branch", `${heroName} follows the clue into a place that reveals the world is bigger than expected.`, ["Follow the glow", "Hide and listen"], 330, 20),
+    makeScene("ally", "The Trust Test", "Choice moment", "friendship branch", `${heroName} meets ${allyName}, but something about the meeting feels too perfectly timed.`, ["Trust the ally", "Test the ally"], 330, 210),
+    makeScene("shortcut", "The Shortcut Trap", "Challenge", "risky branch", `${heroName} takes a shortcut that works at first, then flips the rules of the game.`, ["Keep rushing", "Slow down"], 330, 400),
+    makeScene("twist-a", "The False Answer", "Puzzle", "plot twist", `The obvious answer turns out to be planted by someone who wants ${heroName} to choose wrong.`, ["Break the pattern", "Chase the decoy", "Save the clue"], 650, 20),
+    makeScene("twist-b", "The Ally's Secret", "Choice moment", "emotional twist", `${allyName} reveals a secret that could help everyone or put the mission at risk.`, ["Forgive them", "Walk away", "Ask why"], 650, 210),
+    makeScene("cost", "The Hidden Cost", "Challenge", "pressure twist", `The shortcut demands a trade-off: win quickly or protect something important.`, ["Choose kindness", "Choose victory", "Find a third way"], 650, 400),
+    makeScene("happy", "The Bright Win", "Ending", "happy ending", `${heroName} solves the problem with courage, kindness and a clever choice that makes the world brighter.`, ["Play again"], 980, 0),
+    makeScene("satisfying", "The Clever Finish", "Ending", "satisfying ending", `${heroName} uses the earlier clues perfectly and earns a smart, satisfying victory.`, ["Replay for another ending"], 980, 145),
+    makeScene("cliff", "The Door Still Glows", "Ending", "cliff hanger ending", `The mission is complete, but a final glowing doorway opens to tease the next chapter.`, ["Continue later"], 980, 290),
+  ];
+
+  if (full) {
+    scenes.push(
+      makeScene("sad", "The Quiet Goodbye", "Ending", "sad ending", `${heroName} saves the day but must say goodbye to something they cared about. Keep it gentle and age-safe.`, ["Try a kinder path"], 1260, 70),
+      makeScene("tragic-safe", "The Lesson Path", "Ending", "tragic but safe ending", `${heroName}'s rushed choice causes a setback, but the scene frames it as a safe lesson and a chance to retry.`, ["Try again"], 1260, 215),
+      makeScene("fulfilling", "The Full Circle", "Ending", "fulfilling ending", `${heroName} understands the true meaning of the journey and helps the whole world change for the better.`, ["Share this ending"], 1260, 360),
+      makeScene("secret", "The Hidden Chapter", "Discovery", "secret bonus twist", `${heroName} discovers a bonus scene that changes what the first clue really meant.`, ["Reveal the truth", "Keep the secret"], 650, 585),
+      makeScene("retry", "The Remix Door", "Ending", "retry ending", `A playful ending invites the player to remix choices and discover a better route.`, ["Remix the story"], 980, 515),
+    );
+  }
+
+  const connect = (source, choiceIndex, target, direction, label) => {
+    const sourceIndex = scenes.findIndex((scene) => scene.id === source);
+    const targetIndex = scenes.findIndex((scene) => scene.id === target);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+    scenes[sourceIndex].routes.push({ choiceIndex, targetIndex, direction, label });
+  };
+
+  connect("opening", 0, "clue", "right", "Investigate");
+  connect("opening", 1, "ally", "right", "Ask for help");
+  connect("opening", 2, "shortcut", "right", "Shortcut");
+  connect("clue", 0, "twist-a", "right", "Follow the glow");
+  connect("clue", 1, "twist-b", "down", "Hide and listen");
+  connect("ally", 0, "twist-b", "right", "Trust");
+  connect("ally", 1, "cost", "down", "Test");
+  connect("shortcut", 0, "cost", "right", "Rush");
+  connect("shortcut", 1, "twist-a", "up", "Slow down");
+  connect("twist-a", 0, "satisfying", "right", "Break pattern");
+  connect("twist-a", 1, "cliff", "right", "Chase decoy");
+  connect("twist-a", 2, full ? "secret" : "happy", "down", "Save clue");
+  connect("twist-b", 0, "happy", "right", "Forgive");
+  connect("twist-b", 1, full ? "sad" : "cliff", "right", "Walk away");
+  connect("twist-b", 2, full ? "fulfilling" : "satisfying", "right", "Ask why");
+  connect("cost", 0, full ? "fulfilling" : "happy", "right", "Kindness");
+  connect("cost", 1, full ? "tragic-safe" : "cliff", "right", "Victory");
+  connect("cost", 2, full ? "secret" : "satisfying", "down", "Third way");
+  if (full) {
+    connect("secret", 0, "fulfilling", "right", "Reveal truth");
+    connect("secret", 1, "retry", "right", "Keep secret");
+  }
+
+  storyProject.storyTree = {
+    title,
+    audience: engine.audience,
+    genre: engine.genre,
+    tone: engine.tone,
+    summary: `${title} now has a reusable ${scenes.length}-scene branching tree with happy, sad, cliff hanger, satisfying, fulfilling and retry outcomes.`,
+    generatedAt: new Date().toISOString(),
+    template: full ? "oprealm-full-branching-story-v1" : "oprealm-starter-branching-story-v1",
+    direction,
+    twists,
+  };
+  storyProject.scenes = scenes;
+  selectedSceneIndex = 0;
+  saveStoryProject();
+  renderStoryDashboard();
+  switchStoryTab("map");
+  if (storyEngineStatus) storyEngineStatus.textContent = `Story tree generated with ${scenes.length} scenes. Choose a scene, then load it into the image builder one at a time.`;
+}
+
+function loadSelectedSceneToBuilder() {
+  const scene = storyProject.scenes?.[selectedSceneIndex];
+  if (!scene || !storySceneForm) return;
+  storySceneForm.elements.prompt.value = scene.prompt || "";
+  storySceneForm.elements.camera.value = scene.camera || "Wide cinematic reveal";
+  storySceneForm.elements.background.value = scene.background || "Custom background";
+  storySceneForm.elements.character.value = scene.character || "Use saved character";
+  storySceneForm.elements.sceneStyle.value = scene.sceneStyle || "inherit";
+  storySceneForm.elements.mood.value = scene.mood || "Curious";
+  storySceneForm.elements.type.value = scene.type || "Choice moment";
+  storySceneForm.elements.choices.value = scene.choices || "2 choices";
+  if (storyBannerForm && scene.banner?.bannerText) {
+    storyBannerForm.elements.bannerText.value = scene.banner.bannerText;
+    storyBannerForm.elements.bannerTone.value = scene.banner.bannerTone || "Question";
+  }
+  renderSceneFormPreview();
+  renderBannerPreview();
+  switchStoryTab("scene");
+  sceneImageStatus.textContent = `Scene ${selectedSceneIndex + 1} loaded. Generate its image, approve/edit it, then move to the next scene.`;
+}
+
+function clearAutomatedStoryTree() {
+  if (!window.confirm("Clear the automated story tree and all generated story map scenes? Characters, cover and saved images stay.")) return;
+  delete storyProject.storyTree;
+  storyProject.scenes = [];
+  delete storyProject.sceneDraftImages;
+  selectedSceneIndex = 0;
+  saveStoryProject();
+  renderStoryDashboard();
+  if (storyEngineStatus) storyEngineStatus.textContent = "Story tree cleared. Generate a new automated script when ready.";
+}
+
 function startCoverLoadingSticker() {
   if (!coverLoadingSticker) return;
   coverLoadingSticker.classList.remove("is-hidden");
@@ -682,7 +879,7 @@ function renderRouteChips(scene) {
   return `
     <div class="route-chip-row">
       ${routes
-      .map((route) => `<small class="route-chip">${escapeHtml(choiceLabel(route.choiceIndex))} ${arrowForDirection(route.direction)} Scene ${Number(route.targetIndex) + 1}</small>`)
+      .map((route) => `<small class="route-chip">${escapeHtml(route.label || scene.choiceTexts?.[route.choiceIndex] || choiceLabel(route.choiceIndex))} ${arrowForDirection(route.direction)} Scene ${Number(route.targetIndex) + 1}</small>`)
       .join("")}
     </div>
   `;
@@ -1835,6 +2032,26 @@ if (clearSceneCardsButton) {
 }
 if (addBannerSceneToMapButton) {
   addBannerSceneToMapButton.addEventListener("click", addSceneFromCurrentPreview);
+}
+if (storyEngineForm) {
+  storyEngineForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    generateAutomatedStoryTree();
+  });
+}
+if (loadSelectedSceneToBuilderButton) {
+  loadSelectedSceneToBuilderButton.addEventListener("click", loadSelectedSceneToBuilder);
+}
+if (clearStoryTreeButton) {
+  clearStoryTreeButton.addEventListener("click", clearAutomatedStoryTree);
+}
+if (storyTreeList) {
+  storyTreeList.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-tree-scene]");
+    if (!item) return;
+    selectedSceneIndex = Number(item.dataset.treeScene || 0);
+    renderStoryDashboard();
+  });
 }
 
 if (bannerPreviewResizer) {

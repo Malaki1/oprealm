@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=36" />
+    <link rel="stylesheet" href="/studio.css?v=37" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=35" defer></script>
+    <script src="/story-game.js?v=36" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -73,6 +73,7 @@
         <div class="story-tabs" role="tablist" aria-label="AI Story Game sections">
           <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
           <button class="story-tab" type="button" data-story-tab="cover">Game Cover (Poster)</button>
+          <button class="story-tab" type="button" data-story-tab="engine">Story Engine (Auto Script)</button>
           <button class="story-tab" type="button" data-story-tab="scene">Scene Cards (Story Moments)</button>
           <button class="story-tab" type="button" data-story-tab="banner">Banner UI (Text Layer)</button>
           <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
@@ -332,11 +333,92 @@
           </div>
         </div>
 
+        <div class="story-tab-panel" data-story-panel="engine">
+          <div class="story-workspace story-engine-workspace">
+            <form class="story-form" id="storyEngineForm">
+              <div>
+                <p class="eyebrow">Step 3</p>
+                <h4>Automate The Branching Story</h4>
+                <p>After the cover is ready, OPREALM can turn the title, heroes, audience, genre and direction into a reusable scene-by-scene story tree.</p>
+              </div>
+              <div class="story-form-grid">
+                <label>
+                  Audience (who should enjoy it)
+                  <select name="audience">
+                    <option>Kids 6-8</option>
+                    <option selected>Kids 8-12</option>
+                    <option>Tweens 10-14</option>
+                    <option>Family play</option>
+                    <option>Cozy creators</option>
+                    <option>Adventure fans</option>
+                  </select>
+                </label>
+                <label>
+                  Genre (story type)
+                  <select name="genre">
+                    <option selected>Mystery adventure</option>
+                    <option>Fantasy quest</option>
+                    <option>Comedy chaos</option>
+                    <option>Portal adventure</option>
+                    <option>Magical school</option>
+                    <option>Sci-fi survival</option>
+                    <option>Friendship drama</option>
+                    <option>Treasure hunt</option>
+                  </select>
+                </label>
+                <label>
+                  Main feeling (tone)
+                  <select name="tone">
+                    <option selected>Exciting but safe</option>
+                    <option>Funny and chaotic</option>
+                    <option>Mysterious but not scary</option>
+                    <option>Cozy and emotional</option>
+                    <option>Epic and heroic</option>
+                  </select>
+                </label>
+                <label>
+                  Branch size
+                  <select name="branchSize">
+                    <option value="starter">Starter tree - 9 scenes</option>
+                    <option value="full" selected>Full tree - 15 scenes</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Story direction (short brief)
+                <textarea name="direction" rows="5" maxlength="900" placeholder="Example: A teen werewolf detective discovers strange moon crystals around school and must choose who to trust before the final bell."></textarea>
+              </label>
+              <label>
+                Plot twist ingredients (optional)
+                <input name="twists" maxlength="180" placeholder="secret ally, fake villain, hidden portal, lost memory" />
+              </label>
+              <div class="prompt-actions">
+                <button class="button button-primary" type="submit">Generate Story Tree</button>
+                <button class="button button-secondary" type="button" id="loadSelectedSceneToBuilderButton">Load Selected Scene Into Image Builder</button>
+                <button class="button button-secondary danger-button" type="button" id="clearStoryTreeButton">Clear Story Tree</button>
+              </div>
+              <p class="form-note" id="storyEngineStatus">Generate the tree after saving at least one hero and a game cover title. You can still edit every scene before making images.</p>
+            </form>
+
+            <article class="story-card-preview story-engine-preview">
+              <p class="eyebrow">Reusable story tree template</p>
+              <h4 id="storyTreeTitle">No automated story tree yet</h4>
+              <p id="storyTreeSummary">The engine will create opening scenes, branch scenes, plot twists, choice buttons and multiple endings.</p>
+              <div class="story-tree-stats">
+                <span id="storyTreeSceneCount">0 scenes</span>
+                <span id="storyTreeEndingCount">0 endings</span>
+                <span id="storyTreeAudience">Audience</span>
+              </div>
+              <div class="story-tree-list" id="storyTreeList"></div>
+            </article>
+          </div>
+        </div>
+
         <div class="story-tab-panel" data-story-panel="scene">
           <div class="story-workspace">
             <form class="story-form" id="storySceneForm">
               <div>
-                <p class="eyebrow">Step 2</p>
+                <p class="eyebrow">Step 4</p>
                 <h4>Create A Scene Card</h4>
               </div>
               <label>
@@ -415,6 +497,7 @@
                 <label>
                   Choice count (paths)
                   <select name="choices">
+                    <option>1 choice</option>
                     <option>2 choices</option>
                     <option>3 choices</option>
                     <option>4 choices</option>
@@ -468,7 +551,7 @@
           <div class="story-workspace story-workspace-resizable" id="bannerWorkspace">
             <form class="story-form" id="storyBannerForm">
               <div>
-                <p class="eyebrow">Step 3</p>
+                <p class="eyebrow">Step 5</p>
                 <h4>Choose The Story Text Banner</h4>
               </div>
               <label>
@@ -628,6 +711,7 @@
                   <label>
                     Choices (paths)
                     <select name="selectedChoices" id="selectedSceneChoices">
+                      <option>1 choice</option>
                       <option>2 choices</option>
                       <option>3 choices</option>
                       <option>4 choices</option>
