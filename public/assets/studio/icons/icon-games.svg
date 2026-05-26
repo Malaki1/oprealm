@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Games">
+  <defs><linearGradient id="g" x1="8" x2="56" y1="8" y2="56"><stop stop-color="#18d9ff"/><stop offset="1" stop-color="#8b43ff"/></linearGradient></defs>
+  <path fill="url(#g)" d="M17 24h30c7 0 12 6 12 13 0 8-5 14-12 14-4 0-7-2-9-5H26c-2 3-5 5-9 5-7 0-12-6-12-14 0-7 5-13 12-13Z"/>
+  <path fill="#07103a" d="M17 32h5v-5h5v5h5v5h-5v5h-5v-5h-5Zm27 4a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/>
+</svg>

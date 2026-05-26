@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Movies">
+  <defs><linearGradient id="g" x1="9" x2="55" y1="10" y2="54"><stop stop-color="#ff9f2f"/><stop offset=".5" stop-color="#e032ff"/><stop offset="1" stop-color="#18d9ff"/></linearGradient></defs>
+  <path fill="url(#g)" d="M10 17h44a6 6 0 0 1 6 6v25a6 6 0 0 1-6 6H10a6 6 0 0 1-6-6V23a6 6 0 0 1 6-6Z"/>
+  <path fill="#07103a" d="m12 17 8-9h11l-8 9Zm20 0 8-9h12l-8 9Zm-6 13 16 9-16 9Z"/>
+</svg>
