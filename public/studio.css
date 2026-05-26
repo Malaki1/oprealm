@@ -2226,6 +2226,9 @@ select option {
 
 .story-map-board {
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   overflow: auto;
   min-height: 340px;
   padding: 18px;
@@ -2316,6 +2319,11 @@ select option {
   grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
   gap: 14px;
   align-items: start;
+  min-width: 0;
+}
+
+.story-map-shell > * {
+  min-width: 0;
 }
 
 .story-map-shell.is-expanded {

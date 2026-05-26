@@ -506,9 +506,10 @@ function renderStoryDashboard() {
 
   storyMapBoard.classList.toggle("is-move-mode", activeMapTool === "move");
   storyMapBoard.classList.toggle("is-connect-mode", activeMapTool === "connect");
-  const mapWidth = scenes.length ? Math.max(720, ...scenes.map((scene) => Number(scene.x || 0) + 300)) : 720;
+  const mapWidth = scenes.length ? Math.max(980, ...scenes.map((scene) => Number(scene.x || 0) + 560)) : 980;
   const mapHeight = scenes.length ? Math.max(360, ...scenes.map((scene) => Number(scene.y || 0) + 220)) : 360;
-  storyMapBoard.style.minWidth = `${mapWidth}px`;
+  storyMapBoard.style.width = "100%";
+  storyMapBoard.style.minWidth = "0";
   storyMapBoard.style.minHeight = `${mapHeight}px`;
   const storyNodeMarkup = scenes.length
     ? `${renderStoryMapConnectors(scenes, mapWidth, mapHeight)}${scenes
