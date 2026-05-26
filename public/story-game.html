@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=40" />
+    <link rel="stylesheet" href="/studio.css?v=41" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=40" defer></script>
+    <script src="/story-game.js?v=41" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -40,7 +40,7 @@
           <div>
             <p class="eyebrow">Project dashboard</p>
             <h3>AI Story Game Workspace</h3>
-            <p>Start with a character, then build scene cards and connect choices into different outcomes.</p>
+            <p>Start with a character, plan the story tree, then create artwork for every playable scene.</p>
           </div>
           <span class="status-pill">Draft saved locally</span>
         </div>
@@ -75,7 +75,7 @@
           <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
           <button class="story-tab" type="button" data-story-tab="cover">Game Cover (Poster)</button>
           <button class="story-tab" type="button" data-story-tab="engine">Story Engine (Auto Script)</button>
-          <button class="story-tab" type="button" data-story-tab="scene">Scene Cards (Story Moments)</button>
+          <button class="story-tab" type="button" data-story-tab="scene">Scene Art (Story Images)</button>
           <button class="story-tab" type="button" data-story-tab="banner">Banner UI (Text Layer)</button>
           <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
           <button class="story-tab" type="button" data-story-tab="preview">Preview (Test Play)</button>
@@ -421,7 +421,8 @@
             <form class="story-form" id="storySceneForm">
               <div>
                 <p class="eyebrow">Step 4</p>
-                <h4>Create A Scene Card</h4>
+                <h4>Create Scene Art For One Story Moment</h4>
+                <p>Use this step to turn each story-map box into a 16:9 visual scene. Create one image, save it, then move to the next story moment.</p>
               </div>
               <label>
                 Scene prompt (what happens)
@@ -516,10 +517,10 @@
               </label>
               <p class="form-note" id="sceneStyleLockNote">Scene images will inherit the saved character style.</p>
               <div class="prompt-actions">
-                <button class="button button-primary" type="submit">Add Scene Card (Story Moment)</button>
+                <button class="button button-primary" type="submit">Save Scene Moment</button>
                 <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Image (Artwork)</button>
                 <button class="button button-secondary" type="button" id="scenePromptButton">Create Scene Prompt (AI Instructions)</button>
-                <button class="button button-secondary danger-button" type="button" id="clearSceneCardsButton">Clear Previous Scenes (Story Moments)</button>
+                <button class="button button-secondary danger-button" type="button" id="clearSceneCardsButton">Clear Scene Images And Moments</button>
               </div>
               <p class="form-note" id="sceneImageStatus"></p>
             </form>
@@ -527,8 +528,8 @@
             <div class="scene-preview-stack">
               <article class="scene-responsive-preview">
                 <div>
-                  <p class="eyebrow">16:9 scene card preview (wide game view)</p>
-                  <h4>Build wide cinematic scene cards.</h4>
+                  <p class="eyebrow">16:9 scene image preview (wide game view)</p>
+                  <h4>Build wide cinematic story images.</h4>
                 </div>
                 <div class="scene-preview-pair scene-preview-single">
                   <div class="scene-preview-frame web-view">
@@ -540,7 +541,7 @@
                   </div>
                 </div>
                 <div class="scene-preview-actions">
-                  <button class="button button-secondary" type="button" id="createNextSceneButton">Create Next Scene (Next Story Moment)</button>
+                  <button class="button button-secondary" type="button" id="createNextSceneButton">Create Next Story Moment</button>
                   <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Image (Artwork)</button>
                 </div>
               </article>
@@ -756,7 +757,7 @@
           <article class="story-player">
             <p class="eyebrow">Playable preview (test play)</p>
             <h4 id="storyPreviewTitle">Your story will appear here</h4>
-            <p id="storyPreviewText">Create a character and at least one scene card to preview the pick-a-path flow.</p>
+            <p id="storyPreviewText">Create a character and at least one scene image to preview the pick-a-path flow.</p>
             <div id="storyPreviewChoices" class="story-choice-row"></div>
           </article>
         </div>
@@ -764,7 +765,7 @@
         <div class="story-tab-panel" data-story-panel="publish">
           <div class="publish-checklist">
             <article><span>01</span><strong>Character saved</strong><p id="checkCharacter">Not ready yet</p></article>
-            <article><span>02</span><strong>Scene cards (story moments)</strong><p id="checkScenes">Add at least 3 scene cards</p></article>
+            <article><span>02</span><strong>Scene art (story images)</strong><p id="checkScenes">Add at least 3 visual scenes</p></article>
             <article><span>03</span><strong>Safety check</strong><p>No personal info, DMs, school names or unsafe choices.</p></article>
             <article><span>04</span><strong>Library submission</strong><p>When ready, submit through the Publish section below.</p></article>
           </div>

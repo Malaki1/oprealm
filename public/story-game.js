@@ -502,7 +502,7 @@ function renderStoryDashboard() {
         `,
       )
       .join("")
-    : `<article class="scene-card empty"><strong>No scene cards yet</strong><p>Create the start scene first.</p></article>`;
+    : `<article class="scene-card empty"><strong>No scene art yet</strong><p>Create the first visual story moment to begin.</p></article>`;
 
   storyMapBoard.classList.toggle("is-move-mode", activeMapTool === "move");
   storyMapBoard.classList.toggle("is-connect-mode", activeMapTool === "connect");
@@ -547,13 +547,13 @@ function renderStoryDashboard() {
 
   const firstScene = scenes[0];
   storyPreviewTitle.textContent = firstScene?.title || "Your story will appear here";
-  storyPreviewText.textContent = firstScene ? sceneStoryText(firstScene) : "Create a character and at least one scene card to preview the pick-a-path flow.";
+  storyPreviewText.textContent = firstScene ? sceneStoryText(firstScene) : "Create a character and at least one scene image to preview the pick-a-path flow.";
   storyPreviewChoices.innerHTML = firstScene
     ? Array.from({ length: choiceCountForScene(firstScene) }, (_, index) => `<button class="button button-secondary" type="button">${escapeHtml(firstScene.choiceTexts?.[index] || choiceLabel(index))}</button>`).join("")
     : "";
 
   checkCharacter.textContent = character.name ? `${characters.filter((item) => item?.name).length || 1} hero character${characters.filter((item) => item?.name).length === 1 ? "" : "s"} ready` : "Not ready yet";
-  checkScenes.textContent = scenes.length >= 3 ? "Ready for preview" : `Add ${Math.max(3 - scenes.length, 0)} more scene card${3 - scenes.length === 1 ? "" : "s"}`;
+  checkScenes.textContent = scenes.length >= 3 ? "Ready for preview" : `Add ${Math.max(3 - scenes.length, 0)} more visual scene${3 - scenes.length === 1 ? "" : "s"}`;
   renderSceneFormPreview();
   renderBannerPreview();
   hydrateStoryImages();
@@ -1083,7 +1083,7 @@ function resetSceneBuilderForNext() {
 }
 
 function clearSceneCards() {
-  if (!window.confirm("Clear all saved scene cards from this story project? Characters and banner styles will stay saved.")) return;
+  if (!window.confirm("Clear all saved scene images and story moments from this project? Characters and banner styles will stay saved.")) return;
   storyProject.scenes = [];
   delete storyProject.sceneDraftImages;
   delete storyProject.bannerDraft;
@@ -1093,7 +1093,7 @@ function clearSceneCards() {
   saveStoryProject();
   renderStoryDashboard();
   switchStoryTab("scene");
-  sceneImageStatus.textContent = "Saved scene cards cleared. Characters were left untouched.";
+  sceneImageStatus.textContent = "Saved scene images and story moments cleared. Characters were left untouched.";
 }
 
 function addSceneFromCurrentPreview({ stayOnSceneTab = true, prepareNext = false } = {}) {
@@ -1443,7 +1443,7 @@ function renderUiKitSceneStack() {
         <strong>${String(index + 1).padStart(2, "0")}</strong>
       </button>
     `).join("")
-    : `<p class="form-note">Saved scene cards will stack here.</p>`;
+    : `<p class="form-note">Saved scene images will stack here in story order.</p>`;
   hydrateStoryImages(uiKitSceneStack);
 }
 
