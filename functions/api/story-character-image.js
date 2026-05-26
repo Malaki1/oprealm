@@ -2,7 +2,6 @@ import { requireUser } from "../_lib/auth.js";
 import {
   assertRateLimit,
   createGenerationJob,
-  findCachedJob,
   findIdempotentJob,
   jobResponse,
   markJobCompleted,
@@ -36,9 +35,6 @@ export async function onRequestPost({ request, env }) {
     const existingJob = await findIdempotentJob(env, user.id, CHARACTER_TOOL, idempotencyKey);
     if (existingJob) return json(jobResponse(existingJob));
 
-    const cachedJob = await findCachedJob(env, user.id, CHARACTER_TOOL, promptHash);
-    if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
-
     await assertRateLimit(env, user.id, CHARACTER_TOOL, { limit: 8, windowSeconds: 60 });
 
     const jobId = crypto.randomUUID();
@@ -56,7 +52,7 @@ export async function onRequestPost({ request, env }) {
       },
     });
 
-    await processCharacterImageJob(env, {
+    const imageResult = await processCharacterImageJob(env, {
       jobId,
       user,
       prompt,
@@ -64,7 +60,11 @@ export async function onRequestPost({ request, env }) {
     });
 
     const completedJob = await env.OPREALM_DB.prepare("SELECT * FROM generation_jobs WHERE id = ? LIMIT 1").bind(jobId).first();
-    return json(jobResponse(completedJob));
+    return json({
+      ...jobResponse(completedJob),
+      ...imageResult,
+      cached: false,
+    });
   } catch (error) {
     return json({ ok: false, error: error.message || "Character image generation failed." }, error.status || 500);
   }
@@ -85,13 +85,20 @@ async function processCharacterImageJob(env, { jobId, user, prompt }) {
     };
     await logAiUsage(env, user, prompt, result);
     await markJobCompleted(env, jobId, {
-      result: responseResult,
+      result: {
+        creditsUsed: CHARACTER_IMAGE_COST,
+        model: result.model,
+        quality: result.quality,
+        imageReturnedDirectly: true,
+      },
       creditsCharged: CHARACTER_IMAGE_COST,
       model: result.model,
       quality: result.quality,
     });
+    return responseResult;
   } catch (error) {
     await markJobFailed(env, jobId, error);
+    throw error;
   }
 }
 

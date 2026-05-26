@@ -1879,6 +1879,9 @@ async function generateCharacterImage({ variation = false } = {}) {
     if (result.status === "queued" || result.status === "processing") {
       result = await waitForGenerationJob(result.jobId);
     }
+    if (result.status === "failed") {
+      throw new Error(result.error || "Character image generation failed.");
+    }
     if (!result.imageDataUrl) throw new Error("Character image result was empty.");
 
     storyProject.characterDrafts[activeHeroIndex] = {
