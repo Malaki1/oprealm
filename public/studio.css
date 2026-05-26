@@ -3225,9 +3225,11 @@ body.story-map-open .story-map-tools {
 }
 
 .launcher-header .button-primary {
+  align-items: center;
   min-height: 40px;
-  padding: 0 20px;
+  padding: 2px 20px 0;
   border-radius: 12px;
+  line-height: 1;
   box-shadow: 0 14px 30px rgba(61, 124, 255, 0.24);
 }
 
