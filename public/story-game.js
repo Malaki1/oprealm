@@ -244,6 +244,19 @@ async function loadStoryImage(value) {
   return image;
 }
 
+async function deleteStoryImage(value) {
+  if (!value || !String(value).startsWith(STORY_IMAGE_REF_PREFIX)) return;
+  const id = String(value).slice(STORY_IMAGE_REF_PREFIX.length);
+  const db = await openStoryImageDb();
+  await new Promise((resolve, reject) => {
+    const transaction = db.transaction("images", "readwrite");
+    transaction.objectStore("images").delete(id);
+    transaction.oncomplete = resolve;
+    transaction.onerror = () => reject(transaction.error);
+  });
+  db.close();
+}
+
 function imageMarkup(value, alt, className = "") {
   if (!value) return "";
   if (String(value).startsWith(STORY_IMAGE_REF_PREFIX)) {
@@ -279,13 +292,17 @@ async function setFrameImageFromStoredValue(frame, value) {
   if (enlargeButton) {
     enlargeButton.hidden = !imageDataUrl;
     enlargeButton.dataset.imageSrc = imageDataUrl || "";
+    if (imageDataUrl) {
+      enlargeButton.dataset.lightboxTitle = frame.dataset.lightboxTitle || enlargeButton.dataset.lightboxTitle || "16:9 scene card preview";
+      enlargeButton.dataset.downloadName = frame.dataset.downloadName || enlargeButton.dataset.downloadName || "oprealm-scene-preview.png";
+    }
   }
   const downloadButton = frame.querySelector("[data-download-scene-image]");
   if (downloadButton) {
     downloadButton.hidden = !imageDataUrl;
     if (imageDataUrl) {
       downloadButton.dataset.imageSrc = imageDataUrl;
-      downloadButton.dataset.downloadName = "oprealm-scene-preview.png";
+      downloadButton.dataset.downloadName = frame.dataset.downloadName || downloadButton.dataset.downloadName || "oprealm-scene-preview.png";
     } else {
       delete downloadButton.dataset.imageSrc;
       delete downloadButton.dataset.downloadName;
@@ -570,14 +587,8 @@ function renderCoverSetup() {
 function renderCoverPreview(cover = currentCoverFormData()) {
   if (!gameCoverPreview) return;
   const title = cover.title || "Untitled Quest";
-  const tagline = cover.tagline || "Create a character, title and vibe to begin.";
-  const vibe = cover.vibe || "Game vibe";
-  if (coverLogoPreview) {
-    coverLogoPreview.textContent = title;
-    coverLogoPreview.dataset.logoStyle = cover.logoStyle || "Bold premium game logo";
-  }
-  if (coverTaglinePreview) coverTaglinePreview.textContent = tagline;
-  if (coverVibePill) coverVibePill.textContent = vibe;
+  gameCoverPreview.dataset.lightboxTitle = `${title} game cover`;
+  gameCoverPreview.dataset.downloadName = downloadFileName(`oprealm-cover-${title}`);
   setFrameImageFromStoredValue(gameCoverPreview, cover.imageDataUrl);
   gameCoverPreview.classList.toggle("has-generated-image", Boolean(cover.imageDataUrl));
 }
@@ -590,13 +601,12 @@ function buildCoverPrompt(data = currentCoverFormData()) {
   return [
     "Create safe premium cover art for an original OPREALM AI story game.",
     "Format: vertical AAA-style game cover/poster artwork for a major console or PC game, dramatic composition, polished marketing art, strong focal character, cinematic lighting.",
-    "Do not include readable text, logos, platform badges, real brands, copyrighted characters, real children, personal information, gore, romance, bullying, or scary realism.",
-    "Leave clean space near the top for OPREALM to overlay the game title/logo later.",
-    `Game title for overlay context: ${data.title || "Untitled Quest"}`,
-    `Tagline for overlay context: ${data.tagline || "A new adventure begins."}`,
+    `Include one original stylized title/logo on the cover using this exact game title if possible: ${data.title || "Untitled Quest"}.`,
+    `Optional short tagline only if it fits naturally: ${data.tagline || "A new adventure begins."}`,
+    "Do not add any other readable text, platform badges, real brands, copyrighted characters, real children, personal information, gore, romance, bullying, or scary realism.",
     `Game vibe: ${data.vibe || "Portal Adventure"}`,
     `Cover style: ${data.coverStyle || "Premium console game cover"}`,
-    `Title logo style for the web overlay: ${data.logoStyle || "Bold premium game logo"}`,
+    `Title/logo word art style: ${data.logoStyle || "Bold premium game logo"}`,
     `Mood: ${data.mood || "Epic and exciting"}`,
     hero.name ? `Main hero: ${hero.name}, ${hero.type || "original hero"}, ${hero.personality || "brave and kind"}, visual style ${hero.style || "locked project style"}.` : "Main hero: use an original kid-safe hero with a memorable silhouette.",
     hero.prompt ? `Main hero design bible: ${hero.prompt}` : "",
@@ -2047,20 +2057,26 @@ async function generateSceneImages() {
 async function generateGameCover() {
   if (!storyCoverForm || !generateCoverButton || !coverImageStatus) return;
   const data = currentCoverFormData();
-  const prompt = data.coverPrompt || buildCoverPrompt(data);
+  const prompt = buildCoverPrompt(data);
   coverPromptInput.value = prompt;
-  storyProject.coverDraft = { ...data, coverPrompt: prompt };
-  renderCoverPreview(storyProject.coverDraft);
+  const previousCoverImage = storyProject.cover?.imageDataUrl || storyProject.coverDraft?.imageDataUrl;
   generateCoverButton.disabled = true;
   startCoverLoadingSticker();
-  coverImageStatus.textContent = "Generating a premium game cover. Tiny dance break in progress...";
   try {
+    await deleteStoryImage(previousCoverImage);
+    storyProject.cover = { ...data, coverPrompt: prompt, imageDataUrl: "" };
+    storyProject.coverDraft = { ...data, coverPrompt: prompt, imageDataUrl: "" };
+    saveStoryProject();
+    renderCoverPreview(storyProject.coverDraft);
+    coverImageStatus.textContent = "Old cover cleared. Generating a fresh premium game cover...";
     const response = await fetch("/api/story-game-cover", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      cache: "no-store",
       body: JSON.stringify({
         ...data,
         coverPrompt: prompt,
+        requestId: crypto.randomUUID?.() || String(Date.now()),
         characterName: storyProject.characters?.[0]?.name || storyProject.character?.name || "",
         characterPrompt: storyProject.characters?.[0]?.prompt || storyProject.character?.prompt || "",
         characterStyle: storyProject.characters?.[0]?.style || storyProject.character?.style || "",

@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=38" />
+    <link rel="stylesheet" href="/studio.css?v=39" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=38" defer></script>
+    <script src="/story-game.js?v=39" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -325,11 +325,12 @@
             <article class="story-card-preview cover-preview-card">
               <p class="eyebrow">Game cover preview</p>
               <div class="game-cover-preview" id="gameCoverPreview">
-                <span class="cover-vibe-pill" id="coverVibePill">Game vibe (genre mood)</span>
-                <div class="cover-logo-preview" id="coverLogoPreview">Untitled Quest</div>
-                <p id="coverTaglinePreview">Create a character, title and vibe to begin.</p>
+                <div class="cover-preview-actions" aria-label="Cover image actions">
+                  <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="cover" hidden>Enlarge</button>
+                  <button class="scene-image-download-button" type="button" data-download-scene-image="cover" aria-label="Download cover image" hidden>&#8595;</button>
+                </div>
               </div>
-              <p class="form-note">The AI creates the poster art. OPREALM places the title/logo layer on top so the words stay crisp.</p>
+              <p class="form-note">The AI creates the poster art and title/logo together so the cover is ready as one image.</p>
             </article>
           </div>
         </div>
