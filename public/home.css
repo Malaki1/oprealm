@@ -218,9 +218,9 @@ p {
 }
 
 h1 {
-  max-width: 650px;
+  max-width: 560px;
   margin-bottom: 24px;
-  font-size: clamp(3.4rem, 6vw, 6.8rem);
+  font-size: clamp(3.2rem, 5.2vw, 5.4rem);
   line-height: 0.95;
   letter-spacing: 0;
 }
@@ -333,47 +333,47 @@ h1 span {
 .hero-world-art {
   background-image:
     linear-gradient(90deg, rgba(3, 7, 22, 0.12), transparent 42%),
-    url("/assets/home-hero-world.png");
+    url("/assets/homepage/hero/main-hero-world.png?v=2");
 }
 
 .path-roblox {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-roblox.png");
+  background-image: linear-gradient(180deg, transparent 48%, rgba(3, 7, 22, 0.74)), url("/assets/homepage/cards/roblox-worlds.png?v=2");
 }
 
 .path-story {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-story-games.png");
+  background-image: linear-gradient(180deg, transparent 48%, rgba(3, 7, 22, 0.74)), url("/assets/homepage/cards/story-games.png?v=2");
 }
 
 .path-music {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-music-sound.png");
+  background-image: linear-gradient(180deg, transparent 48%, rgba(3, 7, 22, 0.74)), url("/assets/homepage/cards/music-sound.png?v=2");
 }
 
 .path-movies {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-ai-movies.png");
+  background-image: linear-gradient(180deg, transparent 48%, rgba(3, 7, 22, 0.74)), url("/assets/homepage/cards/ai-movies.png?v=2");
 }
 
 .path-art {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.4)), url("/assets/home-path-art-studio.png");
+  background-image: linear-gradient(180deg, transparent 48%, rgba(3, 7, 22, 0.74)), url("/assets/homepage/cards/art-studio.png?v=2");
 }
 
 .world-lava {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/project-obby-adventure-cover.png");
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/homepage/thumbnails/lava-escape.png?v=2");
 }
 
 .world-pets {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/ai-story-games-cover.png");
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/homepage/thumbnails/fantasy-story.png");
 }
 
 .world-haunted {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.55)), url("/assets/project-dragon-realm-cover.png");
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.55)), url("/assets/homepage/thumbnails/neon-beat.png");
 }
 
 .world-space {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/project-space-shooter-cover.png");
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/homepage/thumbnails/space-adventure.png");
 }
 
 .world-dragon {
-  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/project-pixel-quest-cover.png");
+  background-image: linear-gradient(180deg, transparent 58%, rgba(3, 7, 22, 0.5)), url("/assets/homepage/thumbnails/dragon-quest.png");
 }
 
 .home-section {
@@ -455,6 +455,12 @@ h1 span {
 .path-image {
   min-height: 182px;
   margin-bottom: 16px;
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.path-card:hover .path-image {
+  filter: saturate(1.12) brightness(1.08);
+  transform: scale(1.03);
 }
 
 .path-card h3,
@@ -499,6 +505,9 @@ h1 span {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(141, 71, 255, 0.9));
   box-shadow: 0 0 28px rgba(141, 71, 255, 0.55);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 78%;
 }
 
 .card-icon::before,
@@ -509,6 +518,10 @@ h1 span {
   height: 26px;
   border: 3px solid #fff;
   border-radius: 8px;
+}
+
+.card-icon::before {
+  display: none;
 }
 
 .gamepad::before {
@@ -552,9 +565,11 @@ h1 span {
     2px 6px 0 -3px #fff;
 }
 
-.music { background: radial-gradient(circle, rgba(255,255,255,.18), rgba(51,225,145,.88)); }
-.film { background: radial-gradient(circle, rgba(255,255,255,.18), rgba(141,71,255,.88)); }
-.palette { background: radial-gradient(circle, rgba(255,255,255,.18), rgba(255,105,56,.88)); }
+.gamepad { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(34,215,255,.58)), url("/assets/homepage/tools/obby-builder.png"); }
+.book { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,85,214,.58)), url("/assets/homepage/tools/story-games.png"); }
+.music { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(51,225,145,.58)), url("/assets/homepage/tools/music-studio.png"); }
+.film { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(141,71,255,.58)), url("/assets/homepage/tools/movie-maker.png"); }
+.palette { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,105,56,.58)), url("/assets/homepage/tools/ai-magic.png"); }
 
 .flow-track {
   display: grid;
@@ -591,6 +606,27 @@ h1 span {
   border-radius: 50%;
   background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 32%), linear-gradient(135deg, var(--purple), var(--blue));
   box-shadow: 0 0 34px rgba(141, 71, 255, 0.45);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 72%;
+}
+
+.orb::before {
+  display: none;
+}
+
+.orb.lightbulb { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(141,71,255,.7)), url("/assets/homepage/tools/imagine.png"); }
+.orb.cube { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(63,125,255,.7)), url("/assets/homepage/tools/generate.png"); }
+.orb.pencil { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(51,225,145,.7)), url("/assets/homepage/tools/remix.png"); }
+.orb.rocket { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,85,214,.7)), url("/assets/homepage/tools/publish.png"); }
+
+.tool-image-slot.is-asset-icon {
+  background:
+    radial-gradient(circle at 50% 56%, rgba(34, 215, 255, 0.16), transparent 55%),
+    rgba(255, 255, 255, 0.035);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
 }
 
 .tool-strip {
@@ -639,21 +675,42 @@ h1 span {
   text-shadow: 0 0 18px rgba(255, 255, 255, 0.36);
 }
 
-.tool-obby::after { content: "\25B2"; transform: translateY(-2px); }
-.tool-npc::after { content: "\25C9"; border-radius: 50%; }
-.tool-terrain::after { content: "\25E2"; color: #76ffbd; }
-.tool-music::after { content: "\266B"; color: #ff78df; }
-.tool-movie::after { content: "\25B6"; color: #a8f4ff; }
-.tool-assets::after { content: "\25C8"; color: #ffc75a; }
-.tool-code::after { content: "</>"; font-size: 1.45rem; }
+.tool-obby,
+.tool-npc,
+.tool-terrain,
+.tool-music,
+.tool-movie,
+.tool-assets,
+.tool-code {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
 
-.tool-obby::before { background: linear-gradient(135deg, #32e6ff, #8057ff 58%, #ff7c35); }
-.tool-npc::before { background: linear-gradient(135deg, #35f2b0, #3f7dff 58%, #8d47ff); }
-.tool-terrain::before { background: linear-gradient(135deg, #61ec81, #22d7ff 58%, #3f7dff); }
-.tool-music::before { background: linear-gradient(135deg, #ff55d6, #8d47ff 58%, #22d7ff); }
-.tool-movie::before { background: linear-gradient(135deg, #8d47ff, #3f7dff 58%, #ff55d6); }
-.tool-assets::before { background: linear-gradient(135deg, #ffc75a, #ff7c35 58%, #8d47ff); }
-.tool-code::before { background: linear-gradient(135deg, #22d7ff, #33e191 58%, #8d47ff); }
+.tool-obby::before,
+.tool-obby::after,
+.tool-npc::before,
+.tool-npc::after,
+.tool-terrain::before,
+.tool-terrain::after,
+.tool-music::before,
+.tool-music::after,
+.tool-movie::before,
+.tool-movie::after,
+.tool-assets::before,
+.tool-assets::after,
+.tool-code::before,
+.tool-code::after {
+  display: none;
+}
+
+.tool-obby { background-image: url("/assets/homepage/tools/obby-builder.png"); }
+.tool-npc { background-image: url("/assets/homepage/tools/npc-creator.png"); }
+.tool-terrain { background-image: url("/assets/homepage/tools/terrain-generator.png"); }
+.tool-music { background-image: url("/assets/homepage/tools/music-studio.png"); }
+.tool-movie { background-image: url("/assets/homepage/tools/movie-maker.png"); }
+.tool-assets { background-image: url("/assets/homepage/tools/asset-library.png"); }
+.tool-code { background-image: url("/assets/homepage/tools/code-lab.png"); }
 
 .tool-strip h3 {
   font-size: 0.92rem;
@@ -708,6 +765,20 @@ h1 span {
   border-radius: 18px;
   background: rgba(34, 215, 255, 0.08);
   box-shadow: 0 0 34px rgba(34, 215, 255, 0.16);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 88%;
+}
+
+.line-icon::before {
+  display: none;
+}
+
+.line-icon.shield { background-image: url("/assets/homepage/safety/child-safe.png"); }
+.line-icon.eye { background-image: url("/assets/homepage/safety/monitored.png"); }
+.line-icon.lock { background-image: url("/assets/homepage/safety/no-messaging.png"); }
+.line-icon.sliders { background-image: url("/assets/homepage/safety/controls.png"); }
+.line-icon.users { background-image: url("/assets/homepage/safety/age-appropriate.png"); }
 }
 
 .membership-section {
@@ -753,14 +824,14 @@ h1 span {
 .membership-art {
   background-image:
     linear-gradient(180deg, rgba(3, 7, 22, 0.08), rgba(3, 7, 22, 0.5)),
-    url("/assets/roblox-creator-world.png");
+    url("/assets/homepage/cards/roblox-worlds.png");
   background-position: center;
 }
 
 .mascot-art {
   background-image:
     radial-gradient(circle at 50% 64%, rgba(141, 71, 255, 0.42), transparent 30%),
-    url("/assets/oprealm-ai-coach-small.png");
+    url("/assets/homepage/mascot/orbit.png");
   background-size: 120%, contain;
   background-repeat: no-repeat;
   background-position: center, center;
@@ -841,7 +912,7 @@ h1 span {
   border-radius: 18px;
   background-image:
     linear-gradient(90deg, rgba(3, 7, 22, 0.1), rgba(3, 7, 22, 0.46)),
-    url("/assets/home-hero-world.png");
+    url("/assets/homepage/cta/creator-world-banner.png");
   background-position: center;
 }
 
@@ -979,7 +1050,7 @@ h1 span {
   }
 
   h1 {
-    font-size: 3.2rem;
+    font-size: 3.05rem;
   }
 
   .hero {
