@@ -496,18 +496,18 @@ h1 span {
 
 .card-icon {
   position: absolute;
-  right: 18px;
-  bottom: 18px;
+  right: 14px;
+  bottom: 14px;
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 74px;
+  height: 74px;
   place-items: center;
-  border-radius: 50%;
-  background-color: rgba(6, 12, 34, 0.42);
-  box-shadow: 0 0 28px rgba(141, 71, 255, 0.45);
+  border-radius: 0;
+  background-color: transparent;
+  filter: drop-shadow(0 0 16px rgba(141, 71, 255, 0.58));
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 128%;
+  background-size: contain;
 }
 
 .card-icon::before,
@@ -598,17 +598,17 @@ h1 span {
 
 .orb {
   display: grid;
-  width: 92px;
-  height: 92px;
+  width: 106px;
+  height: 106px;
   place-items: center;
   margin: 0 auto 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 50%;
-  background-color: rgba(6, 12, 34, 0.3);
-  box-shadow: 0 0 34px rgba(141, 71, 255, 0.45);
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(141, 71, 255, 0.55));
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 138%;
+  background-size: contain;
 }
 
 .orb::before {
