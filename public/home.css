@@ -503,11 +503,11 @@ h1 span {
   height: 58px;
   place-items: center;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2), rgba(141, 71, 255, 0.9));
-  box-shadow: 0 0 28px rgba(141, 71, 255, 0.55);
+  background-color: rgba(6, 12, 34, 0.42);
+  box-shadow: 0 0 28px rgba(141, 71, 255, 0.45);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 78%;
+  background-size: 128%;
 }
 
 .card-icon::before,
@@ -565,11 +565,11 @@ h1 span {
     2px 6px 0 -3px #fff;
 }
 
-.gamepad { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(34,215,255,.58)), url("/assets/homepage/tools/obby-builder.png"); }
-.book { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,85,214,.58)), url("/assets/homepage/tools/story-games.png"); }
-.music { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(51,225,145,.58)), url("/assets/homepage/tools/music-studio.png"); }
-.film { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(141,71,255,.58)), url("/assets/homepage/tools/movie-maker.png"); }
-.palette { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,105,56,.58)), url("/assets/homepage/tools/ai-magic.png"); }
+.gamepad { background-image: url("/assets/homepage/tools/obby-builder.png"); }
+.book { background-image: url("/assets/homepage/tools/story-games.png"); }
+.music { background-image: url("/assets/homepage/tools/music-studio.png"); }
+.film { background-image: url("/assets/homepage/tools/movie-maker.png"); }
+.palette { background-image: url("/assets/homepage/tools/ai-magic.png"); }
 
 .flow-track {
   display: grid;
@@ -598,27 +598,27 @@ h1 span {
 
 .orb {
   display: grid;
-  width: 86px;
-  height: 86px;
+  width: 92px;
+  height: 92px;
   place-items: center;
   margin: 0 auto 16px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 32%), linear-gradient(135deg, var(--purple), var(--blue));
+  background-color: rgba(6, 12, 34, 0.3);
   box-shadow: 0 0 34px rgba(141, 71, 255, 0.45);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 72%;
+  background-size: 138%;
 }
 
 .orb::before {
   display: none;
 }
 
-.orb.lightbulb { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(141,71,255,.7)), url("/assets/homepage/tools/imagine.png"); }
-.orb.cube { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(63,125,255,.7)), url("/assets/homepage/tools/generate.png"); }
-.orb.pencil { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(51,225,145,.7)), url("/assets/homepage/tools/remix.png"); }
-.orb.rocket { background-image: radial-gradient(circle, rgba(255,255,255,.2), rgba(255,85,214,.7)), url("/assets/homepage/tools/publish.png"); }
+.orb.lightbulb { background-image: url("/assets/homepage/tools/imagine.png"); }
+.orb.cube { background-image: url("/assets/homepage/tools/generate.png"); }
+.orb.pencil { background-image: url("/assets/homepage/tools/remix.png"); }
+.orb.rocket { background-image: url("/assets/homepage/tools/publish.png"); }
 
 .tool-image-slot.is-asset-icon {
   background:
@@ -756,18 +756,18 @@ h1 span {
 
 .line-icon {
   display: grid;
-  width: 68px;
-  height: 68px;
+  width: 78px;
+  height: 78px;
   place-items: center;
   margin: 0 auto 20px;
   color: var(--cyan);
   border: 1px solid rgba(34, 215, 255, 0.24);
   border-radius: 18px;
-  background: rgba(34, 215, 255, 0.08);
+  background-color: rgba(34, 215, 255, 0.08);
   box-shadow: 0 0 34px rgba(34, 215, 255, 0.16);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: 88%;
+  background-size: 118%;
 }
 
 .line-icon::before {
@@ -775,6 +775,12 @@ h1 span {
 }
 
 .line-icon.shield { background-image: url("/assets/homepage/safety/child-safe.png"); }
+.line-icon.eye,
+.line-icon.lock,
+.line-icon.sliders,
+.line-icon.users {
+  background-size: 330%;
+}
 .line-icon.eye { background-image: url("/assets/homepage/safety/monitored.png"); }
 .line-icon.lock { background-image: url("/assets/homepage/safety/no-messaging.png"); }
 .line-icon.sliders { background-image: url("/assets/homepage/safety/controls.png"); }
