@@ -13,7 +13,7 @@ import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/
 
 const TOOL = "roblox_obby_plan";
 const PLAN_VERSION = "obby-plan-v3";
-const THEMES = ["Volcano", "Candy", "Space", "Cyber", "Jungle"];
+const THEMES = ["Jungle", "Space", "Candy", "Volcano", "Cyber", "Ice", "Pirate", "Sky", "Dinosaur", "Haunted"];
 const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const OBSTACLES = [
   "Moving platforms",
@@ -30,6 +30,11 @@ const THEME_KEYWORDS = [
   ["Space", ["space", "planet", "alien", "asteroid", "moon", "laser", "galaxy", "rocket"]],
   ["Cyber", ["cyber", "neon", "robot", "tech", "hacker", "glitch", "laser", "future"]],
   ["Jungle", ["jungle", "temple", "vine", "monkey", "tree", "swamp", "ruins", "snake"]],
+  ["Ice", ["ice", "snow", "frozen", "crystal", "winter", "frost", "glacier"]],
+  ["Pirate", ["pirate", "treasure", "ship", "island", "cannon", "map", "gold"]],
+  ["Sky", ["sky", "cloud", "floating", "castle", "air", "kingdom", "angel"]],
+  ["Dinosaur", ["dinosaur", "dino", "fossil", "jurassic", "raptor", "prehistoric"]],
+  ["Haunted", ["haunted", "ghost", "spooky", "mansion", "pumpkin", "moon", "cobweb"]],
 ];
 
 const OBSTACLE_KEYWORDS = [
@@ -209,7 +214,12 @@ function detectObstacles(prompt, theme, difficulty) {
     Space: ["Moving platforms", "Speed boosts", "Conveyor belts"],
     Cyber: ["Conveyor belts", "Spinning hammers", "Disappearing platforms"],
     Jungle: ["Moving platforms", "Spinning hammers", "Lava jumps"],
-  }[theme];
+    Ice: ["Disappearing platforms", "Speed boosts", "Moving platforms"],
+    Pirate: ["Moving platforms", "Conveyor belts", "Spinning hammers"],
+    Sky: ["Moving platforms", "Speed boosts", "Disappearing platforms"],
+    Dinosaur: ["Moving platforms", "Spinning hammers", "Lava jumps"],
+    Haunted: ["Disappearing platforms", "Spinning hammers", "Moving platforms"],
+  }[theme] || ["Moving platforms", "Speed boosts", "Disappearing platforms"];
   const difficultyAdds = difficulty === "Hard" ? ["Spinning hammers", "Conveyor belts"] : difficulty === "Medium" ? ["Moving platforms"] : ["Speed boosts"];
   return [...new Set([...requested, ...themeDefaults, ...difficultyAdds])].slice(0, 6);
 }
@@ -276,7 +286,42 @@ function themeDressing(theme, index) {
       "warm explorer-adventure lighting with safe side props",
       "ancient ruin details framing each checkpoint",
     ],
-  }[theme];
+    Ice: [
+      "frosted crystal walls and snow sparkle edges",
+      "blue ice arches kept safely away from the jump path",
+      "soft winter glow around checkpoint pads",
+      "glacier shapes that make the route feel magical",
+    ],
+    Pirate: [
+      "treasure chests, rope rails and island dock silhouettes",
+      "gold coin glints outside the main path",
+      "safe shipwreck props and map-style route markers",
+      "tropical water glow along the outer lanes",
+    ],
+    Sky: [
+      "floating cloud islands and soft golden sky arches",
+      "airship-style route markers and starry checkpoint glow",
+      "light rays around safe platforms",
+      "dreamy palace silhouettes beyond the path",
+    ],
+    Dinosaur: [
+      "giant jungle leaves and fossil stone details",
+      "friendly dino footprints guiding the route",
+      "prehistoric arches safely outside obstacle lanes",
+      "ancient amber glow near checkpoints",
+    ],
+    Haunted: [
+      "playfully spooky mansion silhouettes and purple fog",
+      "friendly ghost-shaped lights outside the path",
+      "cobweb patterns and moonlit signs",
+      "mystery props kept age-appropriate and non-scary",
+    ],
+  }[theme] || [
+    "bright themed edge dressing around the safe route",
+    "clear checkpoint lighting and readable game silhouettes",
+    "premium OPRealm props kept away from landing zones",
+    "strong color accents matching the selected theme",
+  ];
   return dressing.slice(index % 2, index % 2 + 3);
 }
 

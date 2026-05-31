@@ -9,6 +9,13 @@ const statuses = {
 };
 
 let config = {};
+const returnPath = new URLSearchParams(location.search).get("return");
+
+function safeReturnPath(value, fallback) {
+  if (!value || typeof value !== "string") return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  return value.slice(0, 180);
+}
 
 async function loadConfig() {
   const response = await fetch("/api/site-config");
@@ -94,7 +101,7 @@ forms.login.addEventListener("submit", async (event) => {
     const token = await waitForTurnstileToken("login");
     await postAccount("login", { ...formData(forms.login), turnstileToken: token });
     statuses.login.textContent = "Logged in. Opening the Studio...";
-    location.href = "/studio";
+    location.href = safeReturnPath(returnPath, "/studio");
   } catch (error) {
     statuses.login.textContent = error.message;
     resetTurnstile("login");

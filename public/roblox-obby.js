@@ -1,7 +1,9 @@
 const obbyForm = document.querySelector("#obbyForm");
 const obbyPrompt = document.querySelector("#obbyPrompt");
+const obbyTitleInput = document.querySelector("#obbyTitleInput");
 const obbyThemeSelect = document.querySelector("#obbyThemeSelect");
 const obbyDifficulty = document.querySelector("#obbyDifficulty");
+const wallpaperAssetId = document.querySelector("#wallpaperAssetId");
 const obbyVoiceButton = document.querySelector("#obbyVoiceButton");
 const copyObbyJsonButton = document.querySelector("#copyObbyJsonButton");
 const clearObbyJsonButton = document.querySelector("#clearObbyJsonButton");
@@ -14,6 +16,15 @@ const obbyDifficultyLabel = document.querySelector("#obbyDifficultyLabel");
 const obbySections = document.querySelector("#obbySections");
 const obbyTrack = document.querySelector("#obbyTrack");
 const obbySectionList = document.querySelector("#obbySectionList");
+const wallpaperForm = document.querySelector("#wallpaperForm");
+const wallpaperTheme = document.querySelector("#wallpaperTheme");
+const wallpaperDetail = document.querySelector("#wallpaperDetail");
+const wallpaperNotes = document.querySelector("#wallpaperNotes");
+const wallpaperStatus = document.querySelector("#wallpaperStatus");
+const downloadWallpaperButton = document.querySelector("#downloadWallpaperButton");
+const wallpaperTilePreview = document.querySelector("#wallpaperTilePreview");
+const wallpaperImagePreview = document.querySelector("#wallpaperImagePreview");
+const wallpaperPreviewTitle = document.querySelector("#wallpaperPreviewTitle");
 
 let obbyProject = loadObbyProject();
 let obbyJsonVisible = false;
@@ -71,7 +82,14 @@ function renderJsonExport() {
 function pluginPayloadForCurrentPlan() {
   const plan = obbyProject?.plan;
   if (!plan) return null;
-  if (plan.pluginPayload) return plan.pluginPayload;
+  if (plan.pluginPayload) {
+    const payload = structuredCloneSafe(plan.pluginPayload);
+    payload.plan = payload.plan || {};
+    payload.plan.title = cleanTitle(obbyTitleInput?.value || plan.obby?.title || payload.plan.title || `${plan.theme || "Space"} Obby`);
+    const assetId = cleanAssetId(wallpaperAssetId?.value || payload.plan.wallpaperAssetId || "");
+    if (assetId) payload.plan.wallpaperAssetId = assetId;
+    return payload;
+  }
 
   const sections = plan.obby?.sections || [];
   const obstacles = [...new Set(sections.map((section) => section.obstacle).filter(Boolean))];
@@ -87,11 +105,17 @@ function pluginPayloadForCurrentPlan() {
       obstacles,
       sectionCount: sections.length,
       seed: plan.obby?.seed || Date.now(),
+      title: cleanTitle(obbyTitleInput?.value || plan.obby?.title || `${plan.theme || "Space"} Obby`),
+      wallpaperAssetId: cleanAssetId(wallpaperAssetId?.value || plan.pluginPayload?.plan?.wallpaperAssetId || ""),
     },
   };
 }
 
 async function generateObbyPlan() {
+  if (!obbyThemeSelect?.value) {
+    throw new Error("Choose a theme first so the Roblox engine can build a stronger world.");
+  }
+
   const payload = {
     prompt: obbyPrompt.value,
     theme: obbyThemeSelect?.value || "",
@@ -111,6 +135,14 @@ async function generateObbyPlan() {
   const result = await readJsonResponse(response);
   if (!response.ok || !result.ok) throw new Error(result.error || "Could not generate the obby spec.");
 
+  const title = cleanTitle(obbyTitleInput?.value || result.obby?.title || `${result.theme} Obby`);
+  result.obby = { ...(result.obby || {}), title };
+  if (result.pluginPayload?.plan) {
+    result.pluginPayload.plan.title = title;
+    const assetId = cleanAssetId(wallpaperAssetId?.value || "");
+    if (assetId) result.pluginPayload.plan.wallpaperAssetId = assetId;
+  }
+
   obbyProject = { plan: result, updatedAt: new Date().toISOString() };
   obbyJsonVisible = true;
   saveObbyProject();
@@ -118,6 +150,59 @@ async function generateObbyPlan() {
   obbyStatus.textContent = result.cached
     ? "Loaded from cache. No credits used."
     : "Obby spec ready. No credits used in this deterministic v1.";
+}
+
+async function generateWallpaper(event) {
+  event?.preventDefault();
+  if (!wallpaperTheme?.value) {
+    wallpaperStatus.textContent = "Choose a wallpaper theme first.";
+    return;
+  }
+
+  wallpaperStatus.textContent = "Generating seamless wallpaper art...";
+  const response = await fetch("/api/roblox-wallpaper", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      theme: wallpaperTheme.value,
+      detail: wallpaperDetail?.value || "Detailed",
+      notes: wallpaperNotes?.value || "",
+    }),
+  });
+  const result = await readJsonResponse(response);
+  if (!response.ok || !result.ok) throw new Error(result.error || "Could not generate the wallpaper.");
+
+  renderWallpaper(result);
+  try {
+    localStorage.setItem("oprealm_latest_roblox_wallpaper", JSON.stringify({
+      imageDataUrl: result.imageDataUrl,
+      theme: result.theme,
+      detail: result.detail,
+      createdAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Large generated images may exceed browser storage. The visible download still works.
+  }
+  wallpaperStatus.textContent = `Wallpaper ready. ${result.creditsUsed || 8} credits used. Download it, upload it to Roblox as an image, then paste the asset ID above.`;
+}
+
+function renderWallpaper(result) {
+  const imageDataUrl = result?.imageDataUrl || "";
+  if (!imageDataUrl) return;
+
+  if (wallpaperPreviewTitle) wallpaperPreviewTitle.textContent = `${result.theme || "OPRealm"} wallpaper`;
+  if (wallpaperImagePreview) {
+    wallpaperImagePreview.src = imageDataUrl;
+    wallpaperImagePreview.hidden = false;
+  }
+  if (wallpaperTilePreview) {
+    wallpaperTilePreview.innerHTML = "";
+    wallpaperTilePreview.style.backgroundImage = `url("${imageDataUrl}")`;
+  }
+  if (downloadWallpaperButton) {
+    downloadWallpaperButton.href = imageDataUrl;
+    downloadWallpaperButton.hidden = false;
+  }
 }
 
 async function readJsonResponse(response) {
@@ -229,6 +314,28 @@ function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
+function cleanTitle(value) {
+  return String(value || "")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 42);
+}
+
+function cleanAssetId(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/\d{6,}/);
+  return match ? match[0] : "";
+}
+
+function structuredCloneSafe(value) {
+  try {
+    return structuredClone(value);
+  } catch {
+    return JSON.parse(JSON.stringify(value || {}));
+  }
+}
+
 obbyForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
@@ -241,5 +348,23 @@ obbyForm.addEventListener("submit", async (event) => {
 obbyVoiceButton.addEventListener("click", startObbyVoiceInput);
 copyObbyJsonButton.addEventListener("click", copyObbyJson);
 clearObbyJsonButton?.addEventListener("click", clearObbyJson);
+wallpaperForm?.addEventListener("submit", async (event) => {
+  try {
+    await generateWallpaper(event);
+  } catch (error) {
+    wallpaperStatus.textContent = error.message || "Could not generate the wallpaper.";
+  }
+});
+obbyThemeSelect?.addEventListener("change", () => {
+  if (wallpaperTheme && obbyThemeSelect.value) wallpaperTheme.value = obbyThemeSelect.value;
+});
+wallpaperAssetId?.addEventListener("input", renderJsonExport);
+
+try {
+  const savedWallpaper = JSON.parse(localStorage.getItem("oprealm_latest_roblox_wallpaper") || "null");
+  if (savedWallpaper?.imageDataUrl) renderWallpaper(savedWallpaper);
+} catch {
+  // Ignore broken local wallpaper previews.
+}
 
 renderObbyDashboard();

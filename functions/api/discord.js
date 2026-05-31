@@ -22,10 +22,10 @@ const ButtonStyle = {
 };
 
 const TIER_CREDITS = {
-  explorer: 50,
-  creator: 400,
-  pro: 1000,
-  elite: 3000,
+  explorer: 100,
+  creator: 500,
+  pro: 1200,
+  elite: 1200,
 };
 
 const CREDIT_COSTS = {
@@ -579,7 +579,7 @@ async function runTrailerAction(interaction, env, action, setupId) {
     if (action === "pro") {
       const premiumBlocked = requirePremiumAiAccess(interaction, env);
       if (premiumBlocked) {
-        await editOriginalInteraction(interaction, env, "Premium trailer packs are for Creator Pro, Elite, or AI Pro access members.");
+        await editOriginalInteraction(interaction, env, "Premium trailer packs are for Elite or AI Pro access members.");
         return;
       }
     }
@@ -1015,7 +1015,7 @@ async function createNextStepFromResult(interaction, env, result, nextStep) {
   if (isPremiumAiTool(tool)) {
     const premiumBlocked = requirePremiumAiAccess(interaction, env);
     if (premiumBlocked) {
-      await editOriginalInteraction(interaction, env, "That next step is a premium AI tool for Creator Pro, Elite, or AI Pro access members.");
+      await editOriginalInteraction(interaction, env, "That next step is a premium AI tool for Elite or AI Pro access members.");
       return;
     }
   }
@@ -1785,7 +1785,7 @@ function requirePremiumAiAccess(interaction, env) {
 
   if (hasPremiumRole) return null;
 
-  return ephemeral("The premium AI image tool is for Creator Pro, Elite, or AI Pro access members.");
+  return ephemeral("The premium AI image tool is for Elite or AI Pro access members.");
 }
 
 function requireChannel(interaction, env, command) {
@@ -3038,8 +3038,8 @@ function formatTier(tier) {
   return {
     explorer: "Explorer Pass",
     creator: "Creator Membership",
-    pro: "Creator Pro Membership",
-    elite: "Elite Creator Intensive",
+    pro: "Elite Creator",
+    elite: "Elite Creator",
   }[tier] || "Unknown";
 }
 

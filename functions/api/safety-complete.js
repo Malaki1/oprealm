@@ -97,7 +97,7 @@ function roleNameForId(env, roleId) {
   const roles = {
     [env.EXPLORER_ROLE_ID]: "Explorer Pass",
     [env.CREATOR_ROLE_ID]: "Creator Member",
-    [env.CREATOR_PRO_ROLE_ID]: "Creator Pro",
+    [env.CREATOR_PRO_ROLE_ID]: "Elite Creator",
     [env.ELITE_ROLE_ID]: "Elite Creator",
     [env.SAFETY_COMPLETED_ROLE_ID]: "Safety Completed",
     [env.JUNIOR_ACCESS_ROLE_ID]: "Junior Access",
@@ -204,11 +204,11 @@ function normalizeCourse(course) {
 
 function monthlyCredits(tier) {
   return {
-    explorer: 50,
-    creator: 400,
-    pro: 1000,
-    elite: 3000,
-  }[tier] || 50;
+    explorer: 100,
+    creator: 500,
+    pro: 1200,
+    elite: 1200,
+  }[tier] || 100;
 }
 
 function createSafeAlias(tier, discordUserId) {

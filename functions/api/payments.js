@@ -1,7 +1,7 @@
 const TIERS = {
-  creator: { label: "Creator Membership", amountCents: 1900, credits: 400 },
-  pro: { label: "Creator Pro Membership", amountCents: 3900, credits: 1000 },
-  intensive: { label: "Elite Creator Intensive", amountCents: 39900, credits: 3000 },
+  explorer: { label: "Explorer Membership", amountCents: 500, credits: 100, trialDays: 2 },
+  creator: { label: "Creator Membership", amountCents: 1900, credits: 500 },
+  pro: { label: "Elite Creator Membership", amountCents: 3900, credits: 1200 },
 };
 
 const CREDIT_BUNDLES = {
@@ -41,6 +41,7 @@ export async function onRequestPost({ request, env }) {
   if (!tier) return json({ ok: false, error: "Unknown membership tier." }, 400);
 
   const user = await currentUser(request, env);
+  if (!user) return json({ ok: false, error: "Please log in before starting checkout." }, 401);
   const origin = new URL(request.url).origin;
 
   if (provider === "stripe") return createStripeCheckout(env, origin, user, tierKey, tier);
@@ -93,14 +94,14 @@ async function createStripeCheckout(env, origin, user, tierKey, tier) {
   if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: "Stripe is not configured yet." }, 500);
 
   const priceId = {
+    explorer: env.STRIPE_PRICE_EXPLORER,
     creator: env.STRIPE_PRICE_CREATOR,
     pro: env.STRIPE_PRICE_PRO,
-    intensive: env.STRIPE_PRICE_INTENSIVE,
   }[tierKey];
   if (!priceId) return json({ ok: false, error: `Missing Stripe price for ${tier.label}.` }, 500);
 
   const body = new URLSearchParams({
-    mode: tierKey === "intensive" ? "payment" : "subscription",
+    mode: "subscription",
     success_url: `${origin}/billing?checkout=success`,
     cancel_url: `${origin}/billing?checkout=cancelled`,
     "line_items[0][price]": priceId,
@@ -108,6 +109,7 @@ async function createStripeCheckout(env, origin, user, tierKey, tier) {
     allow_promotion_codes: "true",
     "metadata[tier]": tierKey,
   });
+  if (tier.trialDays) body.set("subscription_data[trial_period_days]", String(tier.trialDays));
   if (user?.email) body.set("customer_email", user.email);
   if (user?.id) body.set("client_reference_id", user.id);
 
@@ -186,6 +188,14 @@ async function capturePayPalOrder(request, env, orderId) {
   }
 
   const user = await currentUser(request, env);
+  if (!user) return json({ ok: false, error: "Please log in before completing PayPal checkout." }, 401);
+  const event = await env.OPREALM_DB.prepare("SELECT * FROM billing_events WHERE provider = 'paypal' AND provider_reference = ? LIMIT 1")
+    .bind(orderId)
+    .first();
+  if (!event || event.web_user_id !== user.id) {
+    return json({ ok: false, error: "That PayPal order does not belong to this account." }, 403);
+  }
+
   const base = env.PAYPAL_ENVIRONMENT === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
   const tokenResponse = await fetch(`${base}/v1/oauth2/token`, {
     method: "POST",
@@ -208,9 +218,6 @@ async function capturePayPalOrder(request, env, orderId) {
   const capture = await captureResponse.json();
   if (!captureResponse.ok) return json({ ok: false, error: capture.message || "PayPal capture failed." }, 502);
 
-  const event = await env.OPREALM_DB.prepare("SELECT * FROM billing_events WHERE provider = 'paypal' AND provider_reference = ? LIMIT 1")
-    .bind(orderId)
-    .first();
   const tierKey = event?.tier || capture.purchase_units?.[0]?.custom_id;
   const tier = TIERS[tierKey];
   if (tier && (user?.id || event?.web_user_id)) {
@@ -256,7 +263,7 @@ async function applyMembership(env, webUserId, tierKey, tier) {
   await env.OPREALM_DB.prepare(
     "UPDATE web_users SET tier = ?, credits_remaining = ?, updated_at = datetime('now') WHERE id = ?",
   )
-    .bind(tierKey === "intensive" ? "elite" : tierKey, tier.credits, webUserId)
+    .bind(tierKey, tier.credits, webUserId)
     .run();
 }
 

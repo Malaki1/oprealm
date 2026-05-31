@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=41" />
+    <link rel="stylesheet" href="/studio.css?v=42" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/story-game.js?v=41" defer></script>
+    <script src="/story-game.js?v=42" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -19,8 +19,9 @@
         <span>OPREALM Story Creator</span>
       </a>
       <nav aria-label="Story creator navigation">
+        <a href="/realm-spark.html">Realm Spark</a>
+        <a href="/storyboard.html">Storyboard</a>
         <a href="/studio">Creator Studio</a>
-        <a href="/how-to-story-game">How To Guide</a>
         <a href="/library">Library</a>
         <a href="/account.html" data-account-link>My Account</a>
       </nav>
@@ -33,6 +34,11 @@
           <h1>Build a pick-a-path game from characters, scenes and choices.</h1>
           <p>Create a safe branching story map where every choice can lead to a new scene, ending or challenge.</p>
         </div>
+        <aside class="credits-card">
+          <span>Story Flow</span>
+          <strong>5</strong>
+          <p>Character, scene cards, story map, preview and publish prep.</p>
+        </aside>
       </section>
 
       <section class="story-dashboard story-page-dashboard" id="storyDashboard">
@@ -40,46 +46,19 @@
           <div>
             <p class="eyebrow">Project dashboard</p>
             <h3>AI Story Game Workspace</h3>
-            <p>Start with a character, plan the story tree, then create artwork for every playable scene.</p>
+            <p>Start with a character, then build scene cards and connect choices into different outcomes.</p>
           </div>
           <span class="status-pill">Draft saved locally</span>
         </div>
 
-        <section class="story-multiverse-cover" aria-label="OPREALM story game multiverse cover">
-          <div class="multiverse-scene">
-            <div class="pixel-world">
-              <span></span><span></span><span></span><span></span>
-            </div>
-            <div class="story-portal">
-              <strong>AI</strong>
-              <span>Story Engine</span>
-            </div>
-            <div class="block-hero" aria-hidden="true">
-              <span class="block-head"></span>
-              <span class="block-body"></span>
-              <span class="block-arm left"></span>
-              <span class="block-arm right"></span>
-            </div>
-            <div class="comic-panel">
-              <span>?</span>
-              <strong>Choose</strong>
-            </div>
-            <div class="cover-copy">
-              <p class="eyebrow">One hero, many worlds</p>
-              <h4>Pixel quests, block-builder characters and AI story choices collide in one creator playground.</h4>
-            </div>
-          </div>
-        </section>
-
         <div class="story-tabs" role="tablist" aria-label="AI Story Game sections">
           <button class="story-tab is-active" type="button" data-story-tab="character">Character</button>
-          <button class="story-tab" type="button" data-story-tab="cover">Game Cover (Poster)</button>
-          <button class="story-tab" type="button" data-story-tab="engine">Story Engine (Auto Script)</button>
-          <button class="story-tab" type="button" data-story-tab="scene">Scene Art (Story Images)</button>
-          <button class="story-tab" type="button" data-story-tab="banner">Banner UI (Text Layer)</button>
+          <button class="story-tab" type="button" data-story-tab="references">References</button>
+          <button class="story-tab" type="button" data-story-tab="scene">Scene Cards</button>
+          <button class="story-tab" type="button" data-story-tab="banner">Game Text</button>
           <button class="story-tab" type="button" data-story-tab="map">Story Map</button>
-          <button class="story-tab" type="button" data-story-tab="preview">Preview (Test Play)</button>
-          <button class="story-tab" type="button" data-story-tab="publish">Publish Prep (Ready Check)</button>
+          <button class="story-tab" type="button" data-story-tab="preview">Preview</button>
+          <button class="story-tab" type="button" data-story-tab="publish">Publish Prep</button>
         </div>
 
         <div class="story-tab-panel is-active" data-story-panel="character">
@@ -98,7 +77,7 @@
                 </button>
                 <button class="character-method-card" type="button" data-character-method="prompt">
                   <span>02</span>
-                  <strong>Create With Prompt Builder (Idea Helper)</strong>
+                  <strong>Create With Prompt Builder</strong>
                   <p>Use guided fields for name, type, personality, style and safety tone.</p>
                 </button>
               </div>
@@ -117,11 +96,11 @@
                 <span>No drawing uploaded yet</span>
               </div>
               <label>
-                Notes about the drawing (description)
+                Notes about the drawing
                 <textarea name="drawingNotes" id="characterDrawingNotes" rows="4" maxlength="500" placeholder="Example: This is a brave wolf knight with a blue cape. The sword is magical but kid-safe."></textarea>
               </label>
               <label>
-                Art style (look)
+                Art style
                 <select name="drawingStyle" id="characterDrawingStyle">
                   <option>Fantasy RPG</option>
                   <option>Bright 3D game mascot</option>
@@ -136,7 +115,7 @@
               </label>
               <div class="prompt-actions">
                 <button class="button button-primary" type="button" id="useDrawingAsPromptButton">Use Drawing Details</button>
-                <button class="button button-secondary" type="button" data-character-method="prompt">Open Prompt Builder (Idea Helper)</button>
+                <button class="button button-secondary" type="button" data-character-method="prompt">Open Prompt Builder</button>
               </div>
               <p class="form-note">Image-to-image generation will use this upload as a high-fidelity reference in the next build step.</p>
             </form>
@@ -151,12 +130,12 @@
                 <input name="name" maxlength="48" placeholder="Milo the Moon Explorer" />
               </label>
               <label>
-                Character prompt (description)
+                Character prompt
                 <textarea name="prompt" rows="5" placeholder="Describe who they are, what they want, and what makes them fun to follow."></textarea>
               </label>
               <div class="story-form-grid">
                 <label>
-                  Character type (what they are)
+                  Character type
                   <select name="type">
                     <option selected>Custom</option>
                     <option>Young explorer</option>
@@ -177,7 +156,7 @@
                   </select>
                 </label>
                 <label>
-                  Visual style (look)
+                  Visual style
                   <select name="style">
                     <option>Bright 3D game mascot</option>
                     <option>Fantasy RPG</option>
@@ -191,7 +170,7 @@
                   </select>
                 </label>
                 <label>
-                  Safety tone (rules)
+                  Safety tone
                   <select name="safety">
                     <option>Friendly and safe for all ages</option>
                     <option>Funny with no bullying</option>
@@ -204,18 +183,10 @@
                 <button class="button button-primary" type="submit">Save Character</button>
                 <button class="button button-secondary" type="button" id="addSecondHeroButton">Add Second Hero</button>
                 <button class="button button-primary" type="button" id="generateCharacterImageButton">Generate Character Image</button>
-                <button class="button button-secondary" type="button" id="characterPromptButton">Create Character Prompt (Description)</button>
+                <button class="button button-secondary" type="button" id="characterPromptButton">Create Character Prompt</button>
                 <button class="button button-secondary danger-button" type="button" id="clearCharactersButton">Clear Saved Characters</button>
               </div>
               <p class="form-note" id="characterImageStatus"></p>
-              <div class="gen-alpha-loader is-hidden" id="characterLoadingSticker" aria-live="polite">
-                <div class="sticker-stage" aria-hidden="true">
-                  <div class="sticker-cat sticker-cat-dance"><span></span></div>
-                  <div class="sticker-cat sticker-cat-sad"><span></span></div>
-                  <div class="sticker-cat sticker-cat-laugh"><span></span></div>
-                </div>
-                <strong id="characterLoadingLine">Drawing the hero. The pixels are doing push-ups.</strong>
-              </div>
             </form>
 
             <article class="story-card-preview">
@@ -238,181 +209,95 @@
           </div>
         </div>
 
-        <div class="story-tab-panel" data-story-panel="cover">
-          <div class="story-workspace">
-            <form class="story-form" id="storyCoverForm">
-              <div>
-                <p class="eyebrow">Step 2</p>
-                <h4>Name The Game And Build The Cover</h4>
+        <div class="story-tab-panel" data-story-panel="references">
+          <div class="reference-forge">
+            <section class="reference-canvas" aria-label="Story Reference Forge workflow">
+              <div class="reference-node source-node">
+                <p class="eyebrow">Source 1</p>
+                <h4>Character</h4>
+                <div class="reference-dropzone" id="referenceCharacterPreview"><span>Use saved hero or upload</span></div>
+                <input id="referenceCharacterInput" type="file" accept="image/png,image/jpeg,image/webp" />
+                <button class="button button-secondary" type="button" id="useSavedCharacterReference">Use Saved Hero</button>
               </div>
-              <label>
-                Game title
-                <input name="title" maxlength="58" placeholder="Wolf Moon Mystery" />
-              </label>
-              <label>
-                Tagline (short slogan)
-                <input name="tagline" maxlength="96" placeholder="One hero. One secret. One wild night." />
-              </label>
-              <div class="story-form-grid">
-                <label>
-                  Game vibe (genre mood)
-                  <select name="vibe">
-                    <option>Haunted Mystery</option>
-                    <option>Dragon Quest</option>
-                    <option>Magical School</option>
-                    <option>Cyber City</option>
-                    <option>Cute Chaos</option>
-                    <option>Secret Base</option>
-                    <option>Monster Friend</option>
-                    <option>Portal Adventure</option>
-                    <option>Lost Temple</option>
-                    <option>Robot Rebellion</option>
-                  </select>
-                </label>
-                <label>
-                  Cover style (poster look)
-                  <select name="coverStyle">
-                    <option>Premium console game cover</option>
-                    <option>Fantasy RPG box art</option>
-                    <option>Animated movie poster</option>
-                    <option>Neon sci-fi poster</option>
-                    <option>Cozy storybook cover</option>
-                    <option>Comic book splash cover</option>
-                  </select>
-                </label>
-                <label>
-                  Title logo style (word art)
-                  <select name="logoStyle">
-                    <option>Bold premium game logo</option>
-                    <option>Glowing magical letters</option>
-                    <option>Chunky cartoon title</option>
-                    <option>Neon arcade title</option>
-                    <option>Ancient fantasy lettering</option>
-                    <option>Clean cinematic title</option>
-                  </select>
-                </label>
-                <label>
-                  Cover mood (feeling)
-                  <select name="mood">
-                    <option>Epic and exciting</option>
-                    <option>Mysterious but not scary</option>
-                    <option>Funny and chaotic</option>
-                    <option>Magical and cozy</option>
-                    <option>Fast, bright and adventurous</option>
-                  </select>
-                </label>
+              <span class="reference-connector" aria-hidden="true"></span>
+              <div class="reference-node source-node">
+                <p class="eyebrow">Source 2</p>
+                <h4>Environment</h4>
+                <div class="reference-dropzone" id="referenceEnvironmentPreview"><span>Upload world or scene</span></div>
+                <input id="referenceEnvironmentInput" type="file" accept="image/png,image/jpeg,image/webp" />
               </div>
-              <label>
-                Cover prompt (AI instructions) for approval
-                <textarea name="coverPrompt" id="coverPromptInput" rows="7" maxlength="1800" placeholder="Build the prompt, review it, then generate the cover."></textarea>
-              </label>
-              <div class="prompt-actions">
-                <button class="button button-secondary" type="button" id="buildCoverPromptButton">Build Cover Prompt (AI Instructions)</button>
-                <button class="button button-primary" type="button" id="generateCoverButton">Generate Game Cover (Poster)</button>
-                <button class="button button-secondary" type="submit">Save Cover Setup (Plan)</button>
+              <span class="reference-connector" aria-hidden="true"></span>
+              <div class="reference-node source-node">
+                <p class="eyebrow">Source 3</p>
+                <h4>Object</h4>
+                <div class="reference-dropzone" id="referenceObjectPreview"><span>Upload prop or item</span></div>
+                <input id="referenceObjectInput" type="file" accept="image/png,image/jpeg,image/webp" />
               </div>
-              <p class="form-note" id="coverImageStatus"></p>
-              <div class="gen-alpha-loader is-hidden" id="coverLoadingSticker" aria-live="polite">
-                <div class="sticker-stage" aria-hidden="true">
-                  <div class="sticker-cat sticker-cat-dance"><span></span></div>
-                  <div class="sticker-cat sticker-cat-sad"><span></span></div>
-                  <div class="sticker-cat sticker-cat-laugh"><span></span></div>
-                </div>
-                <strong id="coverLoadingLine">Tiny dance break. The cover oven is preheating.</strong>
-              </div>
-            </form>
-
-            <article class="story-card-preview cover-preview-card">
-              <p class="eyebrow">Game cover preview</p>
-              <div class="game-cover-preview" id="gameCoverPreview">
-                <div class="cover-preview-actions" aria-label="Cover image actions">
-                  <button class="scene-enlarge-button" type="button" data-enlarge-scene-preview="cover" hidden>Enlarge</button>
-                  <button class="scene-image-download-button" type="button" data-download-scene-image="cover" aria-label="Download cover image" hidden>&#8595;</button>
+              <span class="reference-connector output-connector" aria-hidden="true"></span>
+              <div class="reference-node output-node">
+                <p class="eyebrow">Output</p>
+                <h4>Reference Board</h4>
+                <div class="reference-output-preview" id="referenceBoardPreview"><span>No board generated yet</span></div>
+                <div class="reference-output-actions">
+                  <button class="button button-secondary" type="button" id="enlargeReferenceBoardButton" hidden>Enlarge</button>
+                  <button class="button button-secondary" type="button" id="downloadReferenceBoardButton" hidden>Download</button>
                 </div>
               </div>
-              <p class="form-note">The AI creates the poster art and title/logo together so the cover is ready as one image.</p>
-            </article>
-          </div>
-        </div>
+            </section>
 
-        <div class="story-tab-panel" data-story-panel="engine">
-          <div class="story-workspace story-engine-workspace">
-            <form class="story-form" id="storyEngineForm">
+            <section class="story-form reference-control-panel">
               <div>
-                <p class="eyebrow">Step 3</p>
-                <h4>Automate The Branching Story</h4>
-                <p>After the cover is ready, OPREALM can turn the title, heroes, audience, genre and direction into a reusable scene-by-scene story tree.</p>
+                <p class="eyebrow">Story Reference Forge</p>
+                <h4>Lock the look before you generate scenes.</h4>
+                <p class="form-note">Use this for AI Story Game, Comic Book/Story Book and Movie / Trailer Maker projects.</p>
               </div>
               <div class="story-form-grid">
                 <label>
-                  Audience (who should enjoy it)
-                  <select name="audience">
-                    <option>Kids 6-8</option>
-                    <option selected>Kids 8-12</option>
-                    <option>Tweens 10-14</option>
-                    <option>Family play</option>
-                    <option>Cozy creators</option>
-                    <option>Adventure fans</option>
+                  Board type
+                  <select id="referenceBoardType">
+                    <option value="character">Character Board</option>
+                    <option value="location">Location Board</option>
+                    <option value="object">Object Board</option>
+                    <option value="creature">Creature Board</option>
+                    <option value="pose">Pose Board</option>
+                    <option value="shot">Shot Board / Storyboard</option>
                   </select>
                 </label>
                 <label>
-                  Genre (story type)
-                  <select name="genre">
-                    <option selected>Mystery adventure</option>
-                    <option>Fantasy quest</option>
-                    <option>Comedy chaos</option>
-                    <option>Portal adventure</option>
-                    <option>Magical school</option>
-                    <option>Sci-fi survival</option>
-                    <option>Friendship drama</option>
-                    <option>Treasure hunt</option>
-                  </select>
-                </label>
-                <label>
-                  Main feeling (tone)
-                  <select name="tone">
-                    <option selected>Exciting but safe</option>
-                    <option>Funny and chaotic</option>
-                    <option>Mysterious but not scary</option>
-                    <option>Cozy and emotional</option>
-                    <option>Epic and heroic</option>
-                  </select>
-                </label>
-                <label>
-                  Branch size
-                  <select name="branchSize">
-                    <option value="starter">Starter tree - 9 scenes</option>
-                    <option value="full" selected>Full tree - 15 scenes</option>
+                  Visual style
+                  <select id="referenceVisualStyle">
+                    <option>Match uploaded references</option>
+                    <option>Fantasy RPG</option>
+                    <option>Bright 3D game mascot</option>
+                    <option>Cozy storybook</option>
+                    <option>Anime adventure</option>
+                    <option>Premium cinematic trailer</option>
+                    <option>Comic book adventure</option>
                   </select>
                 </label>
               </div>
               <label>
-                Story direction (short brief)
-                <textarea name="direction" rows="5" maxlength="900" placeholder="Example: A teen werewolf detective discovers strange moon crystals around school and must choose who to trust before the final bell."></textarea>
+                Project title
+                <input id="referenceProjectTitle" maxlength="80" placeholder="The Moonlit Portal Quest" />
               </label>
               <label>
-                Plot twist ingredients (optional)
-                <input name="twists" maxlength="180" placeholder="secret ally, fake villain, hidden portal, lost memory" />
+                Reference notes
+                <textarea id="referenceBoardPrompt" rows="5" maxlength="1200" placeholder="Tell OPREALM what must stay consistent: face, clothes, environment mood, props, camera style, story genre or trailer vibe."></textarea>
               </label>
               <div class="prompt-actions">
-                <button class="button button-primary" type="submit">Generate Story Tree</button>
-                <button class="button button-secondary" type="button" id="loadSelectedSceneToBuilderButton">Load Selected Scene Into Image Builder</button>
-                <button class="button button-secondary danger-button" type="button" id="clearStoryTreeButton">Clear Story Tree</button>
+                <button class="button button-primary" type="button" id="generateReferenceBoardButton">Generate Reference Board</button>
+                <button class="button button-secondary" type="button" id="clearReferenceBoardButton">Clear Sources</button>
               </div>
-              <p class="form-note" id="storyEngineStatus">Generate the tree after saving at least one hero and a game cover title. You can still edit every scene before making images.</p>
-            </form>
+              <p class="form-note" id="referenceBoardStatus">20 credits. Generated boards are saved to this story project.</p>
+            </section>
 
-            <article class="story-card-preview story-engine-preview">
-              <p class="eyebrow">Reusable story tree template</p>
-              <h4 id="storyTreeTitle">No automated story tree yet</h4>
-              <p id="storyTreeSummary">The engine will create opening scenes, branch scenes, plot twists, choice buttons and multiple endings.</p>
-              <div class="story-tree-stats">
-                <span id="storyTreeSceneCount">0 scenes</span>
-                <span id="storyTreeEndingCount">0 endings</span>
-                <span id="storyTreeAudience">Audience</span>
+            <section class="story-form reference-saved-panel">
+              <div>
+                <p class="eyebrow">Saved boards</p>
+                <h4>Use these as consistency anchors.</h4>
               </div>
-              <div class="story-tree-list" id="storyTreeList"></div>
-            </article>
+              <div class="reference-board-list" id="referenceBoardList"></div>
+            </section>
           </div>
         </div>
 
@@ -420,17 +305,16 @@
           <div class="story-workspace">
             <form class="story-form" id="storySceneForm">
               <div>
-                <p class="eyebrow">Step 4</p>
-                <h4>Create Scene Art For One Story Moment</h4>
-                <p>Use this step to turn each story-map box into a 16:9 visual scene. Create one image, save it, then move to the next story moment.</p>
+                <p class="eyebrow">Step 2</p>
+                <h4>Create A Scene Card</h4>
               </div>
               <label>
-                Scene prompt (what happens)
+                Scene prompt
                 <textarea name="prompt" rows="5" placeholder="What happens in this scene? Example: The hero finds a glowing doorway in a quiet library."></textarea>
               </label>
               <div class="story-form-grid">
                 <label>
-                  Camera angle (view)
+                  Camera angle
                   <select name="camera">
                     <option>Wide cinematic reveal</option>
                     <option>Close-up</option>
@@ -441,7 +325,7 @@
                   </select>
                 </label>
                 <label>
-                  Background (place)
+                  Background
                   <select name="background">
                     <option selected>Custom background</option>
                     <option>Magical library</option>
@@ -452,7 +336,7 @@
                   </select>
                 </label>
                 <label>
-                  Character (who appears)
+                  Character
                   <select name="character">
                     <option>Use saved character</option>
                     <option>Use saved character + sidekick</option>
@@ -460,9 +344,9 @@
                   </select>
                 </label>
                 <label>
-                  Scene art style (look)
+                  Scene art style
                   <select name="sceneStyle" id="sceneStyleSelect">
-                    <option value="inherit">Lock to saved character style (same look)</option>
+                    <option value="inherit">Lock to saved character style</option>
                     <option>Bright 3D game mascot</option>
                     <option>Fantasy RPG</option>
                     <option>Cozy storybook</option>
@@ -475,7 +359,7 @@
                   </select>
                 </label>
                 <label>
-                  Mood (feeling)
+                  Mood
                   <select name="mood">
                     <option>Curious</option>
                     <option>Exciting</option>
@@ -486,7 +370,7 @@
                   </select>
                 </label>
                 <label>
-                  Scene type (job)
+                  Scene type
                   <select name="type">
                     <option>Start scene</option>
                     <option>Exploration</option>
@@ -498,9 +382,8 @@
                   </select>
                 </label>
                 <label>
-                  Choice count (paths)
+                  Choice count
                   <select name="choices">
-                    <option>1 choice</option>
                     <option>2 choices</option>
                     <option>3 choices</option>
                     <option>4 choices</option>
@@ -509,18 +392,18 @@
               </div>
               <label class="story-checkbox-row">
                 <input name="lockCharacterStyle" type="checkbox" checked />
-                <span>Lock scene art style (look) to the saved character style</span>
+                <span>Lock scene art style to the saved character style</span>
               </label>
               <label class="story-checkbox-row">
                 <input name="lockSceneContinuity" type="checkbox" checked />
-                <span>Use saved heroes and previous scenes as visual references (style guides)</span>
+                <span>Use saved heroes and previous scenes as visual references</span>
               </label>
               <p class="form-note" id="sceneStyleLockNote">Scene images will inherit the saved character style.</p>
               <div class="prompt-actions">
-                <button class="button button-primary" type="submit">Save Scene Moment</button>
-                <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Image (Artwork)</button>
-                <button class="button button-secondary" type="button" id="scenePromptButton">Create Scene Prompt (AI Instructions)</button>
-                <button class="button button-secondary danger-button" type="button" id="clearSceneCardsButton">Clear Scene Images And Moments</button>
+                <button class="button button-primary" type="submit">Add Scene Card</button>
+                <button class="button button-primary" type="button" id="generateSceneImagesButton">Generate Scene Image</button>
+                <button class="button button-secondary" type="button" id="scenePromptButton">Create Scene Prompt</button>
+                <button class="button button-secondary danger-button" type="button" id="clearSceneCardsButton">Clear Previous Scenes</button>
               </div>
               <p class="form-note" id="sceneImageStatus"></p>
             </form>
@@ -528,8 +411,8 @@
             <div class="scene-preview-stack">
               <article class="scene-responsive-preview">
                 <div>
-                  <p class="eyebrow">16:9 scene image preview (wide game view)</p>
-                  <h4>Build wide cinematic story images.</h4>
+                  <p class="eyebrow">16:9 scene card preview</p>
+                  <h4>Build wide cinematic scene cards.</h4>
                 </div>
                 <div class="scene-preview-pair scene-preview-single">
                   <div class="scene-preview-frame web-view">
@@ -541,8 +424,8 @@
                   </div>
                 </div>
                 <div class="scene-preview-actions">
-                  <button class="button button-secondary" type="button" id="createNextSceneButton">Create Next Story Moment</button>
-                  <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Image (Artwork)</button>
+                  <button class="button button-secondary" type="button" id="createNextSceneButton">Create Next Scene</button>
+                  <button class="button button-secondary" type="button" id="recreateSceneImagesButton">Recreate Scene Image</button>
                 </div>
               </article>
               <div class="scene-card-list" id="sceneCardList"></div>
@@ -551,83 +434,24 @@
         </div>
 
         <div class="story-tab-panel" data-story-panel="banner">
-          <div class="story-workspace story-workspace-resizable" id="bannerWorkspace">
+          <div class="story-workspace">
             <form class="story-form" id="storyBannerForm">
               <div>
-                <p class="eyebrow">Step 5</p>
-                <h4>Choose The Story Text Banner</h4>
+                <p class="eyebrow">Step 3</p>
+                <h4>Design The Game Text Banner</h4>
               </div>
               <label>
-                Banner text (words on screen)
-                <textarea name="bannerText" id="bannerTextInput" rows="4" maxlength="180" placeholder="What should the player read or decide in this scene?"></textarea>
+                Banner text
+                <textarea name="bannerText" id="bannerTextInput" rows="4" maxlength="140" placeholder="What should the player read or decide in this scene?"></textarea>
               </label>
-              <p class="form-note" id="bannerTextCount">0 / 180 characters</p>
+              <p class="form-note" id="bannerTextCount">0 / 140 characters</p>
               <div class="story-form-grid">
                 <label>
-                  Banner style (text box look)
-                  <select name="bannerStyle" id="bannerStyleSelect">
-                    <option value="glass">Glass quest panel</option>
-                    <option value="comic">Comic caption bar</option>
-                    <option value="scroll">Fantasy scroll plate</option>
-                    <option value="terminal">Sci-fi terminal strip</option>
-                  </select>
+                  Banner size
+                  <input name="bannerScale" id="bannerScaleInput" type="range" min="75" max="115" value="100" />
                 </label>
                 <label>
-                  Game UI theme (menu style)
-                  <select name="uiTheme" id="uiThemeSelect"></select>
-                </label>
-                <label>
-                  Overlay piece (banner art)
-                  <select name="uiOverlay" id="uiOverlaySelect"></select>
-                </label>
-                <label>
-                  Button piece (choice button art)
-                  <select name="uiButton" id="uiButtonSelect"></select>
-                </label>
-                <label class="story-range-label">
-                  <span>Banner size (box art) <output id="uiOverlaySizeValue">66%</output></span>
-                  <input type="range" name="uiOverlaySize" id="uiOverlaySizeRange" min="32" max="140" step="1" value="66" />
-                </label>
-                <label class="story-range-label">
-                  <span>Button size (choice art) <output id="uiButtonSizeValue">22%</output></span>
-                  <input type="range" name="uiButtonSize" id="uiButtonSizeRange" min="8" max="46" step="1" value="22" />
-                </label>
-                <label>
-                  Text font (letter style)
-                  <select name="uiFont" id="uiFontSelect">
-                    <option>Inter</option>
-                    <option>Georgia</option>
-                    <option>Trebuchet MS</option>
-                    <option>Verdana</option>
-                    <option>Arial Black</option>
-                  </select>
-                </label>
-                <label>
-                  Text size (letter size)
-                  <select name="uiTextSize" id="uiTextSizeSelect">
-                    <option value="small">Small</option>
-                    <option value="medium">Medium</option>
-                    <option value="large" selected>Large</option>
-                  </select>
-                </label>
-                <label>
-                  Text color (letter color)
-                  <select name="uiTextColor" id="uiTextColorSelect">
-                    <option value="white" selected>White</option>
-                    <option value="dark">Dark</option>
-                    <option value="gold">Gold</option>
-                  </select>
-                </label>
-                <label>
-                  Text alignment (line position)
-                  <select name="uiTextAlign" id="uiTextAlignSelect">
-                    <option value="left" selected>Left</option>
-                    <option value="center">Centre</option>
-                    <option value="right">Right</option>
-                  </select>
-                </label>
-                <label>
-                  Text tone (writing voice)
+                  Text tone
                   <select name="bannerTone">
                     <option>Question</option>
                     <option>Narration</option>
@@ -635,36 +459,25 @@
                     <option>Discovery</option>
                   </select>
                 </label>
-                <label class="story-range-label">
-                  <span>Text box width (line wrap) <output id="uiTextWidthValue">56%</output></span>
-                  <input type="range" name="uiTextWidth" id="uiTextWidthRange" min="24" max="84" step="1" value="56" />
-                </label>
               </div>
               <div class="prompt-actions">
-                <button class="button button-primary" type="submit">Save Banner Style (Text Look)</button>
-                <button class="button button-primary" type="button" id="addBannerSceneToMapButton">Save Scene Card (Story Moment)</button>
-                <button class="button button-secondary" type="button" id="applyScenePromptToBannerButton">Use Scene Prompt (Scene Description)</button>
+                <button class="button button-primary" type="submit">Save Game Text</button>
+                <button class="button button-primary" type="button" id="addBannerSceneToMapButton">Save Scene Card</button>
+                <button class="button button-secondary" type="button" id="applyScenePromptToBannerButton">Use Scene Prompt</button>
               </div>
-              <p class="form-note">One fixed banner size keeps the scene playable. Keep the text short so it stays readable on desktop and tablet screens.</p>
+              <p class="form-note">The banner can scale, but it will always stay inside the scene frame and wrap safely.</p>
             </form>
-
-            <button class="preview-column-resizer" id="bannerPreviewResizer" type="button" aria-label="Resize preview column" title="Drag to resize preview">
-              <span aria-hidden="true">&harr;</span>
-            </button>
 
             <article class="scene-responsive-preview">
               <div>
-                <p class="eyebrow">Banner layer preview (text overlay)</p>
-                <h4>Text sits over the bottom of the scene card.</h4>
+                <p class="eyebrow">Game artist banner preview</p>
+                <h4>Text sits inside a custom painted game panel.</h4>
               </div>
               <div class="scene-preview-frame web-view banner-design-preview" id="bannerDesignPreview">
                 <span>16:9 Scene Card</span>
-                <strong>Banner layout (text overlay)</strong>
-                <img class="ui-kit-overlay-image" id="uiKitOverlayImage" alt="" />
-                <img class="ui-kit-button-image" id="uiKitButtonImage" alt="" />
-                <div class="scene-banner-overlay" id="bannerDesignText">What happens next?</div>
+                <strong>Scene card text</strong>
+                <div class="scene-banner-overlay artist-game-banner" id="bannerDesignText">What happens next?</div>
               </div>
-              <div class="ui-kit-scene-stack" id="uiKitSceneStack" aria-label="Saved scene card thumbnails"></div>
             </article>
           </div>
         </div>
@@ -672,7 +485,7 @@
         <div class="story-tab-panel" data-story-panel="map">
           <div class="story-map-tools">
             <div>
-              <p class="eyebrow">Branching map (choice paths)</p>
+              <p class="eyebrow">Branching map</p>
               <h4>Connect choices to scenes</h4>
             </div>
             <div class="map-tool-row" aria-label="Story map tools">
@@ -687,20 +500,20 @@
           <div class="story-map-shell" id="storyMapShell">
             <div class="story-map-board" id="storyMapBoard"></div>
             <form class="story-route-panel" id="storyRouteForm">
-              <p class="eyebrow">Choice Routing (where choices go)</p>
+              <p class="eyebrow">Choice Routing</p>
               <div class="selected-scene-editor" id="selectedSceneEditor">
-                <strong id="selectedSceneLabel">Select a scene card (story moment)</strong>
+                <strong id="selectedSceneLabel">Select a scene card</strong>
                 <label>
                   Scene title
                   <input name="selectedTitle" id="selectedSceneTitle" maxlength="60" placeholder="Scene title" />
                 </label>
                 <label>
-                  Scene prompt (what happens)
+                  Scene prompt
                   <textarea name="selectedPrompt" id="selectedScenePrompt" rows="4" placeholder="What happens in this scene?"></textarea>
                 </label>
                 <div class="story-form-grid">
                   <label>
-                    Scene type (job)
+                    Scene type
                     <select name="selectedType" id="selectedSceneType">
                       <option>Start scene</option>
                       <option>Exploration</option>
@@ -712,9 +525,8 @@
                     </select>
                   </label>
                   <label>
-                    Choices (paths)
+                    Choices
                     <select name="selectedChoices" id="selectedSceneChoices">
-                      <option>1 choice</option>
                       <option>2 choices</option>
                       <option>3 choices</option>
                       <option>4 choices</option>
@@ -739,7 +551,7 @@
                 <select name="targetScene" id="routeTargetScene"></select>
               </label>
               <label>
-                Arrow direction (map line)
+                Arrow direction
                 <select name="direction">
                   <option value="right">Right</option>
                   <option value="down">Down</option>
@@ -747,7 +559,7 @@
                   <option value="up">Up</option>
                 </select>
               </label>
-              <button class="button button-primary" type="submit">Save Route (Choice Link)</button>
+              <button class="button button-primary" type="submit">Save Route</button>
               <p class="form-note">Select cards to edit them. Use Move to drag cards. Use Connect, then click a card dot, to add one deliberate branch.</p>
             </form>
           </div>
@@ -755,9 +567,9 @@
 
         <div class="story-tab-panel" data-story-panel="preview">
           <article class="story-player">
-            <p class="eyebrow">Playable preview (test play)</p>
+            <p class="eyebrow">Playable preview</p>
             <h4 id="storyPreviewTitle">Your story will appear here</h4>
-            <p id="storyPreviewText">Create a character and at least one scene image to preview the pick-a-path flow.</p>
+            <p id="storyPreviewText">Create a character and at least one scene card to preview the pick-a-path flow.</p>
             <div id="storyPreviewChoices" class="story-choice-row"></div>
           </article>
         </div>
@@ -765,7 +577,7 @@
         <div class="story-tab-panel" data-story-panel="publish">
           <div class="publish-checklist">
             <article><span>01</span><strong>Character saved</strong><p id="checkCharacter">Not ready yet</p></article>
-            <article><span>02</span><strong>Scene art (story images)</strong><p id="checkScenes">Add at least 3 visual scenes</p></article>
+            <article><span>02</span><strong>Scene cards</strong><p id="checkScenes">Add at least 3 scene cards</p></article>
             <article><span>03</span><strong>Safety check</strong><p>No personal info, DMs, school names or unsafe choices.</p></article>
             <article><span>04</span><strong>Library submission</strong><p>When ready, submit through the Publish section below.</p></article>
           </div>

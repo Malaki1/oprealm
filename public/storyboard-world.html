@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Create and lock a consistent OPREALM story world before building characters and scenes." />
+    <title>Create World | OPREALM Story Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/creator-flow.css?v=13" />
+    <script src="/storyboard-world.js?v=1" defer></script>
+  </head>
+  <body class="storyboard-body character-builder-body world-builder-body">
+    <header class="storyboard-topbar character-builder-topbar">
+      <a class="spark-brand" href="/">
+        <span class="spark-mark" aria-hidden="true"></span>
+        <span>OPREALM Story Studio</span>
+      </a>
+      <nav class="storyboard-nav" aria-label="Story Studio navigation">
+        <a href="/realm-spark.html">Realm Spark</a>
+        <a href="/storyboard-world.html" aria-current="page">World</a>
+        <a href="/storyboard-character.html">Character</a>
+        <a href="/storyboard.html">Story Builder</a>
+        <a href="/library">My Creations</a>
+        <a href="/account.html">Profile</a>
+        <span class="spark-pill">1200</span>
+      </nav>
+    </header>
+
+    <main class="character-builder-shell world-builder-shell">
+      <aside class="story-rail" aria-label="Story Studio tools">
+        <a class="rail-link" href="/realm-spark.html" aria-label="Realm Spark"></a>
+        <a class="rail-link is-active" href="/storyboard-world.html" aria-label="Create world"></a>
+        <a class="rail-link" href="/storyboard-character.html" aria-label="Create character"></a>
+        <a class="rail-link" href="/storyboard.html" aria-label="Storyboard"></a>
+        <a class="rail-link" href="/storyboard.html#paths" aria-label="Creative paths"></a>
+      </aside>
+
+      <section class="character-builder-content" aria-label="World creator">
+        <nav class="builder-stepper world-stepper" aria-label="Creation progress">
+          <a class="builder-step" href="/realm-spark.html">Idea</a>
+          <a class="builder-step is-active" href="/storyboard-world.html">World</a>
+          <a class="builder-step" href="/storyboard-character.html">Character</a>
+          <a class="builder-step" href="/storyboard.html">Story Builder</a>
+          <a class="builder-step" href="/storyboard.html#paths">Creative Path</a>
+        </nav>
+
+        <header class="builder-heading">
+          <div>
+            <p class="spark-eyebrow">World Creator</p>
+            <h1>Create New World</h1>
+            <p>Build the place your story happens in. Lock the mood, landmarks, rules and visual style before characters enter it.</p>
+          </div>
+        </header>
+
+        <div class="character-builder-grid world-builder-grid">
+          <section class="builder-panel essentials-panel">
+            <h2>World Essentials</h2>
+            <label class="field-stack">
+              <span>World Name</span>
+              <span class="input-shell"><input id="worldNameInput" type="text" value="Magic Portal Studio" maxlength="40" /><small data-count-for="worldNameInput">19/40</small></span>
+            </label>
+            <label class="field-stack">
+              <span>World Hook</span>
+              <span class="input-shell"><input id="worldHookInput" type="text" value="A glowing portal world where every idea becomes a scene." maxlength="100" /><small data-count-for="worldHookInput">57/100</small></span>
+            </label>
+            <div class="field-stack">
+              <span>World Type</span>
+              <div class="choice-grid four">
+                <button class="is-selected" type="button" data-world-choice="worldType" data-value="Portal Hub">Portal Hub</button>
+                <button type="button" data-world-choice="worldType" data-value="Kingdom">Kingdom</button>
+                <button type="button" data-world-choice="worldType" data-value="Survival World">Survival</button>
+                <button type="button" data-world-choice="worldType" data-value="Mystery Place">Mystery</button>
+              </div>
+            </div>
+            <div class="field-stack">
+              <span>Story Mood</span>
+              <div class="trait-row">
+                <button class="is-selected" type="button" data-world-multi="mood" data-value="Magical">Magical x</button>
+                <button class="is-selected" type="button" data-world-multi="mood" data-value="Epic">Epic x</button>
+                <button class="is-selected" type="button" data-world-multi="mood" data-value="Mysterious">Mysterious x</button>
+                <button type="button" data-world-multi="mood" data-value="Funny">Funny</button>
+                <button type="button" data-world-multi="mood" data-value="Cozy">Cozy</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="builder-panel appearance-panel world-appearance-panel">
+            <div class="panel-title-row">
+              <div>
+                <h2>World Appearance</h2>
+                <p>Choose the main environment reference.</p>
+              </div>
+            </div>
+            <div class="appearance-tabs" role="group" aria-label="World source">
+              <button class="is-active" type="button" data-world-choice="sourceMode" data-value="AI Generate">AI Generate</button>
+              <button type="button" data-world-choice="sourceMode" data-value="Customize">Customize</button>
+              <button type="button" data-world-choice="sourceMode" data-value="Upload">Upload</button>
+            </div>
+            <figure class="world-art-frame">
+              <img id="worldPreviewImage" src="/assets/character-creator/environments/magic-portal-studio.png" alt="Generated world concept" />
+              <button id="generateWorldPreviewButton" class="character-regenerate-button" type="button">Refresh Preview</button>
+            </figure>
+            <div class="field-stack">
+              <span>Choose a world style</span>
+              <div class="environment-grid environment-card-grid world-theme-grid">
+                <button class="is-selected" type="button" data-world-choice="theme" data-value="Magic portal studio"><img src="/assets/character-creator/environments/magic-portal-studio.png" alt="" /><span>Magic Portal</span></button>
+                <button type="button" data-world-choice="theme" data-value="Fantasy grove"><img src="/assets/character-creator/environments/fantasy-grove.png" alt="" /><span>Fantasy Grove</span></button>
+                <button type="button" data-world-choice="theme" data-value="Candy kingdom"><img src="/assets/character-creator/environments/candy-kingdom.png" alt="" /><span>Candy Kingdom</span></button>
+                <button type="button" data-world-choice="theme" data-value="Dinosaur jungle"><img src="/assets/character-creator/environments/dinosaur-jungle.png" alt="" /><span>Dinosaur Jungle</span></button>
+                <button type="button" data-world-choice="theme" data-value="Enchanted forest"><img src="/assets/character-creator/environments/enchanted-forest.png" alt="" /><span>Enchanted Forest</span></button>
+                <button type="button" data-world-choice="theme" data-value="Lava planet"><img src="/assets/character-creator/environments/lava-planet.png" alt="" /><span>Lava Planet</span></button>
+                <button type="button" data-world-choice="theme" data-value="Sky islands"><img src="/assets/character-creator/environments/sky-islands.png" alt="" /><span>Sky Islands</span></button>
+                <button type="button" data-world-choice="theme" data-value="Underwater realm"><img src="/assets/character-creator/environments/underwater-realm.png" alt="" /><span>Underwater</span></button>
+                <button type="button" data-world-choice="theme" data-value="Dark kingdom"><img src="/assets/character-creator/environments/dark-kingdom.png" alt="" /><span>Dark Kingdom</span></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="builder-panel outfit-panel">
+            <h2>World Details</h2>
+            <p>Add visual anchors the story can reuse.</p>
+            <div class="field-stack">
+              <span>Landmarks</span>
+              <div class="accessory-grid world-detail-grid">
+                <button class="is-selected" type="button" data-world-multi="landmarks" data-value="Central hero platform">Central Platform</button>
+                <button class="is-selected" type="button" data-world-multi="landmarks" data-value="Glowing portal">Portal</button>
+                <button type="button" data-world-multi="landmarks" data-value="Floating islands">Floating Islands</button>
+                <button type="button" data-world-multi="landmarks" data-value="Ancient ruins">Ancient Ruins</button>
+                <button type="button" data-world-multi="landmarks" data-value="Secret bridge">Secret Bridge</button>
+                <button type="button" data-world-multi="landmarks" data-value="Crystal towers">Crystal Towers</button>
+              </div>
+            </div>
+            <div class="field-stack">
+              <span>World Rules</span>
+              <div class="accessory-grid world-detail-grid">
+                <button class="is-selected" type="button" data-world-multi="rules" data-value="Ideas open portals">Ideas Open Portals</button>
+                <button type="button" data-world-multi="rules" data-value="Music changes the sky">Music Changes Sky</button>
+                <button type="button" data-world-multi="rules" data-value="Crystals store memories">Memory Crystals</button>
+                <button type="button" data-world-multi="rules" data-value="Choices unlock paths">Choice Paths</button>
+              </div>
+            </div>
+            <label class="field-stack">
+              <span>World Prompt (Description)</span>
+              <span class="textarea-shell">
+                <textarea id="worldPromptNotes" maxlength="420">A magical portal studio with a clean circular hero platform in the foreground, floating islands in the distance, glowing cyan runes, purple-blue sky magic, layered depth, and clear safe space for characters to stand.</textarea>
+                <small data-count-for="worldPromptNotes">215/420</small>
+              </span>
+            </label>
+          </section>
+
+          <aside class="builder-panel live-preview-panel">
+            <h2>Live Preview</h2>
+            <div class="live-world-stage">
+              <img id="worldLiveImage" src="/assets/character-creator/environments/magic-portal-studio.png" alt="Magic Portal Studio live world preview" />
+            </div>
+            <section class="character-summary">
+              <h3>World Summary</h3>
+              <dl id="worldRecipeSummary"></dl>
+            </section>
+          </aside>
+        </div>
+
+        <footer class="builder-action-bar">
+          <a class="scene-action" href="/realm-spark.html">Back To Idea</a>
+          <label class="consistency-lock">
+            <span class="lock-glyph" aria-hidden="true"></span>
+            <span><strong>World Memory</strong><small>Reuse this location across scenes.</small></span>
+            <input id="worldConsistencyLockInput" type="checkbox" checked />
+          </label>
+          <button class="scene-action primary save-character" id="saveWorldButton" type="button">Save World</button>
+          <button class="scene-action add-another" id="saveWorldAndCharacterButton" type="button">Save & Create Character</button>
+        </footer>
+        <p id="worldSaveStatus" class="recipe-status" aria-live="polite"></p>
+      </section>
+    </main>
+  </body>
+</html>

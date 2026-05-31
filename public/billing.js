@@ -18,9 +18,8 @@ function formatTier(tier) {
   return {
     explorer: "Explorer Pass",
     creator: "Creator Membership",
-    pro: "Creator Pro",
+    pro: "Elite Creator",
     elite: "Elite Creator",
-    intensive: "Elite Creator",
   }[tier] || "Explorer Pass";
 }
 

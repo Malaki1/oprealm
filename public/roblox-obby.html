@@ -11,9 +11,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=11" />
+    <link rel="stylesheet" href="/studio.css?v=12" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/roblox-obby.js?v=5" defer></script>
+    <script src="/roblox-obby.js?v=6" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -81,14 +81,23 @@
             </label>
             <div class="story-form-grid">
               <label>
+                Obby title
+                <input id="obbyTitleInput" name="title" maxlength="42" placeholder="Galaxy Gem Dash" />
+              </label>
+              <label>
                 Theme
-                <select id="obbyThemeSelect" name="theme">
-                  <option value="">Auto detect from idea</option>
-                  <option>Volcano</option>
-                  <option>Candy</option>
-                  <option>Space</option>
-                  <option>Cyber</option>
-                  <option>Jungle</option>
+                <select id="obbyThemeSelect" name="theme" required>
+                  <option value="">Choose a theme</option>
+                  <option value="Jungle">Jungle Temple</option>
+                  <option value="Space">Space Galaxy</option>
+                  <option value="Candy">Candyland</option>
+                  <option value="Volcano">Volcano Lava</option>
+                  <option value="Cyber">Cyber Neon</option>
+                  <option value="Ice">Ice Crystal</option>
+                  <option value="Pirate">Pirate Island</option>
+                  <option value="Sky">Sky Kingdom</option>
+                  <option value="Dinosaur">Dinosaur Jungle</option>
+                  <option value="Haunted">Haunted Mansion</option>
                 </select>
               </label>
               <label>
@@ -114,6 +123,10 @@
               <button class="button button-secondary" type="button" id="clearObbyJsonButton">Clear Code</button>
             </div>
             <p class="form-note" id="obbyStatus">Start with a fast, funny idea. OPREALM keeps the build constrained so the plugin can make it playable.</p>
+            <label>
+              Roblox wallpaper asset ID
+              <input id="wallpaperAssetId" name="wallpaperAssetId" maxlength="80" placeholder="Paste Roblox image asset ID after upload, optional for now" />
+            </label>
             <label class="obby-json-export" id="obbyJsonExportWrap" hidden>
               Plugin JSON
               <textarea id="obbyJsonExport" rows="8" readonly placeholder="Generate an obby spec to export plugin JSON."></textarea>
@@ -136,6 +149,69 @@
             <div class="obby-section-list" id="obbySectionList">
               <article><strong>Waiting for an idea</strong><p>The first version creates deterministic JSON for the Roblox plugin.</p></article>
             </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="obby-dashboard obby-wallpaper-forge" id="wallpaperForge">
+        <div class="story-dashboard-head obby-dashboard-head">
+          <div>
+            <p class="eyebrow">Theme Wallpaper Forge</p>
+            <h3>Generate seamless Roblox wall art.</h3>
+            <p>Create a tileable wallpaper for the inside walls of the obby. Preview it as a repeating pattern before uploading it to Roblox.</p>
+          </div>
+          <span class="status-pill">8 credits</span>
+        </div>
+
+        <div class="wallpaper-workspace">
+          <form class="story-form obby-form" id="wallpaperForm">
+            <div class="story-form-grid">
+              <label>
+                Wallpaper theme
+                <select id="wallpaperTheme" name="theme" required>
+                  <option value="">Choose a theme</option>
+                  <option value="Jungle">Jungle Temple</option>
+                  <option value="Space">Space Galaxy</option>
+                  <option value="Candy">Candyland</option>
+                  <option value="Volcano">Volcano Lava</option>
+                  <option value="Cyber">Cyber Neon</option>
+                  <option value="Ice">Ice Crystal</option>
+                  <option value="Pirate">Pirate Island</option>
+                  <option value="Sky">Sky Kingdom</option>
+                  <option value="Dinosaur">Dinosaur Jungle</option>
+                  <option value="Haunted">Haunted Mansion</option>
+                </select>
+              </label>
+              <label>
+                Detail level
+                <select id="wallpaperDetail" name="detail">
+                  <option>Detailed</option>
+                  <option>Clean</option>
+                  <option>Premium</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              Extra art direction
+              <textarea id="wallpaperNotes" name="notes" rows="4" maxlength="360" placeholder="Example: make it feel like glowing vines and ancient stone, but keep it bright and friendly."></textarea>
+            </label>
+            <div class="prompt-actions">
+              <button class="button button-primary" type="submit">Generate Wallpaper</button>
+              <a class="button button-secondary" id="downloadWallpaperButton" href="#" download="oprealm-obby-wallpaper.png" hidden>Download PNG</a>
+            </div>
+            <p class="form-note" id="wallpaperStatus">Choose the same theme as your obby for best results.</p>
+          </form>
+
+          <article class="wallpaper-preview-card">
+            <div>
+              <p class="eyebrow">Tile preview</p>
+              <h4 id="wallpaperPreviewTitle">No wallpaper yet</h4>
+            </div>
+            <div class="wallpaper-preview-grid" id="wallpaperTilePreview">
+              <span>Generated wallpaper will repeat here.</span>
+            </div>
+            <img id="wallpaperImagePreview" alt="Generated OPREALM Roblox wallpaper preview" hidden />
+            <p class="form-note">Next step after this MVP: connect Roblox Open Cloud so OPRealm can upload this PNG and insert the asset ID automatically.</p>
           </article>
         </div>
       </section>

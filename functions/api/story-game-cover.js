@@ -1,23 +1,37 @@
+import { requireUser } from "../_lib/auth.js";
+import { assertRateLimit } from "../_lib/generation-jobs.js";
+import { readJson } from "../_lib/http.js";
+
 const COVER_IMAGE_COST = 18;
 const COVER_IMAGE_ESTIMATED_COST_USD = 0.2;
 const COVER_IMAGE_MODEL = "gpt-image-1.5";
 const COVER_IMAGE_QUALITY = "high";
+const COVER_TOOL = "story_game_cover";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
   if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm cover generator is not connected yet." }, 500);
 
-  const user = await currentUser(request, env);
-  if (!user) return json({ ok: false, error: "Please log in before generating a game cover." }, 401);
+  let user;
+  try {
+    user = await requireUser(request, env);
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Please log in before generating a game cover." }, error.status || 401);
+  }
   if (Number(user.credits_remaining || 0) < COVER_IMAGE_COST) {
     return json({ ok: false, error: `You need ${COVER_IMAGE_COST} Creator credits to generate a game cover.` }, 402);
   }
 
   let body;
   try {
-    body = await request.json();
+    body = await readJson(request, "Invalid game cover request.");
   } catch {
     return json({ ok: false, error: "Invalid game cover request." }, 400);
+  }
+  try {
+    await assertRateLimit(env, user.id, COVER_TOOL, { limit: 6, windowSeconds: 60 });
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Too many cover requests. Try again shortly." }, error.status || 429);
   }
 
   const safetyWarning = checkPromptSafety([
@@ -149,23 +163,6 @@ async function logAiUsage(env, user, prompt, imageResult) {
   }
 }
 
-async function currentUser(request, env) {
-  const sessionId = parseCookies(request.headers.get("cookie") || "").oprealm_session;
-  if (!sessionId) return null;
-  return env.OPREALM_DB.prepare(
-    `
-      SELECT web_users.*
-      FROM web_sessions
-      JOIN web_users ON web_users.id = web_sessions.web_user_id
-      WHERE web_sessions.id = ?
-        AND web_sessions.expires_at > datetime('now')
-      LIMIT 1
-    `,
-  )
-    .bind(sessionId)
-    .first();
-}
-
 function checkPromptSafety(value) {
   const text = String(value || "").toLowerCase();
   const blocked = [
@@ -186,19 +183,6 @@ function checkPromptSafety(value) {
   ];
   const phrase = blocked.find((item) => text.includes(item));
   return phrase ? `Please remove unsafe personal/contact wording like "${phrase}" before generating.` : "";
-}
-
-function parseCookies(header) {
-  return Object.fromEntries(
-    header
-      .split(";")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const index = part.indexOf("=");
-        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
-      }),
-  );
 }
 
 function cleanText(value, maxLength) {

@@ -7,6 +7,7 @@ const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-scene-images", 180],
   ["/api/story-game-cover", 120],
   ["/api/story-image-download", 240],
+  ["/api/roblox-wallpaper", 120],
 ]);
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;

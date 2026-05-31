@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="OPREALM Storyboard Creator turns a Realm Spark idea into characters, worlds, objects and scene cards." />
+    <title>Storyboard Creator | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/creator-flow.css?v=13" />
+    <script src="/creator-flow.js?v=10" defer></script>
+  </head>
+  <body class="storyboard-body">
+    <header class="storyboard-topbar">
+      <a class="spark-brand" href="/">
+        <span class="spark-mark" aria-hidden="true"></span>
+        <span>OPREALM Story Studio</span>
+      </a>
+      <nav class="storyboard-nav" aria-label="Storyboard navigation">
+        <a href="/realm-spark.html">Realm Spark</a>
+        <a href="/storyboard-world.html">World</a>
+        <a href="/storyboard-character.html">Character</a>
+        <a href="/storyboard.html" aria-current="page">Story Builder</a>
+        <a href="/library">My Creations</a>
+        <a href="/account.html">Profile</a>
+        <span class="spark-pill">1200</span>
+      </nav>
+    </header>
+
+    <main class="storyboard-shell">
+      <aside class="storyboard-sidebar" aria-label="Creative ingredients">
+        <section class="ingredient-section" id="characters">
+          <div class="ingredient-head">
+            <h2>Characters</h2>
+            <a class="mini-add" href="/storyboard-character.html">+ Add</a>
+          </div>
+          <div id="storyboardCharacterList">
+          <article class="ingredient-card is-active">
+            <img src="/assets/homepage/thumbnails/space-adventure.png" alt="Max character" />
+            <div>
+              <h3>Max</h3>
+              <p>Brave, funny, adventurer</p>
+              <span class="lock-pill">Locked</span>
+            </div>
+          </article>
+          <article class="ingredient-card">
+            <img src="/assets/homepage/thumbnails/neon-beat.png" alt="Luna character" />
+            <div>
+              <h3>Luna</h3>
+              <p>Smart, curious, inventor</p>
+              <span class="lock-pill">Locked</span>
+            </div>
+          </article>
+          </div>
+        </section>
+
+        <section class="ingredient-section" id="worlds">
+          <div class="ingredient-head">
+            <h2>World</h2>
+            <button class="mini-add" type="button" id="addWorldButton">+ Add</button>
+          </div>
+          <div id="storyboardWorldList">
+          <article class="ingredient-card is-active">
+            <img src="/assets/homepage/cards/roblox-worlds.png" alt="Lava planet" />
+            <div>
+              <h3>Lava Planet</h3>
+              <p>Orange glow, floating rock, portal sky</p>
+              <span class="lock-pill">Selected</span>
+            </div>
+          </article>
+          <article class="ingredient-card">
+            <img src="/assets/homepage/cards/story-games.png" alt="Sky islands" />
+            <div>
+              <h3>Sky Islands</h3>
+              <p>Bright clouds, castles, waterfalls</p>
+            </div>
+          </article>
+          </div>
+        </section>
+
+        <section class="ingredient-section" id="objects">
+          <div class="ingredient-head">
+            <h2>Objects</h2>
+            <button class="mini-add" type="button" id="addObjectButton">+ Add</button>
+          </div>
+          <div class="object-grid" id="storyboardObjectList">
+            <button class="object-card" type="button"><img src="/assets/homepage/tools/ai-magic.png" alt="" /><span>Crystal Sword</span></button>
+            <button class="object-card" type="button"><img src="/assets/homepage/tools/asset-library.png" alt="" /><span>Jetpack</span></button>
+            <button class="object-card" type="button"><img src="/assets/homepage/mascot/orbit.png" alt="" /><span>Robot Pet</span></button>
+            <button class="object-card" type="button"><img src="/assets/homepage/safety/child-safe.png" alt="" /><span>Shield</span></button>
+            <button class="object-card" type="button"><img src="/assets/homepage/tools/generate.png" alt="" /><span>Power Core</span></button>
+            <button class="object-card" type="button"><img src="/assets/homepage/tools/remix.png" alt="" /><span>Portal Orb</span></button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="storyboard-canvas" aria-label="Storyboard canvas">
+        <div class="story-progress story-progress-short">
+          <span class="progress-step is-done">Idea</span>
+          <span class="progress-step is-done">Character</span>
+          <span class="progress-step is-active">Story Builder</span>
+          <span class="progress-step">Creative Path</span>
+        </div>
+        <div class="canvas-head">
+          <div>
+            <p class="spark-eyebrow">Story Builder</p>
+            <h1 id="storyboardProjectTitle">My Awesome Story</h1>
+          </div>
+          <div class="story-builder-actions" aria-label="Story builder actions">
+            <button class="scene-action" id="quickPopulateStoryButton" type="button">Quick Populate</button>
+            <button class="scene-action" id="aiAssistStoryButton" type="button">AI Assist</button>
+          </div>
+          <div class="view-toggle" role="group" aria-label="Storyboard view">
+            <button class="is-active" type="button">Storyboard View</button>
+            <button type="button">Timeline View</button>
+          </div>
+        </div>
+
+        <div class="scene-list" id="scenes">
+          <div id="storyboardSceneList">
+          <article class="scene-card">
+            <span class="scene-number">1</span>
+            <div class="scene-card-media"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="Scene 1 preview" /></div>
+            <div class="scene-card-body">
+              <h2>Scene 1</h2>
+              <p>The robot wakes up in the junkyard.</p>
+              <div class="scene-chip-row"><span class="scene-chip is-active">Max</span><span class="scene-chip">Robot Pet</span><span class="scene-chip">Junkyard</span></div>
+              <div class="scene-actions"><button class="scene-action" type="button">Regenerate</button><button class="scene-action primary" type="button">Edit Scene</button></div>
+            </div>
+          </article>
+
+          <article class="scene-card">
+            <span class="scene-number">2</span>
+            <div class="scene-card-media"><img src="/assets/homepage/thumbnails/lava-escape.png" alt="Scene 2 preview" /></div>
+            <div class="scene-card-body">
+              <h2>Scene 2</h2>
+              <p>Max and the robot pet fly over the lava mountains.</p>
+              <div class="scene-chip-row"><span class="scene-chip is-active">Max</span><span class="scene-chip">Robot Pet</span><span class="scene-chip">Lava Planet</span></div>
+              <div class="scene-actions"><button class="scene-action" type="button">Regenerate</button><button class="scene-action primary" type="button">Edit Scene</button></div>
+            </div>
+          </article>
+
+          <article class="scene-card">
+            <span class="scene-number">3</span>
+            <div class="scene-card-media"><img src="/assets/homepage/cards/roblox-worlds.png" alt="Scene 3 preview" /></div>
+            <div class="scene-card-body">
+              <h2>Scene 3</h2>
+              <p>A giant robot shark rises from the lava sea.</p>
+              <div class="scene-chip-row"><span class="scene-chip is-active">Max</span><span class="scene-chip">Robot Shark</span><span class="scene-chip">Lava Planet</span></div>
+              <div class="scene-actions"><button class="scene-action" type="button">Regenerate</button><button class="scene-action primary" type="button">Edit Scene</button></div>
+            </div>
+          </article>
+          </div>
+
+          <button class="add-scene-card" id="addSceneButton" type="button">
+            <strong>+ Add Story Moment</strong>
+            <span>Continue your story with a new prompt.</span>
+          </button>
+        </div>
+      </section>
+
+      <aside class="storyboard-director" aria-label="AI Director">
+        <section class="director-hero">
+          <img src="/assets/homepage/mascot/orbit.png" alt="Orbit AI Director" />
+          <div class="director-message">I have some ideas to make your story even better.</div>
+        </section>
+
+        <section class="suggestions">
+          <p class="spark-eyebrow">Suggestions</p>
+          <button class="suggestion-card" type="button">Add dramatic rain to Scene 3</button>
+          <button class="suggestion-card" type="button">Make Scene 2 more epic</button>
+          <button class="suggestion-card" type="button">Add a villain character</button>
+          <button class="suggestion-card" type="button">Create a plot twist</button>
+          <button class="suggestion-card" type="button">Show next scene idea</button>
+        </section>
+
+        <section class="style-transform">
+          <p class="spark-eyebrow">Style Transform</p>
+          <div class="style-grid">
+            <button class="style-card" type="button"><img src="/assets/homepage/cards/story-games.png" alt="" /><span>Anime</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><span>3D</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/cards/art-studio.png" alt="" /><span>Comic</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/cards/roblox-worlds.png" alt="" /><span>Toy World</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/neon-beat.png" alt="" /><span>Cyberpunk</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="" /><span>Dreamy</span></button>
+          </div>
+        </section>
+
+        <button class="generate-all" type="button">Generate All Scenes</button>
+      </aside>
+    </main>
+
+    <section class="prompt-dock" aria-label="Scene prompt bar">
+      <button class="scene-action primary" type="button">Voice Prompt</button>
+      <input id="dockScenePrompt" type="text" placeholder="Describe your next story moment..." />
+      <button class="scene-action" id="dockAiAssistButton" type="button">AI Assist</button>
+      <button class="scene-action" id="dockAddSceneButton" type="button">Add Moment</button>
+    </section>
+
+    <nav class="bottom-mobile-nav" aria-label="Mobile storyboard navigation">
+      <a href="/realm-spark.html">Idea</a>
+      <a href="/storyboard-character.html">Character</a>
+      <a href="#scenes">Story</a>
+      <a href="#paths">Paths</a>
+      <a href="#settings">Settings</a>
+    </nav>
+  </body>
+</html>

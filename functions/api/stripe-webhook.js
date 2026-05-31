@@ -1,7 +1,7 @@
 const TIERS = {
-  creator: { credits: 400 },
-  pro: { credits: 1000 },
-  intensive: { credits: 3000 },
+  explorer: { credits: 100 },
+  creator: { credits: 500 },
+  pro: { credits: 1200 },
 };
 
 const CREDIT_BUNDLES = {
@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env }) {
       await env.OPREALM_DB.prepare(
         "UPDATE web_users SET tier = ?, credits_remaining = ?, updated_at = datetime('now') WHERE id = ?",
       )
-        .bind(tierKey === "intensive" ? "elite" : tierKey, tier.credits, webUserId)
+        .bind(tierKey, tier.credits, webUserId)
         .run();
     }
 

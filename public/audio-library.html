@@ -362,7 +362,7 @@
           <h1>Creator Audio <span class="gradient-text">Library</span></h1>
           <p>
             Search approved OPRealm sound effects and music assets for game projects. The shared library is designed for
-            Creator Pro and Elite members, with moderator review before assets appear here.
+            Elite members, with moderator review before assets appear here.
           </p>
         </div>
         <form class="access-card" id="accessForm">
@@ -371,7 +371,7 @@
             <input id="secret" type="password" autocomplete="off" placeholder="Optional admin access token" />
             <button type="submit">Admin Load</button>
           </div>
-          <p class="login-copy" id="loginStatus">Creator Pro and Elite members can access approved audio assets from their OPREALM account.</p>
+          <p class="login-copy" id="loginStatus">Elite members can access approved audio assets from their OPREALM account.</p>
           <a class="account-login" href="/login">Log in with OPREALM</a>
         </form>
       </section>
@@ -449,10 +449,10 @@
             loginStatus.textContent = `Logged in as ${data.alias || "OPRealm member"} (${data.tier}).`;
             loadLibrary();
           } else if (data.authenticated) {
-            loginStatus.textContent = "Logged in, but the shared Audio Library requires Creator Pro or Elite.";
+            loginStatus.textContent = "Logged in, but the shared Audio Library requires Elite.";
           }
         } catch (error) {
-          loginStatus.textContent = "Creator Pro and Elite members can access approved audio assets from their OPREALM account.";
+          loginStatus.textContent = "Elite members can access approved audio assets from their OPREALM account.";
         }
       }
 

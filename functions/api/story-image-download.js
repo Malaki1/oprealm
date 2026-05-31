@@ -1,4 +1,12 @@
-export async function onRequestPost({ request }) {
+import { requireUser } from "../_lib/auth.js";
+
+export async function onRequestPost({ request, env }) {
+  try {
+    await requireUser(request, env);
+  } catch (error) {
+    return new Response(error.message || "Please log in before downloading images.", { status: error.status || 401 });
+  }
+
   let form;
   try {
     form = await request.formData();

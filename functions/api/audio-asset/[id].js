@@ -2,7 +2,7 @@ export async function onRequestGet({ params, request, env }) {
   const access = await resolveAudioLibraryAccess(request, env);
 
   if (!access.canAccess) {
-    return json({ ok: false, error: "Creator Pro or Elite membership is required" }, 403);
+    return json({ ok: false, error: "Elite membership is required" }, 403);
   }
 
   if (!env.OPREALM_DB) {

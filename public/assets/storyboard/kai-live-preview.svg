@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Kai live preview</title>
+  <desc id="desc">A matching full-body Kai character render for the live preview panel.</desc>
+  <defs>
+    <radialGradient id="stageBg" cx="50%" cy="44%" r="62%">
+      <stop offset="0" stop-color="#743cff" stop-opacity=".52"/>
+      <stop offset=".45" stop-color="#123a8a" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#050817"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="150" x2="750" y1="920" y2="920">
+      <stop stop-color="#22d9ff"/>
+      <stop offset=".5" stop-color="#884dff"/>
+      <stop offset="1" stop-color="#f641d5"/>
+    </linearGradient>
+    <linearGradient id="coat" x1="330" x2="570" y1="470" y2="710">
+      <stop stop-color="#ff8a35"/>
+      <stop offset=".55" stop-color="#d94e25"/>
+      <stop offset="1" stop-color="#7d2bff"/>
+    </linearGradient>
+    <linearGradient id="pack" x1="238" x2="370" y1="486" y2="725">
+      <stop stop-color="#23d9ff"/>
+      <stop offset="1" stop-color="#253cff"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.13 0 0 0 0 0.85 0 0 0 0 1 0 0 0 .75 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="18" flood-color="#000" flood-opacity=".42"/>
+    </filter>
+  </defs>
+  <rect width="900" height="1100" fill="#050817"/>
+  <rect width="900" height="1100" fill="url(#stageBg)"/>
+  <g opacity=".5">
+    <circle cx="120" cy="160" r="5" fill="#22d9ff"/>
+    <circle cx="776" cy="178" r="4" fill="#f641d5"/>
+    <circle cx="740" cy="690" r="6" fill="#884dff"/>
+    <circle cx="210" cy="720" r="4" fill="#22d9ff"/>
+    <path d="M160 380l19 6-19 6-6 19-6-19-19-6 19-6 6-19z" fill="#22d9ff"/>
+    <path d="M742 366l26 8-26 8-8 26-8-26-26-8 26-8 8-26z" fill="#f641d5"/>
+    <path d="M650 118l17 5-17 5-5 17-5-17-17-5 17-5 5-17z" fill="#fff"/>
+  </g>
+  <ellipse cx="450" cy="932" rx="270" ry="64" fill="url(#ring)" opacity=".9" filter="url(#glow)"/>
+  <ellipse cx="450" cy="914" rx="178" ry="36" fill="#07112e" opacity=".78"/>
+  <g filter="url(#drop)">
+    <path d="M314 522c-49 17-78 61-84 134l-17 221h88l29-193z" fill="url(#pack)"/>
+    <path d="M586 522c49 17 78 61 84 134l17 221h-88l-29-193z" fill="#1d2d69"/>
+    <path d="M360 706h92v230h-88z" fill="#202b55"/>
+    <path d="M468 706h92l-4 230h-88z" fill="#202b55"/>
+    <path d="M348 918h116v50c-36 24-88 24-132 0z" fill="#15192e"/>
+    <path d="M456 918h118v50c-38 24-90 24-134 0z" fill="#15192e"/>
+    <path d="M330 478c62-58 239-58 309 0 50 42 66 138 24 224-47 98-375 98-421 0-41-86 38-182 88-224z" fill="url(#coat)"/>
+    <path d="M388 505h128l-21 216h-84z" fill="#111b3b" opacity=".86"/>
+    <path d="M421 526h75l-14 142h-47z" fill="#22d9ff" opacity=".23"/>
+    <path d="M330 496c-42 42-68 110-76 188l66 12 46-162z" fill="#f26b2d"/>
+    <path d="M638 496c42 42 68 110 76 188l-66 12-46-162z" fill="#8b49ff"/>
+    <path d="M234 686c-12 42 4 76 34 88 26 10 51-12 47-39l-7-52z" fill="#f3b184"/>
+    <path d="M722 686c12 42-4 76-34 88-26 10-51-12-47-39l7-52z" fill="#f3b184"/>
+    <path d="M334 321c-15-92 51-153 127-154 78-1 145 62 126 156 47 19 70 61 54 108-23 68-106 90-184 90-79 0-165-22-189-90-17-48 17-91 66-110z" fill="#4b2515"/>
+    <path d="M322 351c13-75 77-116 139-116 68 0 126 43 139 116 10 58-16 121-68 154-47 31-110 31-157 0-52-33-62-96-53-154z" fill="#f2b480"/>
+    <path d="M341 330c43 13 89 1 127-37 38 41 82 57 134 47-11-86-71-143-142-143-74 0-127 51-119 133z" fill="#32150d"/>
+    <path d="M454 215c-42 33-89 49-145 48 29-62 82-95 145-99z" fill="#6b3218"/>
+    <circle cx="410" cy="392" r="18" fill="#2a1b1a"/>
+    <circle cx="516" cy="392" r="18" fill="#2a1b1a"/>
+    <circle cx="416" cy="385" r="6" fill="#fff"/>
+    <circle cx="523" cy="385" r="6" fill="#fff"/>
+    <path d="M424 459c27 29 71 29 98 0" fill="none" stroke="#9b3d2c" stroke-width="12" stroke-linecap="round"/>
+    <path d="M466 404l-14 42h33z" fill="#df936c"/>
+    <path d="M349 358c27-21 60-26 93-16" stroke="#2a120a" stroke-width="12" stroke-linecap="round"/>
+    <path d="M489 342c32-10 66-5 91 16" stroke="#2a120a" stroke-width="12" stroke-linecap="round"/>
+    <path d="M306 498l-40 154 65 18 43-148z" fill="#1a2b68"/>
+    <path d="M651 498l39 154-65 18-43-148z" fill="#1a2b68"/>
+    <path d="M373 708c38 24 73 36 108 36 36 0 72-12 110-36l17 42c-79 48-164 48-250 0z" fill="#0d1737"/>
+    <path d="M268 773l47-37" stroke="#22d9ff" stroke-width="15" stroke-linecap="round"/>
+    <path d="M688 773l-47-37" stroke="#22d9ff" stroke-width="15" stroke-linecap="round"/>
+  </g>
+  <path d="M190 930c142 77 506 82 650 0" fill="none" stroke="#22d9ff" stroke-width="6" opacity=".45"/>
+</svg>

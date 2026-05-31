@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Realm Spark helps kids turn a first idea, drawing, voice note or remix into a story world." />
+    <title>Realm Spark | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/creator-flow.css?v=13" />
+    <script src="/creator-flow.js?v=10" defer></script>
+  </head>
+  <body class="spark-body">
+    <header class="spark-topbar">
+      <a class="spark-brand" href="/">
+        <span class="spark-mark" aria-hidden="true"></span>
+        <span>OPREALM</span>
+      </a>
+      <nav class="spark-nav" aria-label="Realm Spark navigation">
+        <a href="/realm-spark.html" aria-current="page">Realm Spark</a>
+        <a href="/storyboard-world.html">World</a>
+        <a href="/storyboard-character.html">Character</a>
+        <a href="/storyboard.html">Story Builder</a>
+        <a href="/library">My Creations</a>
+        <a href="/account.html">Profile</a>
+      </nav>
+    </header>
+
+    <main class="spark-shell">
+      <div class="spark-layout">
+        <aside class="spark-sidebar" aria-label="Creator flow">
+          <a class="spark-side-link" href="/">Home</a>
+          <a class="spark-side-link is-active" href="/realm-spark.html">Realm Spark</a>
+          <a class="spark-side-link" href="/storyboard-world.html">World</a>
+          <a class="spark-side-link" href="/storyboard-character.html">Character</a>
+          <a class="spark-side-link" href="/storyboard.html">Storyboard</a>
+          <a class="spark-side-link" href="/library">Creations</a>
+          <a class="spark-side-link" href="/studio">Creator Hub</a>
+          <div class="orbit-card">
+            <img src="/assets/homepage/mascot/orbit.png" alt="Orbit assistant" />
+            <strong>Need a spark?</strong>
+            <span>Pick a card, speak an idea, remix a world, or combine chips.</span>
+            <button class="build-world-button" type="button" data-random-idea>Surprise Me</button>
+          </div>
+        </aside>
+
+        <section class="spark-main" aria-label="Realm Spark idea engine">
+          <section class="spark-hero">
+            <p class="spark-eyebrow">Realm Spark</p>
+            <h1>Where every imagination becomes a <span class="gradient-text">universe</span></h1>
+            <p>Start with a spark. OPREALM turns words, voice, drawings and remix ideas into characters, worlds and story moments.</p>
+          </section>
+
+          <section class="spark-panel inspiration-strip" aria-label="Visual inspiration">
+            <div class="section-row">
+              <div>
+                <p class="spark-eyebrow">Explore inspiration</p>
+                <h2>What will you create today?</h2>
+              </div>
+              <button class="spark-pill" type="button" data-random-idea>Shuffle</button>
+            </div>
+            <div class="inspiration-grid">
+              <button class="inspiration-card" type="button" data-idea="Space robot adventure" data-image="/assets/homepage/thumbnails/space-adventure.png"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="" /><span>Space Robot Adventure</span></button>
+              <button class="inspiration-card" type="button" data-idea="Fantasy kingdom mystery" data-image="/assets/homepage/thumbnails/fantasy-story.png"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><span>Fantasy Kingdom</span></button>
+              <button class="inspiration-card" type="button" data-idea="Cyber city rebellion" data-image="/assets/homepage/cards/music-sound.png"><img src="/assets/homepage/cards/music-sound.png" alt="" /><span>Cyber City</span></button>
+              <button class="inspiration-card" type="button" data-idea="Monster school mystery" data-image="/assets/homepage/thumbnails/dragon-quest.png"><img src="/assets/homepage/thumbnails/dragon-quest.png" alt="" /><span>Monster Mystery</span></button>
+              <button class="inspiration-card" type="button" data-idea="Robot shark lava survival" data-image="/assets/homepage/cards/roblox-worlds.png"><img src="/assets/homepage/cards/roblox-worlds.png" alt="" /><span>Lava Survival</span></button>
+              <button class="inspiration-card" type="button" data-idea="Dragon training story" data-image="/assets/homepage/thumbnails/lava-escape.png"><img src="/assets/homepage/thumbnails/lava-escape.png" alt="" /><span>Dragon Training</span></button>
+            </div>
+          </section>
+
+          <section class="spark-panel idea-playground idea-console" aria-label="Idea playground">
+            <div class="idea-console-head">
+              <p class="spark-eyebrow">Creation Core</p>
+              <h2>Tell OPREALM the spark.</h2>
+              <p>Speak, type, draw or remix. We turn the first spark into characters, story moments and a world plan.</p>
+            </div>
+
+            <div class="creation-orb">
+              <div class="orb-core">
+                <div class="orb-content">
+                  <span class="orb-label">Realm Spark</span>
+                  <h2>Describe anything</h2>
+                  <p id="rotatingIdea">A robot shark attacks a lava city</p>
+                  <input class="spark-input" id="sparkInput" type="text" placeholder="Type your idea here" maxlength="180" />
+                  <div class="orb-controls">
+                    <button type="button" data-random-idea>Random Idea</button>
+                    <button type="button">Enhance</button>
+                  </div>
+                </div>
+              </div>
+              <button class="mic-button" type="button" aria-label="Voice prompt">
+                <img src="/assets/homepage/voice-mic-purple.png" alt="" />
+              </button>
+            </div>
+
+            <div class="idea-actions idea-action-grid">
+              <button class="idea-action voice-idea-card" type="button">
+                <img src="/assets/homepage/voice-mic-purple.png" alt="" />
+                <span><strong>Voice Idea</strong><em>Speak your idea out loud</em></span>
+              </button>
+              <button class="idea-action draw-idea-card" type="button"><span><strong>Draw Your Idea</strong><em>Upload or draw what you imagine</em></span></button>
+              <button class="idea-action type-idea-card" type="button"><span><strong>Type Your Idea</strong><em>Write your idea in your own words</em></span></button>
+              <button class="idea-action mix-idea-card" type="button"><span><strong>Mix & Match</strong><em>Combine themes and characters</em></span></button>
+              <button class="idea-action remix-idea-card" type="button"><span><strong>Remix a Story</strong><em>Put your own twist on a world</em></span></button>
+              <button class="idea-action ai-idea-card" type="button" data-random-idea><span><strong>AI Inspiration</strong><em>Let OPREALM suggest a spark</em></span></button>
+            </div>
+          </section>
+
+          <section class="spark-lower">
+            <div class="spark-panel inspiration-strip">
+              <div class="section-row">
+                <div>
+                  <p class="spark-eyebrow">Trending ideas</p>
+                  <h2>Remix a world instead of starting blank.</h2>
+                </div>
+              </div>
+              <div class="trending-grid">
+                <button class="trending-card" type="button" data-idea="Underwater treasure city" data-image="/assets/homepage/thumbnails/fantasy-story.png"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><strong>Underwater Treasure</strong></button>
+                <button class="trending-card" type="button" data-idea="Ninja academy moon chase" data-image="/assets/homepage/thumbnails/dragon-quest.png"><img src="/assets/homepage/thumbnails/dragon-quest.png" alt="" /><strong>Ninja Academy</strong></button>
+                <button class="trending-card" type="button" data-idea="Dinosaur park escape" data-image="/assets/homepage/thumbnails/space-adventure.png"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="" /><strong>Dinosaur Park</strong></button>
+                <button class="trending-card" type="button" data-idea="Ghost school mystery" data-image="/assets/homepage/thumbnails/lava-escape.png"><img src="/assets/homepage/thumbnails/lava-escape.png" alt="" /><strong>Secret School</strong></button>
+              </div>
+            </div>
+            <div class="spark-panel inspiration-strip">
+              <div>
+                <p class="spark-eyebrow">Idea starters</p>
+                <h2>Tap a spark.</h2>
+              </div>
+              <div class="starter-grid">
+                <button class="starter-card" type="button" data-chip="Animals can talk">Animals can talk</button>
+                <button class="starter-card" type="button" data-chip="A world with no adults">A world with no adults</button>
+                <button class="starter-card" type="button" data-chip="Magic school rebels">Magic school rebels</button>
+                <button class="starter-card" type="button" data-chip="Robots have feelings">Robots have feelings</button>
+                <button class="starter-card" type="button" data-chip="Something super funny">Something super funny</button>
+                <button class="starter-card" type="button" data-chip="Time travel adventure">Time travel adventure</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="spark-preview" aria-label="Idea preview">
+          <p class="spark-eyebrow">Your idea preview</p>
+          <div class="spark-preview-image">
+            <img id="ideaPreviewImage" src="/assets/homepage/thumbnails/space-adventure.png" alt="Idea preview" />
+          </div>
+          <h3 id="ideaPreviewTitle">Space Robot Adventure</h3>
+          <div class="preview-tags" id="ideaPreviewTags">
+            <span>Space</span><span>Robot</span><span>Adventure</span>
+          </div>
+          <p id="ideaPreviewCopy">A brave kid discovers a glowing space world, but a robot friend needs help before the portals close.</p>
+          <a class="build-world-button" href="/storyboard-world.html">Build This World</a>
+          <section>
+            <p class="spark-eyebrow">Recent sparks</p>
+            <p>Robot shark lava survival<br />Secret island crystals<br />Cyber pet glitch mystery</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </body>
+</html>

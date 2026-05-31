@@ -93,7 +93,7 @@ async function register(request, env, body) {
   await env.OPREALM_DB.prepare(
     `
       INSERT INTO web_users (id, email, password_hash, display_name, parent_email, age_band, tier, credits_remaining, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'explorer', 50, datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, 'explorer', 100, datetime('now'), datetime('now'))
     `,
   )
     .bind(id, email, passwordHash, displayName, parentEmail || null, ageBand || null)
@@ -284,7 +284,7 @@ async function ensureAccountSchema(env) {
         parent_email TEXT,
         age_band TEXT,
         tier TEXT NOT NULL DEFAULT 'explorer',
-        credits_remaining INTEGER NOT NULL DEFAULT 50,
+        credits_remaining INTEGER NOT NULL DEFAULT 100,
         email_verified INTEGER NOT NULL DEFAULT 0,
         safety_completed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),

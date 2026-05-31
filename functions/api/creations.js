@@ -1,3 +1,7 @@
+import { requireUser } from "../_lib/auth.js";
+import { readJson } from "../_lib/http.js";
+import { assertSafePrompt } from "../_lib/validate.js";
+
 export async function onRequestGet({ request, env }) {
   if (!env.OPREALM_DB) {
     return json({ ok: false, error: "OPRealm database is not connected" }, 500);
@@ -61,11 +65,13 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: "OPRealm database is not connected" }, 500);
   }
 
+  let user;
   let body;
   try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: "Invalid JSON body" }, 400);
+    user = await requireUser(request, env);
+    body = await readJson(request, "Invalid creation submission request.");
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Invalid creation submission request." }, error.status || 400);
   }
 
   const title = cleanText(body.title || "", 80);
@@ -82,12 +88,18 @@ export async function onRequestPost({ request, env }) {
   if (title.length < 3 || description.length < 12) {
     return json({ ok: false, error: "Add a title and a fuller description before submitting." }, 400);
   }
+  try {
+    assertSafePrompt(`${title} ${description} ${cleanText(body.tags || "", 200)}`);
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Please remove unsafe wording before submitting." }, error.status || 400);
+  }
 
   const id = crypto.randomUUID();
   await env.OPREALM_DB.prepare(
     `
       INSERT INTO public_creations (
         id,
+        owner_discord_user_id,
         title,
         type,
         description,
@@ -99,10 +111,10 @@ export async function onRequestPost({ request, env }) {
         created_at,
         submitted_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending_review', 'pending', datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', 'pending', datetime('now'), datetime('now'))
     `,
   )
-    .bind(id, title, type, description, mediaUrl, thumbnailUrl, projectSnapshot)
+    .bind(id, `web:${user.id}`, title, type, description, mediaUrl, thumbnailUrl, projectSnapshot)
     .run();
 
   return json({ ok: true, id, reviewStatus: "pending" }, 201);

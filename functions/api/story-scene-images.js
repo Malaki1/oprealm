@@ -1,24 +1,38 @@
+import { requireUser } from "../_lib/auth.js";
+import { assertRateLimit } from "../_lib/generation-jobs.js";
+import { readJson } from "../_lib/http.js";
+
 const SCENE_IMAGE_COST = 18;
 const SCENE_IMAGE_MODEL = "gpt-image-1.5";
 const SCENE_IMAGE_QUALITY = "high";
 const SCENE_IMAGE_ESTIMATED_COST_USD = 0.2;
 const MAX_REFERENCE_IMAGES = 4;
+const SCENE_TOOL = "story_scene_images";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
   if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm scene image generator is not connected yet." }, 500);
 
-  const user = await currentUser(request, env);
-  if (!user) return json({ ok: false, error: "Please log in before generating scene images." }, 401);
+  let user;
+  try {
+    user = await requireUser(request, env);
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Please log in before generating scene images." }, error.status || 401);
+  }
   if (Number(user.credits_remaining || 0) < SCENE_IMAGE_COST) {
     return json({ ok: false, error: `You need ${SCENE_IMAGE_COST} Creator credits to generate scene images.` }, 402);
   }
 
   let body;
   try {
-    body = await request.json();
+    body = await readJson(request, "Invalid scene image request.", 14 * 1024 * 1024);
   } catch {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
+  }
+  try {
+    await assertRateLimit(env, user.id, SCENE_TOOL, { limit: 6, windowSeconds: 60 });
+  } catch (error) {
+    return json({ ok: false, error: error.message || "Too many scene requests. Try again shortly." }, error.status || 429);
   }
 
   const safetyWarning = checkPromptSafety([
@@ -86,7 +100,7 @@ async function generateImage(env, prompt, size, referenceImages = []) {
     const response = referenceImages.length
       ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
       : await requestImageGeneration(env, prompt, size, attempt);
-    const data = await response.json();
+    const data = await readJsonResponse(response);
     const b64 = data.data?.[0]?.b64_json;
     if (response.ok && b64) {
       return {
@@ -99,6 +113,20 @@ async function generateImage(env, prompt, size, referenceImages = []) {
   }
 
   throw lastError || new Error("Scene image generation failed.");
+}
+
+async function readJsonResponse(response) {
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.text();
+  if (!contentType.includes("application/json")) {
+    const cleanText = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    throw new Error(`Image provider returned a non-JSON response${cleanText ? `: ${cleanText.slice(0, 160)}` : "."}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("Image provider returned unreadable JSON.");
+  }
 }
 
 async function requestImageGeneration(env, prompt, size, attempt) {
@@ -275,36 +303,6 @@ function checkPromptSafety(value) {
   ];
   const phrase = blocked.find((item) => text.includes(item));
   return phrase ? `Please remove unsafe personal/contact wording like "${phrase}" before generating.` : "";
-}
-
-async function currentUser(request, env) {
-  const sessionId = parseCookies(request.headers.get("cookie") || "").oprealm_session;
-  if (!sessionId) return null;
-  return env.OPREALM_DB.prepare(
-    `
-      SELECT web_users.*
-      FROM web_sessions
-      JOIN web_users ON web_users.id = web_sessions.web_user_id
-      WHERE web_sessions.id = ?
-        AND web_sessions.expires_at > datetime('now')
-      LIMIT 1
-    `,
-  )
-    .bind(sessionId)
-    .first();
-}
-
-function parseCookies(header) {
-  return Object.fromEntries(
-    header
-      .split(";")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const index = part.indexOf("=");
-        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))];
-      }),
-  );
 }
 
 function cleanText(value, maxLength) {

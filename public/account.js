@@ -11,9 +11,9 @@ const passwordStatus = document.querySelector("#passwordStatus");
 const logoutButton = document.querySelector("#logoutButton");
 
 const tierCopy = {
-  explorer: "Free safety-first access with starter credits and beginner onboarding.",
+  explorer: "Explorer access with 100 monthly credits, safety-first tools and beginner onboarding.",
   creator: "Creator Membership access for guided creator engines, reviewed marketplace submissions and AI tools.",
-  pro: "Creator Pro access for premium creator engines, priority AI tools and advanced support.",
+  pro: "Elite Creator access for premium creator engines, priority AI tools and advanced support.",
   elite: "Elite Creator access with advanced project support, premium credits and deeper creator tools.",
 };
 
@@ -55,9 +55,8 @@ function formatTier(tier) {
   return {
     explorer: "Explorer Pass",
     creator: "Creator Membership",
-    pro: "Creator Pro",
+    pro: "Elite Creator",
     elite: "Elite Creator",
-    intensive: "Elite Creator",
   }[tier] || "Explorer Pass";
 }
 
