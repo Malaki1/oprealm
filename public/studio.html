@@ -11,8 +11,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=46" />
-    <script src="/studio.js?v=10" defer></script>
+    <link rel="stylesheet" href="/studio.css?v=47" />
+    <script src="/realm-spark-core.js?v=1" defer></script>
+    <script src="/studio.js?v=11" defer></script>
   </head>
   <body class="studio-launcher-body">
     <header class="studio-header launcher-header">
@@ -25,90 +26,58 @@
         <a href="/account">My Creations</a>
         <a href="/safety">Parent</a>
         <a href="/account">Profile</a>
-        <a class="button button-primary" href="#creationLauncher">Create</a>
+        <a class="button button-primary" href="#studioDescribe">Create</a>
       </nav>
     </header>
 
-    <main class="studio-launcher">
-      <section class="launcher-hero" aria-labelledby="launcherTitle">
+    <main class="studio-launcher studio-describe-main">
+      <section class="launcher-hero studio-describe-hero" aria-labelledby="studioDescribeTitle">
         <img class="launcher-bg" src="/assets/studio/backgrounds/bg-oprealm-main-world.png" alt="" />
-        <img class="launcher-float float-island" src="/assets/studio/floating/floating-island.png" alt="" />
-        <img class="launcher-float float-portal" src="/assets/studio/floating/portal.png" alt="" />
-        <img class="launcher-float float-crystal" src="/assets/studio/floating/crystal.png" alt="" />
-        <img class="launcher-float float-coin" src="/assets/studio/floating/coin.png" alt="" />
         <div class="launcher-hero-glow" aria-hidden="true"></div>
 
-        <div class="launcher-copy">
-          <p class="launcher-pill">Safe AI creator world for kids 6+</p>
-          <h1 id="launcherTitle">What do you want to create today?</h1>
-          <p>Turn your ideas into games, stories, music and movies with safe guided tools.</p>
-        </div>
+        <div class="studio-describe-card" id="studioDescribe">
+          <div class="describe-particles" aria-hidden="true"></div>
+          <div class="describe-mascot-wrap" aria-hidden="true">
+            <span class="describe-mascot-glow"></span>
+            <span class="describe-orbit describe-orbit-one"></span>
+            <span class="describe-orbit describe-orbit-two"></span>
+            <span class="describe-orbit describe-orbit-three"></span>
+            <img class="describe-mascot" src="/assets/homepage/mascot/orbit.png" alt="" />
+          </div>
 
-        <div class="creation-portals" id="creationLauncher" aria-label="Choose a creation category">
-          <a class="creation-card games-card" href="/studio/games" aria-label="Create games">
-            <img src="/assets/studio/cards/card-games.png" alt="" />
-            <span class="creation-icon"><img src="/assets/studio/icons/icon-games.svg" alt="" /></span>
-            <strong>Games</strong>
-            <p>Build worlds, levels and epic games.</p>
-          </a>
-          <a class="creation-card stories-card" href="/realm-spark.html" aria-label="Create stories">
-            <img src="/assets/studio/cards/card-stories.png" alt="" />
-            <span class="creation-icon"><img src="/assets/studio/icons/icon-stories.svg" alt="" /></span>
-            <strong>Stories</strong>
-            <p>Write magical adventures and choices.</p>
-          </a>
-          <a class="creation-card music-card" href="/studio/music" aria-label="Create music">
-            <img src="/assets/studio/cards/card-music.png" alt="" />
-            <span class="creation-icon"><img src="/assets/studio/icons/icon-music.svg" alt="" /></span>
-            <strong>Music</strong>
-            <p>Create songs, beats and sound effects.</p>
-          </a>
-          <a class="creation-card movies-card" href="/studio/movies" aria-label="Create movies">
-            <img src="/assets/studio/cards/card-movies.png" alt="" />
-            <span class="creation-icon"><img src="/assets/studio/icons/icon-movies.svg" alt="" /></span>
-            <strong>Movies</strong>
-            <p>Make trailers, scenes and animations.</p>
-          </a>
-        </div>
+          <div class="describe-copy">
+            <p class="launcher-pill">Safe AI creator world for kids 6+</p>
+            <h1 id="studioDescribeTitle">Describe <span>Anything</span></h1>
+            <p>Games, stories, worlds, characters, music and more.</p>
+          </div>
 
-        <a class="launcher-cta" href="#creationLauncher">Let's bring your imagination to life</a>
-      </section>
+          <form class="describe-prompt" data-studio-prompt-form action="/realm-spark-loading.html">
+            <label class="sr-only" for="studioIdeaPrompt">Describe your idea</label>
+            <button class="describe-prompt-button describe-voice-button" type="button" data-studio-voice aria-label="Start voice prompt">
+              <span class="op-icon op-icon-mic" aria-hidden="true"></span>
+            </button>
+            <input id="studioIdeaPrompt" name="idea" type="text" autocomplete="off" placeholder="Describe your idea..." aria-label="Describe your idea" />
+            <input id="studioIdeaUpload" type="file" accept="image/*" hidden data-studio-upload-input />
+            <button class="describe-prompt-button describe-upload-button" type="button" data-studio-upload aria-label="Upload an image or drawing">
+              <span class="op-icon op-icon-upload" aria-hidden="true"></span>
+            </button>
+            <button class="describe-prompt-button describe-generate-button" type="submit" aria-label="Generate from idea">
+              <span class="op-icon op-icon-favorite" aria-hidden="true"></span>
+            </button>
+          </form>
 
-      <section class="continue-row" aria-labelledby="continueTitle">
-        <div class="section-heading">
-          <p class="eyebrow">Continue your creation</p>
-          <h2 id="continueTitle">Jump back into a world.</h2>
-        </div>
-        <div class="recent-project-grid">
-          <a class="recent-project" href="/roblox-obby">
-            <img src="/assets/studio/thumbnails/thumb-lava-obby.png" alt="" />
-            <strong>Lava Obby</strong>
-            <span>Games</span>
-          </a>
-          <a class="recent-project" href="/realm-spark.html">
-            <img src="/assets/studio/thumbnails/thumb-fantasy-kingdom.png" alt="" />
-            <strong>Fantasy Kingdom</strong>
-            <span>Stories</span>
-          </a>
-          <a class="recent-project" href="/studio/music">
-            <img src="/assets/studio/thumbnails/thumb-neon-beat.png" alt="" />
-            <strong>Neon Beat Studio</strong>
-            <span>Music</span>
-          </a>
-          <a class="recent-project" href="/studio/games">
-            <img src="/assets/studio/thumbnails/thumb-space-adventure.png" alt="" />
-            <strong>Space Adventure</strong>
-            <span>Games</span>
-          </a>
-        </div>
-      </section>
+          <p class="describe-tip"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Tip: Try <span>"a futuristic racing game in space"</span></p>
 
-      <section class="orbit-helper" aria-label="Orbit creator companion">
-        <img src="/assets/studio/orbit/orbit-default.png" alt="Orbit, the OPREALM creator helper" />
-        <div>
-          <p class="eyebrow">Meet Orbit</p>
-          <h2>Your imagination. Our AI magic.</h2>
-          <p>Choose a portal and Orbit will help guide the next creation step without overwhelming the screen.</p>
+          <div class="describe-chips" aria-label="AI creation shortcuts">
+            <button type="button" data-studio-chip="voice"><span class="op-icon op-icon-mic" aria-hidden="true"></span> Voice</button>
+            <button type="button" data-studio-chip="draw"><span class="op-icon op-icon-image" aria-hidden="true"></span> Draw</button>
+            <button type="button" data-studio-random><span class="op-icon op-icon-options" aria-hidden="true"></span> Random Idea</button>
+            <button type="button" data-studio-chip="inspire"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Inspire Me</button>
+            <button type="button" data-studio-chip="trending"><span class="op-icon op-icon-time" aria-hidden="true"></span> Trending</button>
+            <button type="button" data-studio-chip="remix"><span class="op-icon op-icon-refresh" aria-hidden="true"></span> Remix</button>
+            <button type="button" data-studio-chip="build-game"><span class="op-icon op-icon-dashboard" aria-hidden="true"></span> Build Game</button>
+            <button type="button" data-studio-chip="make-story"><span class="op-icon op-icon-document" aria-hidden="true"></span> Make Story</button>
+          </div>
         </div>
       </section>
     </main>

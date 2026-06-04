@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RealmBeasts | OPREALM</title>
+    <link rel="stylesheet" href="/styles.css?v=20" />
+    <link rel="stylesheet" href="/realmbeasts.css?v=1" />
+    <script src="/creator-bible.js?v=1" defer></script>
+    <script src="/realmbeasts.js?v=1" defer></script>
+  </head>
+  <body class="realmbeasts-body">
+    <header class="realmbeasts-header">
+      <a class="realmbeasts-brand" href="/">
+        <img src="/assets/iconn.png" alt="" />
+        <span>OPREALM</span>
+      </a>
+      <nav aria-label="RealmBeasts navigation">
+        <a href="/studio.html">Studio</a>
+        <a href="/storyboard-world.html">World</a>
+        <a href="/storyboard-character.html">Character</a>
+        <a href="/storyboard.html">Story Builder</a>
+      </nav>
+    </header>
+
+    <main class="realmbeasts-shell">
+      <section class="realmbeasts-hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Creature Creator - Collector - Battler</p>
+          <h1>RealmBeasts turns every kid into a legendary creature creator.</h1>
+          <p>
+            OPREALM reads the Creator Bible, hatches a creature, builds its stats and sends it into a safe fantasy battle loop.
+          </p>
+          <div class="hero-actions">
+            <button class="primary-action" type="button" id="buildRealmBeast">Build From Creator Bible</button>
+            <button class="secondary-action" type="button" id="useDemoBeast">Use Demo Beast</button>
+          </div>
+        </div>
+        <div class="hero-card" aria-label="RealmBeasts preview">
+          <img id="realmbeastHeroImage" src="/assets/character-creator/environments/lava-planet.png" alt="" />
+          <div class="hero-card-overlay">
+            <span id="bibleStatus">Looking for Creator Bible</span>
+            <strong id="bibleProjectName">No project loaded yet</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="realmbeasts-loop" aria-label="How RealmBeasts works">
+        <article>
+          <span>01</span>
+          <h2>Imagine</h2>
+          <p>Use the existing world, character, pet and story flow as the source of truth.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h2>Compile</h2>
+          <p>The Creator Bible locks style, safety, character consistency, world rules and story beats.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h2>Hatch</h2>
+          <p>RealmBeasts creates a creature card, rarity, stats, abilities and evolution path.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h2>Play</h2>
+          <p>Kids test the auto-battle loop before submitting the creature game to library review.</p>
+        </article>
+      </section>
+
+      <section class="realmbeasts-grid">
+        <article class="game-panel hub-panel">
+          <p class="eyebrow">Hub World</p>
+          <h2 id="hubTitle">Your RealmBeasts home base</h2>
+          <p id="hubDescription">Everything starts from the Creator Bible. Build once, then export into safe game modes.</p>
+          <div class="hub-actions">
+            <span>RealmDex</span>
+            <span>Hatch Egg</span>
+            <span>Battle Arena</span>
+            <span>Story Adventures</span>
+          </div>
+        </article>
+
+        <article class="game-panel creature-panel">
+          <p class="eyebrow">Creature Creation</p>
+          <div class="creature-stage">
+            <img id="beastImage" src="/assets/oprealm-ai-coach-small.png" alt="" />
+          </div>
+          <h2 id="beastName">Waiting for beast</h2>
+          <p id="beastSubtitle">Build from the Creator Bible to generate a creature.</p>
+          <div class="stat-grid" id="statGrid"></div>
+        </article>
+
+        <article class="game-panel hatch-panel">
+          <p class="eyebrow">Hatch Sequence</p>
+          <div class="egg-shell" id="eggShell" aria-hidden="true">
+            <span></span>
+          </div>
+          <h2 id="hatchTitle">Ready to hatch</h2>
+          <p id="hatchText">The reveal becomes the first dopamine moment in the game.</p>
+        </article>
+
+        <article class="game-panel battle-panel">
+          <p class="eyebrow">Battle Arena</p>
+          <div class="battle-arena" id="battleArena">
+            <div class="fighter">
+              <strong id="playerFighter">Your Beast</strong>
+              <div class="hp"><span id="playerHp"></span></div>
+            </div>
+            <span class="versus">VS</span>
+            <div class="fighter rival">
+              <strong>Shadow Rival</strong>
+              <div class="hp"><span id="rivalHp"></span></div>
+            </div>
+          </div>
+          <button class="secondary-action full-width" type="button" id="runBattle">Run Auto Battle</button>
+          <p id="battleLog">Auto battle is safe, readable and fantasy-only.</p>
+        </article>
+
+        <article class="game-panel dex-panel">
+          <p class="eyebrow">RealmDex</p>
+          <div class="dex-card" id="dexCard">
+            <span class="rarity" id="dexRarity">Private Draft</span>
+            <h2 id="dexName">No creature yet</h2>
+            <p id="dexLore">Create a creature to unlock a shareable RealmDex card.</p>
+          </div>
+          <button class="primary-action full-width" type="button" id="saveDraft">Save Test Draft</button>
+        </article>
+
+        <article class="game-panel roadmap-panel">
+          <p class="eyebrow">Next Loops</p>
+          <h2>Fusion, events and story adventures</h2>
+          <ul>
+            <li>Fuse two safe creatures into a surprise form.</li>
+            <li>Use story scenes as creature adventure chapters.</li>
+            <li>Submit public cards only after review.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

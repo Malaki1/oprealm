@@ -1,8 +1,8 @@
 const recipeState = {
   identity: {
     name: "Kai",
-    tagline: "Brave explorer with a big heart.",
-    ageGroup: "Child",
+    tagline: "",
+    characterAge: 10,
     genderPresentation: "Boy",
     customGender: "",
     characterType: "Young adventurer",
@@ -15,14 +15,18 @@ const recipeState = {
     palette: ["Orange", "Blue", "Charcoal", "Silver"],
   },
   components: {
-    outfit: "Explorer",
+    outfit: "Custom",
     customOutfit: "",
-    accessories: ["Backpack"],
+    accessories: ["Custom Object"],
+    customObject: "",
+    pet: "Custom Pet",
+    customPet: "",
     environment: "Magic portal studio",
   },
   generation: {
     consistencyLock: true,
     changedComponent: "",
+    generatedImageUrl: "",
     version: 1,
   },
 };
@@ -32,22 +36,28 @@ const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
 const componentLabels = {
   sourceMode: "Generation Source",
   masterStyle: "Master Style",
-  ageGroup: "Age Group",
+  characterAge: "Character Age",
   genderPresentation: "Gender",
   outfit: "Outfit",
   environment: "Preview Environment",
+  pet: "Pet Companion",
 };
 
 const nameInput = document.querySelector("#characterNameInput");
 const taglineInput = document.querySelector("#characterTaglineInput");
-const promptNotesInput = document.querySelector("#characterPromptNotes");
+const characterAgeSlider = document.querySelector("#characterAgeSlider");
+const characterAgeValue = document.querySelector("#characterAgeValue");
+const promptNotesInput = taglineInput;
 const voiceSelect = document.querySelector("#characterVoiceSelect");
 const summary = document.querySelector("#characterRecipeSummary");
 const generateButton = document.querySelector("#generateCharacterRecipeButton");
+const inlineGenerateButton = document.querySelector(".character-regenerate-button");
 const statusNode = document.querySelector("#characterGenerationStatus");
 const consistencyInput = document.querySelector("#consistencyLockInput");
-const conceptImage = document.querySelector(".character-art-frame img");
-const liveImage = document.querySelector(".live-character-stage img");
+const conceptImage = document.querySelector("#characterPreviewImage");
+const liveImage = document.querySelector("#characterLiveImage");
+const conceptBlank = document.querySelector("#characterPreviewBlank");
+const liveBlank = document.querySelector("#characterLiveBlank");
 const liveStage = document.querySelector(".live-character-stage");
 const enlargeCharacterReferenceButton = document.querySelector("#enlargeCharacterReferenceButton");
 const downloadCharacterReferenceButton = document.querySelector("#downloadCharacterReferenceButton");
@@ -57,10 +67,11 @@ const closeCharacterLightboxButton = document.querySelector("#closeCharacterLigh
 const downloadCharacterLightboxButton = document.querySelector("#downloadCharacterLightboxButton");
 const customPaletteInput = document.querySelector("#customPaletteInput");
 const colorSwatchRow = document.querySelector(".color-swatch-row");
-const traitRow = document.querySelector("#traitRow");
-const addTraitButton = document.querySelector("#addTraitButton");
 const customOutfitModal = document.querySelector("#customOutfitModal");
 const customOutfitInput = document.querySelector("#customOutfitInput");
+const customOutfitInlineInput = document.querySelector("#customOutfitInlineInput");
+const customObjectInput = document.querySelector("#customObjectInput");
+const customPetInput = document.querySelector("#customPetInput");
 const saveCustomOutfitButton = document.querySelector("#saveCustomOutfitButton");
 const cancelCustomOutfitButton = document.querySelector("#cancelCustomOutfitButton");
 const closeCustomOutfitButton = document.querySelector("#closeCustomOutfitButton");
@@ -71,6 +82,7 @@ const cancelCustomGenderButton = document.querySelector("#cancelCustomGenderButt
 const closeCustomGenderButton = document.querySelector("#closeCustomGenderButton");
 const saveCharacterButton = document.querySelector("#saveCharacterButton");
 const saveAndAddCharacterButton = document.querySelector("#saveAndAddCharacterButton");
+const proceedToStoryBuilderButton = document.querySelector("#proceedToStoryBuilderButton");
 
 function uid(prefix = "item") {
   if (crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
@@ -112,19 +124,141 @@ function saveStoryboardProject(project) {
 }
 
 let storyboardProject = loadStoryboardProject();
-let editingCharacterId = new URLSearchParams(window.location.search).get("character") || storyboardProject.activeCharacterId || "";
+let editingCharacterId = new URLSearchParams(window.location.search).get("character") || "";
 
 function cleanText(value, fallback = "") {
   return String(value || fallback).replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
 }
 
+function clampCharacterAge(value) {
+  const age = Number(value);
+  if (!Number.isFinite(age)) return 10;
+  return Math.max(0, Math.min(100, Math.round(age)));
+}
+
+function ageBandFromAge(ageValue) {
+  const age = clampCharacterAge(ageValue);
+  if (age <= 2) return "Baby";
+  if (age <= 12) return "Child";
+  if (age <= 19) return "Teen";
+  if (age <= 64) return "Adult";
+  return "Elder";
+}
+
+function ageFromLegacyGroup(ageGroup) {
+  const ages = { Baby: 1, Child: 10, Teen: 16, Adult: 28, Elder: 72 };
+  return ages[ageGroup] || 10;
+}
+
+function currentCharacterImageSrc() {
+  return recipeState.generation.generatedImageUrl || conceptImage?.dataset.generatedSrc || "";
+}
+
+function dataUrlSize(value = "") {
+  const text = String(value || "");
+  const commaIndex = text.indexOf(",");
+  const payload = commaIndex >= 0 ? text.slice(commaIndex + 1) : text;
+  return Math.ceil((payload.length * 3) / 4);
+}
+
+function compressImageDataUrl(dataUrl, maxWidth = 900, maxHeight = 1200, quality = 0.84) {
+  const source = String(dataUrl || "");
+  if (!source.startsWith("data:image/") || dataUrlSize(source) < 450000) return Promise.resolve(source);
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        resolve(source);
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      try {
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch {
+        resolve(source);
+      }
+    };
+    image.onerror = () => resolve(source);
+    image.src = source;
+  });
+}
+
+function setCharacterImage(src = "") {
+  const safeSrc = String(src || "").trim();
+  recipeState.generation.generatedImageUrl = safeSrc;
+  [conceptImage, liveImage].forEach((image) => {
+    if (!image) return;
+    if (safeSrc) {
+      image.src = safeSrc;
+      image.dataset.generatedSrc = safeSrc;
+      image.hidden = false;
+    } else {
+      image.removeAttribute("src");
+      delete image.dataset.generatedSrc;
+      image.hidden = true;
+    }
+  });
+  [conceptBlank, liveBlank].forEach((blank) => {
+    if (blank) blank.hidden = Boolean(safeSrc);
+  });
+  [enlargeCharacterReferenceButton, downloadCharacterReferenceButton, downloadCharacterLightboxButton].forEach((button) => {
+    if (button) button.disabled = !safeSrc;
+  });
+  document.querySelector(".character-art-frame")?.classList.toggle("has-generated-image", Boolean(safeSrc));
+  liveStage?.classList.toggle("has-generated-image", Boolean(safeSrc));
+}
+
+function imageLoaderMarkup(title = "Generating artwork...", detail = "OPREALM is shaping the dots into a consistent character reference.") {
+  return `
+    <div class="scene-image-loader" aria-live="polite">
+      <span class="image-loader-dotfield"></span>
+      <span class="image-loader-dotfield is-second"></span>
+      <span class="image-loader-wave"></span>
+      <strong>${escapeHtml(title)}</strong>
+      <small>${escapeHtml(detail)}</small>
+    </div>`;
+}
+
+function setCharacterGenerating(isGenerating) {
+  document.querySelector(".character-art-frame")?.classList.toggle("is-generating-image", isGenerating);
+  liveStage?.classList.toggle("is-generating-image", isGenerating);
+  if (isGenerating) {
+    [conceptImage, liveImage].forEach((image) => {
+      if (image) image.hidden = true;
+    });
+    [conceptBlank, liveBlank].forEach((blank) => {
+      if (!blank) return;
+      blank.hidden = false;
+      blank.innerHTML = imageLoaderMarkup("Generating character...", "Locking style, outfit, colors, traits and companion details together.");
+    });
+  } else if (!currentCharacterImageSrc()) {
+    if (conceptBlank) {
+      conceptBlank.hidden = false;
+      conceptBlank.innerHTML = "<strong>No character image yet</strong><span>Add your character details, then generate.</span>";
+    }
+    if (liveBlank) {
+      liveBlank.hidden = false;
+      liveBlank.innerHTML = "<strong>Preview will appear here</strong><span>Your character stays blank until you generate it.</span>";
+    }
+  }
+}
+
 function setSingleChoice(group, value) {
-  if (group === "ageGroup" || group === "genderPresentation") {
+  if (group === "genderPresentation") {
     recipeState.identity[group] = value;
   } else if (group === "sourceMode" || group === "masterStyle") {
     recipeState.visual[group] = value;
   } else if (group === "outfit") {
     recipeState.components.outfit = value;
+  } else if (group === "pet") {
+    recipeState.components.pet = value;
   } else if (group === "environment") {
     recipeState.components.environment = value;
   }
@@ -215,16 +349,34 @@ function saveCustomOutfit() {
 }
 
 function syncVisualPreview(group, button) {
-  if (group === "masterStyle") {
-    const previewSrc = button?.querySelector("img")?.getAttribute("src");
-    if (previewSrc && conceptImage && !conceptImage.src.startsWith("data:")) conceptImage.src = previewSrc;
-    if (previewSrc && liveImage && !liveImage.src.startsWith("data:")) liveImage.src = previewSrc;
-  }
-
   if (group === "environment" && liveStage) {
     const previewSrc = button?.querySelector("img")?.getAttribute("src");
     liveStage.style.setProperty("--character-environment-preview", previewSrc ? `url("${previewSrc}")` : "none");
   }
+}
+
+function selectedPetDescription() {
+  const pet = recipeState.components.pet;
+  if (pet === "Custom Pet") {
+    return recipeState.components.customPet || "a custom creator-described pet companion, friendly, kid-safe and matched to the selected master art style";
+  }
+  const descriptions = {
+    "Robot Pet": "a small friendly floating robot companion with glowing blue eyes and rounded kid-safe shapes",
+    "Magic Cat": "a cute magical cat companion with sparkling eyes, soft fur and a tiny enchanted collar",
+    "Baby Dragon": "a tiny friendly baby dragon companion with soft wings, bright eyes and playful magical energy",
+    "Space Pup": "a cheerful space puppy companion with a small sci-fi collar and rounded explorer gear",
+    "Tiny Dino": "a tiny friendly dinosaur companion with bright curious eyes and gentle adventure energy",
+    "No Pet": "no pet companion",
+  };
+  return descriptions[pet] || `${pet} companion, friendly, kid-safe and matched to the selected master art style`;
+}
+
+function accessorySummary() {
+  return recipeState.components.accessories.map((item) => (
+    item === "Custom Object" && recipeState.components.customObject
+      ? `Custom Object: ${recipeState.components.customObject}`
+      : item
+  ));
 }
 
 function toggleMultiChoice(group, value, button) {
@@ -278,31 +430,42 @@ function addCustomPaletteColor(value) {
   renderSummary();
 }
 
-function addCustomTrait() {
-  const value = cleanText(window.prompt("Add a character trait, like mischievous, gentle, dramatic, determined, shy, bold..."), "").slice(0, 32);
-  if (!value) return;
-  if (recipeState.identity.traits.some((trait) => trait.toLowerCase() === value.toLowerCase())) return;
-  recipeState.identity.traits = [...recipeState.identity.traits, value].slice(0, 10);
-  const button = document.createElement("button");
-  button.className = "is-selected custom-trait";
-  button.type = "button";
-  button.dataset.recipeMulti = "trait";
-  button.dataset.value = value;
-  button.textContent = `${value} x`;
-  button.addEventListener("click", () => {
-    toggleMultiChoice("trait", value, button);
-    renderSummary();
+function selectChoiceCard(group, value) {
+  document.querySelectorAll(`[data-recipe-choice="${group}"]`).forEach((item) => {
+    item.classList.toggle("is-selected", item.dataset.value === value);
   });
-  traitRow?.insertBefore(button, addTraitButton || null);
-  recipeState.generation.changedComponent = "Personality Traits";
-  renderSummary();
+  if (group === "sourceMode") {
+    document.querySelectorAll(".appearance-tabs button").forEach((item) => item.classList.toggle("is-active", item.dataset.value === value));
+  }
+  setSingleChoice(group, value);
+  const selected = document.querySelector(`[data-recipe-choice="${group}"][data-value="${CSS.escape(value)}"]`);
+  syncVisualPreview(group, selected);
+}
+
+function ensureMultiChoice(group, value) {
+  if (group === "accessories") {
+    recipeState.components.accessories = recipeState.components.accessories.filter((item) => item !== "None");
+    document.querySelector('[data-recipe-multi="accessories"][data-value="None"]')?.classList.remove("is-selected");
+  }
+  const list = group === "trait" ? recipeState.identity.traits : group === "palette" ? recipeState.visual.palette : recipeState.components[group];
+  if (!Array.isArray(list)) return;
+  if (!list.includes(value)) {
+    list.push(value);
+  }
+  document.querySelector(`[data-recipe-multi="${group}"][data-value="${CSS.escape(value)}"]`)?.classList.add("is-selected");
+  recipeState.generation.changedComponent = group === "accessories" ? "Accessories" : componentLabels[group] || group;
 }
 
 function syncInputs() {
-  recipeState.identity.name = cleanText(nameInput?.value, "Kai").slice(0, 30);
-  recipeState.identity.tagline = cleanText(taglineInput?.value, "").slice(0, 80);
+  recipeState.identity.name = cleanText(nameInput?.value, "").slice(0, 30);
+  recipeState.identity.tagline = cleanText(taglineInput?.value, "").slice(0, 300);
+  recipeState.identity.characterAge = clampCharacterAge(characterAgeSlider?.value ?? recipeState.identity.characterAge);
+  if (characterAgeValue) characterAgeValue.textContent = recipeState.identity.characterAge;
   recipeState.identity.voice = cleanText(voiceSelect?.value, "Young Adventurer").slice(0, 80);
   recipeState.generation.consistencyLock = Boolean(consistencyInput?.checked);
+  recipeState.components.customOutfit = cleanText(customOutfitInlineInput?.value, "").slice(0, 300);
+  recipeState.components.customObject = cleanText(customObjectInput?.value, "").slice(0, 300);
+  recipeState.components.customPet = cleanText(customPetInput?.value, "").slice(0, 300);
   recipeState.visual.palette = [...document.querySelectorAll('[data-recipe-multi="palette"].is-selected')]
     .map((button) => button.dataset.value)
     .filter(Boolean)
@@ -343,12 +506,14 @@ function buildPromptPreview() {
   const outfitDescription = recipeState.components.outfit === "Custom" && recipeState.components.customOutfit
     ? `Custom outfit: ${recipeState.components.customOutfit}`
     : `Outfit: ${recipeState.components.outfit}`;
+  const accessories = accessorySummary();
   return [
-    `${recipeState.identity.name}, ${recipeState.identity.ageGroup.toLowerCase()} ${genderLabel().toLowerCase()} ${recipeState.identity.characterType}.`,
-    `${recipeState.identity.tagline}`,
+    `${recipeState.identity.name}, age ${recipeState.identity.characterAge} ${genderLabel().toLowerCase()} ${recipeState.identity.characterType}.`,
+    recipeState.identity.tagline ? `Character description: ${recipeState.identity.tagline}` : "",
     `Personality: ${recipeState.identity.traits.join(", ")}.`,
     `Master style: ${recipeState.visual.masterStyle}. All clothing, items, palette, lighting and background must match this style.`,
-    `${outfitDescription}. Accessories: ${recipeState.components.accessories.join(", ")}.`,
+    `${outfitDescription}. Accessories and objects: ${accessories.join(", ")}.`,
+    `Pet companion: ${selectedPetDescription()}.`,
     `Outfit, accessory and gear colors only: ${recipeState.visual.palette.join(", ")}. Environment: ${recipeState.components.environment}.`,
   ].filter(Boolean).join(" ");
 }
@@ -357,7 +522,7 @@ function characterRecordFromRecipe({ keepExistingId = true } = {}) {
   syncInputs();
   const existing = storyboardProject.characters.find((character) => character.id === editingCharacterId) || {};
   const characterId = keepExistingId && existing.id ? existing.id : uid("character");
-  const imageUrl = conceptImage?.src || selectedChoiceImage("masterStyle", recipeState.visual.masterStyle) || "";
+  const imageUrl = currentCharacterImageSrc();
   const environmentImageUrl = selectedChoiceImage("environment", recipeState.components.environment);
   const prompt = cleanText(promptNotesInput?.value, buildPromptPreview()).slice(0, 300);
   return {
@@ -365,7 +530,8 @@ function characterRecordFromRecipe({ keepExistingId = true } = {}) {
     id: characterId,
     name: recipeState.identity.name || "New Character",
     tagline: recipeState.identity.tagline,
-    ageGroup: recipeState.identity.ageGroup,
+    characterAge: recipeState.identity.characterAge,
+    ageGroup: ageBandFromAge(recipeState.identity.characterAge),
     genderPresentation: recipeState.identity.genderPresentation,
     customGender: recipeState.identity.customGender,
     characterType: recipeState.identity.characterType,
@@ -377,6 +543,10 @@ function characterRecordFromRecipe({ keepExistingId = true } = {}) {
     outfit: recipeState.components.outfit,
     customOutfit: recipeState.components.customOutfit,
     accessories: [...recipeState.components.accessories],
+    customObject: recipeState.components.customObject,
+    pet: recipeState.components.pet,
+    customPet: recipeState.components.customPet,
+    petDescription: selectedPetDescription(),
     environment: recipeState.components.environment,
     environmentDescription: selectedEnvironmentDescription(),
     imageUrl,
@@ -401,7 +571,7 @@ function worldRecordFromCharacter(character) {
     styleNotes: [
       `Visual style: ${character.masterStyle}`,
       `World should support ${character.name}'s ${character.characterType} role.`,
-      `Mood from character: ${character.tagline || character.traits.join(", ")}`,
+      `Mood from character description: ${character.tagline || character.traits.join(", ")}`,
       `Use character outfit colors only as subtle accent lighting: ${character.palette.join(", ")}`,
     ],
     sourceCharacterIds: [...new Set([...(existing.sourceCharacterIds || []), character.id])],
@@ -412,16 +582,20 @@ function worldRecordFromCharacter(character) {
 }
 
 function objectRecordsFromCharacter(character) {
-  return (character.accessories || [])
+  const accessoryObjects = (character.accessories || [])
     .filter((item) => item && item !== "None")
     .map((item) => {
       const objectId = `object-${item.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
       const existing = storyboardProject.objects.find((object) => object.id === objectId) || {};
+      const isCustomObject = item === "Custom Object";
+      const objectDescription = isCustomObject && character.customObject
+        ? `${character.customObject}. This is a creator-described custom object or prop used by ${character.name}.`
+        : `${item} used by ${character.name}.`;
       return {
         ...existing,
         id: objectId,
         name: item,
-        description: `${item} used by ${character.name}. Keep it in ${character.masterStyle} style and match only the selected outfit/accessory colors: ${character.palette.join(", ")}.`,
+        description: `${objectDescription} Keep it in ${character.masterStyle} style and match only the selected outfit/accessory colors: ${character.palette.join(", ")}.`,
         imageUrl: existing.imageUrl || "/assets/homepage/tools/asset-library.png",
         sourceCharacterIds: [...new Set([...(existing.sourceCharacterIds || []), character.id])],
         consistencyLocked: true,
@@ -429,10 +603,39 @@ function objectRecordsFromCharacter(character) {
         createdAt: existing.createdAt || new Date().toISOString(),
       };
     });
+
+  const pet = character.pet && character.pet !== "No Pet"
+    ? (() => {
+      const petId = `pet-${character.pet.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+      const existing = storyboardProject.objects.find((object) => object.id === petId) || {};
+      return {
+        ...existing,
+        id: petId,
+        name: character.pet,
+        kind: "pet",
+        description: `${character.petDescription || character.pet}. Keep this companion visually consistent with ${character.name}, in ${character.masterStyle} style, using outfit/accent colors only where they suit the pet gear.`,
+        imageUrl: existing.imageUrl || selectedChoiceImage("pet", character.pet) || "/assets/homepage/mascot/orbit.png",
+        sourceCharacterIds: [...new Set([...(existing.sourceCharacterIds || []), character.id])],
+        consistencyLocked: true,
+        updatedAt: new Date().toISOString(),
+        createdAt: existing.createdAt || new Date().toISOString(),
+      };
+    })()
+    : null;
+
+  return pet ? [...accessoryObjects, pet] : accessoryObjects;
 }
 
 function starterScenesFromCharacter(character, world) {
-  if (storyboardProject.scenes?.length) return storyboardProject.scenes;
+  if (storyboardProject.scenes?.length) {
+    return storyboardProject.scenes.map((scene) => ({
+      ...scene,
+      selectedCharacterIds: [character.id],
+      selectedWorldId: world?.id || scene.selectedWorldId || "",
+      selectedObjectIds: Array.isArray(scene.selectedObjectIds) ? scene.selectedObjectIds : [],
+      status: scene.generatedImageUrl ? "complete" : scene.status || "draft",
+    }));
+  }
   return [
     {
       id: uid("scene"),
@@ -440,7 +643,7 @@ function starterScenesFromCharacter(character, world) {
       title: "Scene 1",
       prompt: "",
       selectedCharacterIds: [character.id],
-      selectedWorldId: world.id,
+      selectedWorldId: world?.id || "",
       selectedObjectIds: [],
       status: "draft",
     },
@@ -449,28 +652,36 @@ function starterScenesFromCharacter(character, world) {
 
 function saveCharacterToProject({ navigateToWorld = false, addAnother = false } = {}) {
   const character = characterRecordFromRecipe({ keepExistingId: !addAnother });
-  const world = worldRecordFromCharacter(character);
+  const existingActiveWorld = (storyboardProject.worlds || []).find((item) => item.id === storyboardProject.activeWorldId);
+  const shouldCreateCharacterWorld = !existingActiveWorld && !(storyboardProject.worlds || []).length;
+  const world = shouldCreateCharacterWorld
+    ? worldRecordFromCharacter(character)
+    : existingActiveWorld || (storyboardProject.worlds || [])[0];
   const objects = objectRecordsFromCharacter(character);
   const characters = storyboardProject.characters.filter((item) => item.id !== character.id);
-  const worlds = storyboardProject.worlds.filter((item) => item.id !== world.id);
+  const worlds = shouldCreateCharacterWorld
+    ? storyboardProject.worlds.filter((item) => item.id !== world.id)
+    : storyboardProject.worlds;
   const objectIds = new Set(objects.map((item) => item.id));
   const preservedObjects = storyboardProject.objects.filter((item) => !objectIds.has(item.id));
 
   storyboardProject = saveStoryboardProject({
     ...storyboardProject,
     activeCharacterId: character.id,
-    activeWorldId: world.id,
-    characters: [...characters, character],
-    worlds: [world, ...worlds],
+    activeWorldId: world?.id || "",
+    characters: [character, ...characters],
+    worlds: shouldCreateCharacterWorld ? [world, ...worlds] : worlds,
     objects: [...preservedObjects, ...objects],
     scenes: starterScenesFromCharacter(character, world),
   });
 
   editingCharacterId = character.id;
   statusNode.textContent = `${character.name} saved. World, objects and starter scenes are ready.`;
+  proceedToStoryBuilderButton?.removeAttribute("hidden");
 
   if (addAnother) {
     resetCharacterFormForAnother();
+    proceedToStoryBuilderButton?.setAttribute("hidden", "");
     return;
   }
   if (navigateToWorld) {
@@ -484,13 +695,14 @@ function applyRecipeToForm(character) {
   Object.assign(recipeState.identity, savedRecipe.identity || {
     name: character.name,
     tagline: character.tagline,
-    ageGroup: character.ageGroup,
+    characterAge: character.characterAge ?? ageFromLegacyGroup(character.ageGroup),
     genderPresentation: character.genderPresentation,
     customGender: character.customGender,
     characterType: character.characterType,
     traits: character.traits || recipeState.identity.traits,
     voice: character.voice,
   });
+  recipeState.identity.characterAge = clampCharacterAge(recipeState.identity.characterAge ?? ageFromLegacyGroup(recipeState.identity.ageGroup));
   Object.assign(recipeState.visual, savedRecipe.visual || {
     sourceMode: character.sourceMode,
     masterStyle: character.masterStyle,
@@ -500,20 +712,28 @@ function applyRecipeToForm(character) {
     outfit: character.outfit,
     customOutfit: character.customOutfit,
     accessories: character.accessories || recipeState.components.accessories,
+    customObject: character.customObject,
+    pet: character.pet || recipeState.components.pet,
+    customPet: character.customPet,
     environment: character.environment,
   });
   Object.assign(recipeState.generation, savedRecipe.generation || {
     consistencyLock: Boolean(character.consistencyLocked),
     version: recipeState.generation.version,
   });
+  recipeState.generation.generatedImageUrl = character.imageUrl || savedRecipe.generation?.generatedImageUrl || "";
 
   if (nameInput) nameInput.value = recipeState.identity.name || "";
   if (taglineInput) taglineInput.value = recipeState.identity.tagline || "";
+  if (characterAgeSlider) characterAgeSlider.value = recipeState.identity.characterAge;
+  if (characterAgeValue) characterAgeValue.textContent = recipeState.identity.characterAge;
   if (promptNotesInput) promptNotesInput.value = character.prompt || buildPromptPreview();
+  if (customOutfitInlineInput) customOutfitInlineInput.value = recipeState.components.customOutfit || "";
+  if (customObjectInput) customObjectInput.value = recipeState.components.customObject || "";
+  if (customPetInput) customPetInput.value = recipeState.components.customPet || "";
   if (voiceSelect) voiceSelect.value = recipeState.identity.voice || "Young Adventurer";
   if (consistencyInput) consistencyInput.checked = Boolean(recipeState.generation.consistencyLock);
-  if (conceptImage && character.imageUrl) conceptImage.src = character.imageUrl;
-  if (liveImage && character.imageUrl) liveImage.src = character.imageUrl;
+  setCharacterImage(recipeState.generation.generatedImageUrl);
   refreshChoiceUi();
 }
 
@@ -521,7 +741,7 @@ function refreshChoiceUi() {
   document.querySelectorAll("[data-recipe-choice]").forEach((button) => {
     const group = button.dataset.recipeChoice;
     const value = button.dataset.value;
-    const selected = group === "ageGroup" || group === "genderPresentation"
+    const selected = group === "genderPresentation"
       ? recipeState.identity[group] === value
       : group === "sourceMode" || group === "masterStyle"
         ? recipeState.visual[group] === value
@@ -542,13 +762,26 @@ function resetCharacterFormForAnother() {
   editingCharacterId = "";
   recipeState.identity.name = `Hero ${storyboardProject.characters.length + 1}`;
   recipeState.identity.tagline = "";
+  recipeState.identity.characterAge = 10;
   recipeState.identity.traits = ["Brave", "Curious"];
   recipeState.identity.characterType = "New hero";
-  recipeState.components.accessories = ["None"];
+  recipeState.components.outfit = "Custom";
+  recipeState.components.customOutfit = "";
+  recipeState.components.accessories = ["Custom Object"];
+  recipeState.components.customObject = "";
+  recipeState.components.pet = "Custom Pet";
+  recipeState.components.customPet = "";
+  recipeState.generation.generatedImageUrl = "";
   recipeState.generation.version = 1;
   if (nameInput) nameInput.value = recipeState.identity.name;
   if (taglineInput) taglineInput.value = "";
+  if (characterAgeSlider) characterAgeSlider.value = recipeState.identity.characterAge;
+  if (characterAgeValue) characterAgeValue.textContent = recipeState.identity.characterAge;
   if (promptNotesInput) promptNotesInput.value = buildPromptPreview();
+  if (customOutfitInlineInput) customOutfitInlineInput.value = "";
+  if (customObjectInput) customObjectInput.value = "";
+  if (customPetInput) customPetInput.value = "";
+  setCharacterImage("");
   refreshChoiceUi();
   renderSummary();
 }
@@ -556,18 +789,19 @@ function resetCharacterFormForAnother() {
 function renderSummary() {
   syncInputs();
   updateCounts();
+  setCharacterImage(currentCharacterImageSrc());
   if (!summary) return;
   summary.innerHTML = [
-    row("Identity", `${recipeState.identity.name}, ${genderLabel()}, ${recipeState.identity.ageGroup}`),
+    row("Identity", `${recipeState.identity.name}, ${genderLabel()}, age ${recipeState.identity.characterAge}`),
     row("Type", recipeState.identity.characterType),
-    row("Tagline", recipeState.identity.tagline || "Not set"),
+    row("Prompt Description", recipeState.identity.tagline || "Not set"),
     row("Traits", recipeState.identity.traits),
     row("Master Style", recipeState.visual.masterStyle),
     row("Source", recipeState.visual.sourceMode),
     row("Colors", recipeState.visual.palette),
     row("Outfit", recipeState.components.outfit === "Custom" && recipeState.components.customOutfit ? `Custom: ${recipeState.components.customOutfit}` : recipeState.components.outfit),
-    row("Accessories", recipeState.components.accessories),
-    row("Environment", recipeState.components.environment),
+    row("Accessories", accessorySummary()),
+    row("Pet", recipeState.components.pet === "Custom Pet" && recipeState.components.customPet ? `Custom Pet: ${recipeState.components.customPet}` : recipeState.components.pet),
     row("Voice", recipeState.identity.voice),
     row("Consistency", recipeState.generation.consistencyLock ? "Locked" : "Exploring"),
     row("Version", `${recipeState.identity.name || "Character"} v${recipeState.generation.version}`),
@@ -624,8 +858,9 @@ function currentCharacterImageName() {
 }
 
 function openCharacterLightbox() {
-  if (!characterLightbox || !characterLightboxImage || !conceptImage?.src) return;
-  characterLightboxImage.src = conceptImage.src;
+  const src = currentCharacterImageSrc();
+  if (!characterLightbox || !characterLightboxImage || !src) return;
+  characterLightboxImage.src = src;
   characterLightbox.hidden = false;
 }
 
@@ -638,6 +873,8 @@ function closeCharacterLightbox() {
 async function generateCharacter() {
   if (!generateButton) return;
   generateButton.disabled = true;
+  if (inlineGenerateButton) inlineGenerateButton.disabled = true;
+  setCharacterGenerating(true);
   statusNode.textContent = "Building your character recipe and generating the image...";
   try {
     const response = await fetch("/api/story-character-image", {
@@ -652,15 +889,17 @@ async function generateCharacter() {
     }
     if (!response.ok || !data.ok) throw new Error(data.error || "Character generation failed.");
     if (!data.imageDataUrl) throw new Error("Character image result was empty.");
-    conceptImage.src = data.imageDataUrl;
-    liveImage.src = data.imageDataUrl;
+    const compressedImage = await compressImageDataUrl(data.imageDataUrl);
+    setCharacterImage(compressedImage);
     recipeState.generation.version += 1;
     statusNode.textContent = `Generated ${recipeState.identity.name || "character"} v${recipeState.generation.version - 1}. ${data.creditsUsed || 0} credits used.`;
     renderSummary();
   } catch (error) {
     statusNode.textContent = error.message || "Character generation failed.";
   } finally {
+    setCharacterGenerating(false);
     generateButton.disabled = false;
+    if (inlineGenerateButton) inlineGenerateButton.disabled = false;
   }
 }
 
@@ -672,17 +911,14 @@ document.querySelectorAll("[data-recipe-choice]").forEach((button) => {
       openCustomGenderModal();
       return;
     }
-    if (group === "outfit" && value === "Custom") {
-      openCustomOutfitModal();
-      return;
-    }
-    document.querySelectorAll(`[data-recipe-choice="${group}"]`).forEach((item) => item.classList.toggle("is-selected", item === button));
-    if (group === "sourceMode") {
-      document.querySelectorAll(".appearance-tabs button").forEach((item) => item.classList.toggle("is-active", item === button));
-    }
-    setSingleChoice(group, value);
-    syncVisualPreview(group, button);
+    selectChoiceCard(group, value);
     renderSummary();
+  });
+  button.addEventListener("keydown", (event) => {
+    if ((event.key === "Enter" || event.key === " ") && !event.target.matches("textarea, input, select")) {
+      event.preventDefault();
+      button.click();
+    }
   });
 });
 
@@ -693,15 +929,33 @@ document.querySelectorAll("[data-recipe-multi]").forEach((button) => {
   });
 });
 
-[nameInput, taglineInput, promptNotesInput, voiceSelect, consistencyInput].forEach((input) => {
+[nameInput, taglineInput, characterAgeSlider, promptNotesInput, voiceSelect, consistencyInput].forEach((input) => {
   input?.addEventListener("input", renderSummary);
   input?.addEventListener("change", renderSummary);
 });
 
+[customOutfitInlineInput, customObjectInput, customPetInput].forEach((input) => {
+  input?.addEventListener("click", (event) => event.stopPropagation());
+  input?.addEventListener("pointerdown", (event) => event.stopPropagation());
+});
+
+customOutfitInlineInput?.addEventListener("input", () => {
+  selectChoiceCard("outfit", "Custom");
+  renderSummary();
+});
+customObjectInput?.addEventListener("input", () => {
+  ensureMultiChoice("accessories", "Custom Object");
+  renderSummary();
+});
+customPetInput?.addEventListener("input", () => {
+  selectChoiceCard("pet", "Custom Pet");
+  renderSummary();
+});
+
 generateButton?.addEventListener("click", generateCharacter);
-saveCharacterButton?.addEventListener("click", () => saveCharacterToProject({ navigateToWorld: true }));
+inlineGenerateButton?.addEventListener("click", generateCharacter);
+saveCharacterButton?.addEventListener("click", () => saveCharacterToProject());
 saveAndAddCharacterButton?.addEventListener("click", () => saveCharacterToProject({ addAnother: true }));
-addTraitButton?.addEventListener("click", addCustomTrait);
 customPaletteInput?.addEventListener("input", () => {
   const swatch = customPaletteInput.closest(".color-wheel-swatch");
   if (swatch) swatch.style.background = customPaletteInput.value;
@@ -709,10 +963,10 @@ customPaletteInput?.addEventListener("input", () => {
 customPaletteInput?.addEventListener("change", () => addCustomPaletteColor(customPaletteInput.value));
 enlargeCharacterReferenceButton?.addEventListener("click", openCharacterLightbox);
 downloadCharacterReferenceButton?.addEventListener("click", () => {
-  downloadImageFromSrc(conceptImage?.src, currentCharacterImageName());
+  downloadImageFromSrc(currentCharacterImageSrc(), currentCharacterImageName());
 });
 downloadCharacterLightboxButton?.addEventListener("click", () => {
-  downloadImageFromSrc(characterLightboxImage?.src || conceptImage?.src, currentCharacterImageName());
+  downloadImageFromSrc(characterLightboxImage?.src || currentCharacterImageSrc(), currentCharacterImageName());
 });
 closeCharacterLightboxButton?.addEventListener("click", closeCharacterLightbox);
 saveCustomOutfitButton?.addEventListener("click", saveCustomOutfit);
@@ -741,9 +995,12 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && customOutfitModal && !customOutfitModal.hidden) closeCustomOutfitModal();
   if (event.key === "Escape" && customGenderModal && !customGenderModal.hidden) closeCustomGenderModal();
 });
-const characterToEdit = storyboardProject.characters.find((character) => character.id === editingCharacterId) || storyboardProject.characters[0];
+const characterToEdit = editingCharacterId
+  ? storyboardProject.characters.find((character) => character.id === editingCharacterId)
+  : storyboardProject.characters.find((character) => character.id === storyboardProject.activeCharacterId) || storyboardProject.characters[0] || null;
 if (characterToEdit) {
   editingCharacterId = characterToEdit.id;
   applyRecipeToForm(characterToEdit);
 }
+setCharacterImage(characterToEdit?.imageUrl || "");
 renderSummary();

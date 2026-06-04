@@ -5,6 +5,7 @@ const LOGIN_LIMIT = 5;
 const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-character-image", 180],
   ["/api/story-scene-images", 180],
+  ["/api/story-world-image", 180],
   ["/api/story-game-cover", 120],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],
@@ -14,23 +15,31 @@ const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;
 const LARGE_BODY_PATHS = new Set([
   "/api/story-scene-images",
   "/api/story-character-image",
+  "/api/story-world-image",
   "/api/story-game-cover",
   "/api/story-image-download",
 ]);
 
 export async function onRequest(context) {
   const { request, env } = context;
+  const startedAt = Date.now();
+  const requestId = crypto.randomUUID();
+  let response;
   try {
     await validateRequestShape(request);
     await enforceRateLimits(request, env);
-    return await context.next();
+    response = await context.next();
   } catch (error) {
-    return json(
+    response = json(
       { ok: false, error: error.message || "Request rejected." },
       error.status || 400,
       error.retryAfter ? { "retry-after": String(error.retryAfter) } : {},
     );
   }
+
+  const finalResponse = withRequestId(response, requestId);
+  context.waitUntil(logRequest(context, finalResponse.status, Date.now() - startedAt, requestId));
+  return finalResponse;
 }
 
 async function validateRequestShape(request) {
@@ -196,6 +205,87 @@ function isDataImage(value) {
 function clientIp(request) {
   const raw = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
   return raw.split(",")[0].trim().slice(0, 80) || "unknown";
+}
+
+function withRequestId(response, requestId) {
+  const headers = new Headers(response.headers);
+  headers.set("x-oprealm-request-id", requestId);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+async function logRequest(context, status, durationMs, requestId) {
+  const { request, env } = context;
+  if (!env.OPREALM_DB) return;
+  try {
+    const url = new URL(request.url);
+    await ensureRequestLogTable(env);
+    await env.OPREALM_DB.prepare(
+      `
+        INSERT INTO api_request_logs (
+          request_id,
+          method,
+          path,
+          status,
+          duration_ms,
+          ip_hash,
+          colo,
+          user_agent,
+          created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `,
+    )
+      .bind(
+        requestId,
+        request.method,
+        url.pathname.slice(0, 240),
+        status,
+        durationMs,
+        await anonymizeIp(env, clientIp(request)),
+        String(request.cf?.colo || "").slice(0, 24),
+        compactUserAgent(request.headers.get("user-agent") || ""),
+      )
+      .run();
+  } catch {
+    // Observability must never block the user request.
+  }
+}
+
+async function ensureRequestLogTable(env) {
+  await env.OPREALM_DB.prepare(`
+    CREATE TABLE IF NOT EXISTS api_request_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      request_id TEXT NOT NULL,
+      method TEXT NOT NULL,
+      path TEXT NOT NULL,
+      status INTEGER NOT NULL,
+      duration_ms INTEGER NOT NULL,
+      ip_hash TEXT,
+      colo TEXT,
+      user_agent TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `).run();
+  await env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_api_request_logs_created ON api_request_logs(created_at)").run();
+  await env.OPREALM_DB.prepare("CREATE INDEX IF NOT EXISTS idx_api_request_logs_path_status ON api_request_logs(path, status)").run();
+}
+
+async function anonymizeIp(env, ip) {
+  const salt = env.OPREALM_LOG_SALT || env.OPREALM_SESSION_SECRET || env.OPREALM_WEBHOOK_SECRET || "oprealm";
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${salt}:${ip}`));
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
+
+function compactUserAgent(value) {
+  const text = String(value || "");
+  if (/bot|crawler|spider/i.test(text)) return "bot";
+  if (/Mobile|Android|iPhone|iPad/i.test(text)) return "mobile";
+  if (/Windows|Macintosh|Linux/i.test(text)) return "desktop";
+  return text.slice(0, 80);
 }
 
 function normalizeEmail(value) {

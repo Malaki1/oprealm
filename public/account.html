@@ -3,107 +3,215 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Manage your OPREALM account, membership, safety status and creator credits." />
+    <meta name="description" content="Track OPREALM creator progress, credits, streaks, achievements and account settings." />
     <title>OPREALM My Account</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/studio.css?v=5" />
-    <script src="/account.js?v=1" defer></script>
+    <link rel="stylesheet" href="/studio.css?v=7" />
+    <script src="/account.js?v=3" defer></script>
   </head>
-  <body>
-    <header class="studio-header">
+  <body class="account-progress-body">
+    <header class="studio-header account-topbar">
       <a class="studio-brand" href="/">
         <span class="brand-mark" aria-hidden="true"><span></span></span>
-        <span>OPREALM Account</span>
+        <span>OPREALM</span>
       </a>
       <nav aria-label="Account navigation">
-        <a href="/studio">Creator Studio</a>
-        <a href="/billing">Memberships</a>
+        <a href="/storyboard-world">Worlds</a>
+        <a href="/storyboard-character">Characters</a>
+        <a href="/storyboard">Story Builder</a>
         <a href="/library">Library</a>
         <button class="text-button header-action" type="button" id="logoutButton">Log Out</button>
       </nav>
     </header>
 
-    <main class="studio-shell account-shell">
-      <section class="studio-hero">
-        <div>
-          <p class="eyebrow">Member dashboard</p>
-          <h1>My Account</h1>
-          <p>Manage profile details, view membership access, check Creator credits and keep account security tidy.</p>
+    <main class="account-dashboard-shell">
+      <aside class="account-side" aria-label="Creator account sections">
+        <a class="account-side-brand" href="/">
+          <span class="brand-mark" aria-hidden="true"><span></span></span>
+          <strong>OPREALM</strong>
+        </a>
+        <nav>
+          <a href="/storyboard-world">Worlds</a>
+          <a href="/storyboard-character">Characters</a>
+          <a href="/storyboard">Story Builder</a>
+          <a href="/account.html" aria-current="page">My Account</a>
+          <a href="/library">Library</a>
+        </nav>
+        <img class="account-side-orbit" src="/assets/studio/orbit/orbit-default.png" alt="" />
+        <a class="account-help-card" href="/contact">
+          <span>?</span>
+          <strong>Need Help?</strong>
+          <small>Visit our Help Center</small>
+        </a>
+      </aside>
+
+      <section class="account-main">
+        <div class="account-page-heading">
+          <div>
+            <p class="eyebrow">Creator progress dashboard</p>
+            <h1>My Account <span aria-hidden="true">*</span></h1>
+            <p>Track your progress, unlock achievements and keep building amazing worlds.</p>
+          </div>
+          <div class="account-quick-stats" aria-label="Quick stats">
+            <span>Credits <strong id="quickCredits">0</strong></span>
+            <a href="/billing.html#credit-topups" aria-label="Manage credits">+</a>
+          </div>
         </div>
-        <aside class="credits-card account-summary" aria-label="Account summary">
-          <span>Signed in as</span>
-          <strong id="summaryName">...</strong>
-          <p id="summaryEmail">Checking account...</p>
-        </aside>
-      </section>
 
-      <section class="account-grid">
-        <article class="builder-card account-stat">
-          <p class="eyebrow">Membership</p>
-          <h3 id="tierLabel">Explorer</h3>
-          <p id="tierDescription">Your membership controls creator tools, marketplace access, AI tools and monthly Creator credits.</p>
-          <a class="button button-primary" href="/billing">Manage Membership</a>
-        </article>
-
-        <article class="builder-card account-stat">
-          <p class="eyebrow">Creator Credits</p>
-          <h3 id="creditsLabel">0</h3>
-          <p>Credits are used for OPREALM AI tools such as ideas, images, sprite sheets, music, sound and trailer prep.</p>
-          <a class="button button-primary" href="/billing.html#credit-topups">Top Up Credits</a>
-        </article>
-
-        <article class="builder-card account-stat">
-          <p class="eyebrow">Safety Status</p>
-          <h3 id="safetyLabel">Checking</h3>
-          <p>Safety-first access helps keep OPREALM spaces structured, age-aware and parent friendly.</p>
-        </article>
-      </section>
-
-      <section class="account-grid account-forms">
-        <form class="publish-form account-card" id="profileForm">
-          <div>
-            <p class="eyebrow">Profile</p>
-            <h2>Creator Details</h2>
+        <section class="account-profile-hero" aria-label="Creator profile progress">
+          <div class="account-avatar-ring">
+            <img src="/assets/character-creator/styles/3d-cartoon.png" alt="" />
           </div>
-          <label>
-            Creator display name
-            <input name="displayName" maxlength="48" required />
-          </label>
-          <label>
-            Parent email
-            <input name="parentEmail" type="email" />
-          </label>
-          <label>
-            Age group
-            <select name="ageBand">
-              <option value="8-10">8-10</option>
-              <option value="11-13">11-13</option>
-              <option value="14-16">14-16</option>
-              <option value="parent">Parent / guardian</option>
-            </select>
-          </label>
-          <button class="button button-primary" type="submit">Save Profile</button>
-          <p class="form-note" id="profileStatus"></p>
-        </form>
-
-        <form class="publish-form account-card" id="passwordForm">
-          <div>
-            <p class="eyebrow">Security</p>
-            <h2>Password</h2>
+          <div class="account-profile-copy">
+            <div class="account-name-row">
+              <h2 id="summaryName">OPREALM Creator</h2>
+              <button class="icon-button" type="button" data-open-settings="profile" aria-label="Edit profile">Edit</button>
+            </div>
+            <div class="account-level-line">
+              <span id="levelPill">Level 1</span>
+              <span id="tierLabel">Explorer</span>
+              <span id="levelTitle">New Spark</span>
+            </div>
+            <div class="account-progress-track" aria-label="Creator level progress">
+              <span id="levelProgressBar"></span>
+            </div>
+            <p id="xpLabel">0 / 100 XP to Level 2</p>
           </div>
-          <label>
-            Current password
-            <input name="currentPassword" type="password" autocomplete="current-password" required />
-          </label>
-          <label>
-            New password
-            <input name="newPassword" type="password" autocomplete="new-password" minlength="10" required />
-          </label>
-          <button class="button button-primary" type="submit">Change Password</button>
-          <p class="form-note" id="passwordStatus"></p>
-        </form>
+          <div class="account-hero-stat">
+            <span class="stat-icon">Fire</span>
+            <strong id="streakLabel">1</strong>
+            <p>Day Streak</p>
+            <small id="bestStreakLabel">Best: 1 day</small>
+          </div>
+          <div class="account-hero-stat">
+            <span class="stat-icon">Star</span>
+            <strong id="pointsLabel">0</strong>
+            <p>Creator Points</p>
+            <button class="button button-secondary" type="button" data-open-progress>View Progress</button>
+          </div>
+        </section>
+
+        <section class="account-main-grid" aria-label="Creator progress cards">
+          <article class="account-panel continue-panel">
+            <div class="account-panel-head">
+              <div>
+                <h3>Continue Creating</h3>
+                <p>Pick up where you left off.</p>
+              </div>
+            </div>
+            <div class="continue-project">
+              <img src="/assets/studio/thumbnails/thumb-fantasy-kingdom.png" alt="" />
+              <div>
+                <h4 id="activeProjectTitle">Skyfall Kingdom</h4>
+                <span id="activeProjectType">World</span>
+                <div class="mini-progress"><span></span></div>
+                <p>68% Complete</p>
+                <a class="button button-primary" href="/storyboard">Continue</a>
+                <a class="button button-secondary" href="/account.html#settings">View All Projects</a>
+              </div>
+            </div>
+            <a class="daily-spark-row" href="/realm-spark">
+              <span>*</span>
+              <strong>Today's Spark</strong>
+              <small id="dailySparkLabel">Create a new character</small>
+              <em>+40 pts</em>
+            </a>
+          </article>
+
+          <article class="account-panel streak-panel">
+            <h3>Your Streak</h3>
+            <p>Keep it alive!</p>
+            <div class="week-row" id="weekRow" aria-label="Weekly streak">
+              <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+            </div>
+            <strong><span id="streakBig">1</span> Day Streak</strong>
+            <p>Create one thing today to keep your streak alive.</p>
+            <a class="button button-primary" href="/realm-spark">Start Today's Spark</a>
+          </article>
+
+          <article class="account-panel achievements-panel">
+            <div class="account-panel-head">
+              <h3>Recent Achievements</h3>
+              <button class="text-button" type="button" data-open-progress>View All</button>
+            </div>
+            <div class="badge-row" id="badgeRow"></div>
+            <div class="badge-dots"><span></span><span></span><span></span><span></span></div>
+          </article>
+
+          <article class="account-panel leaderboard-panel">
+            <h3>Your Rank This Week</h3>
+            <strong id="rankLabel">#18</strong>
+            <span>Top 20%</span>
+            <p id="rankNextLabel">Earn 458 more points to reach Top 10.</p>
+            <button class="button button-secondary" type="button" data-open-progress>View Leaderboard</button>
+          </article>
+
+          <article class="account-panel credits-panel">
+            <h3>Credits</h3>
+            <strong id="creditsLabel">0</strong>
+            <p id="tierDescription">Credits power OPREALM creator tools.</p>
+            <a class="button button-secondary" href="/billing.html#credit-topups">Manage Credits</a>
+          </article>
+        </section>
+
+        <section class="account-settings-grid" id="settings" aria-label="Account settings">
+          <details class="account-settings-card" id="profileSettings">
+            <summary><span>Profile</span><strong>Profile Settings</strong><small>Update your profile and preferences</small></summary>
+            <form class="publish-form compact-account-form" id="profileForm">
+              <label>
+                Creator display name
+                <input name="displayName" maxlength="48" required />
+              </label>
+              <label>
+                Parent email
+                <input name="parentEmail" type="email" />
+              </label>
+              <label>
+                Age group
+                <select name="ageBand">
+                  <option value="8-10">8-10</option>
+                  <option value="11-13">11-13</option>
+                  <option value="14-16">14-16</option>
+                  <option value="parent">Parent / guardian</option>
+                </select>
+              </label>
+              <button class="button button-primary" type="submit">Save Profile</button>
+              <p class="form-note" id="profileStatus"></p>
+            </form>
+          </details>
+
+          <details class="account-settings-card" id="securitySettings">
+            <summary><span>Security</span><strong>Security</strong><small>Password, security and privacy</small></summary>
+            <form class="publish-form compact-account-form" id="passwordForm">
+              <label>
+                Current password
+                <input name="currentPassword" type="password" autocomplete="current-password" required />
+              </label>
+              <label>
+                New password
+                <input name="newPassword" type="password" autocomplete="new-password" minlength="10" required />
+              </label>
+              <button class="button button-primary" type="submit">Change Password</button>
+              <p class="form-note" id="passwordStatus"></p>
+            </form>
+          </details>
+
+          <a class="account-settings-card settings-link" href="/billing">
+            <span>Plan</span><strong>Membership</strong><small>Manage your plan and perks</small>
+          </a>
+          <a class="account-settings-card settings-link" href="/parents">
+            <span>Safety</span><strong>Parent / Safety Controls</strong><small>Review safety, privacy and content settings</small>
+          </a>
+        </section>
+
+        <dialog class="progress-dialog" id="progressDialog">
+          <button class="dialog-close" type="button" data-close-progress aria-label="Close">x</button>
+          <h2>Creator Progress</h2>
+          <p id="progressDialogCopy">Keep creating to unlock more badges and levels.</p>
+          <div class="badge-library" id="badgeLibrary"></div>
+        </dialog>
       </section>
     </main>
   </body>

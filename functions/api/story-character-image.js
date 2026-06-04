@@ -1,4 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
+import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import {
   assertRateLimit,
   createGenerationJob,
@@ -45,12 +46,23 @@ const OUTFIT_COMPONENTS = {
 };
 
 const ACCESSORY_COMPONENTS = {
+  "Custom Object": "custom creator-described object, prop, item, gear or vehicle detail from the creator's saved object description",
   Backpack: "small explorer backpack with compact straps and practical pockets",
   Goggles: "adventure goggles worn on the head or around the neck",
   Scarf: "short adventure scarf that adds movement and personality",
   Gloves: "light explorer gloves suited for climbing and discovery",
   Hat: "friendly adventure hat matching the selected outfit",
   None: "no extra accessory items",
+};
+
+const PET_COMPONENTS = {
+  "Custom Pet": "custom creator-described pet companion from the creator's saved pet description, friendly, kid-safe and clearly matched to the selected master art style",
+  "Robot Pet": "small friendly floating robot companion with glowing blue eyes and rounded kid-safe shapes",
+  "Magic Cat": "cute magical cat companion with sparkling eyes, soft fur and a tiny enchanted collar",
+  "Baby Dragon": "tiny friendly baby dragon companion with soft wings, bright eyes and playful magical energy",
+  "Space Pup": "cheerful space puppy companion with a small sci-fi collar and rounded explorer gear",
+  "Tiny Dino": "tiny friendly dinosaur companion with bright curious eyes and gentle adventure energy",
+  "No Pet": "no pet companion",
 };
 
 const COLOR_COMPONENTS = {
@@ -70,6 +82,7 @@ const PERSONALITY_COMPONENTS = {
   Resourceful: "prepared explorer feeling with practical details and clever confidence",
   Funny: "playful smile and energetic friendly charm",
   Kind: "gentle warm expression and caring body language",
+  Determined: "focused determined expression, resilient posture, and ready-for-the-challenge energy",
 };
 
 const AGE_GROUP_COMPONENTS = {
@@ -79,6 +92,35 @@ const AGE_GROUP_COMPONENTS = {
   Adult: "adult character proportions, mature heroic presence, still friendly and age-appropriate",
   Elder: "elder character proportions, wise expressive face, kind mentor energy, graceful posture",
 };
+
+function clampCharacterAge(value) {
+  const age = Number(value);
+  if (!Number.isFinite(age)) return 10;
+  return Math.max(0, Math.min(100, Math.round(age)));
+}
+
+function ageFromLegacyGroup(value) {
+  const legacyAges = {
+    Baby: 1,
+    Child: 10,
+    Teen: 16,
+    Adult: 28,
+    Elder: 72,
+    "6-9": 8,
+    "10-12": 11,
+    "13-16": 15,
+  };
+  return legacyAges[value] ?? 10;
+}
+
+function ageBandFromAge(value) {
+  const age = clampCharacterAge(value);
+  if (age <= 2) return "Baby";
+  if (age <= 12) return "Child";
+  if (age <= 19) return "Teen";
+  if (age <= 64) return "Adult";
+  return "Elder";
+}
 
 const ENVIRONMENT_COMPONENTS = {
   "Warm adventure ruins": "warm golden adventure ruins built around a clear circular stone hero platform in the foreground, broken columns and safe ancient details framing the character, soft depth behind",
@@ -96,7 +138,7 @@ const ENVIRONMENT_COMPONENTS = {
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
+    if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
 
     const user = await requireUser(request, env);
     if (Number(user.credits_remaining || 0) < CHARACTER_IMAGE_COST) {
@@ -197,10 +239,9 @@ async function generateCharacterImage(env, prompt) {
   let lastError;
 
   for (const attempt of attempts) {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await openAiFetch(env, "/v1/images/generations", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.OPENAI_API_KEY}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -210,7 +251,7 @@ async function generateCharacterImage(env, prompt) {
         quality: attempt.quality,
         n: 1,
       }),
-    });
+    }, { seed: `${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
 
     const data = await response.json();
     const b64 = data.data?.[0]?.b64_json;
@@ -335,12 +376,20 @@ function normalizeCharacterRecipe(recipe) {
   const generation = recipe.generation && typeof recipe.generation === "object" ? recipe.generation : {};
 
   const masterStyle = pickKey(visual.masterStyle || recipe.masterStyle, STYLE_COMPONENTS, "3D Cartoon");
-  const outfit = pickKey(components.outfit || recipe.outfit, OUTFIT_COMPONENTS, "Explorer");
+  const outfit = pickKey(components.outfit || recipe.outfit, OUTFIT_COMPONENTS, "Custom");
   const environment = pickKey(components.environment || recipe.environment, ENVIRONMENT_COMPONENTS, "Magic portal studio");
-  const accessories = pickMany(components.accessories || recipe.accessories, ACCESSORY_COMPONENTS, ["Backpack"]);
+  const accessories = pickMany(components.accessories || recipe.accessories, ACCESSORY_COMPONENTS, ["Custom Object"]);
+  const pet = pickKey(components.pet || recipe.pet, PET_COMPONENTS, "Custom Pet");
   const palette = pickPalette(visual.palette || recipe.palette, ["Orange", "Blue", "Charcoal", "Silver"]);
   const traits = pickTraits(identity.traits || recipe.traits, ["Brave", "Curious"]);
   const conflicts = recipeConflicts({ outfit, accessories, masterStyle });
+  const characterAge = clampCharacterAge(
+    identity.characterAge ??
+    recipe.characterAge ??
+    identity.age ??
+    recipe.age ??
+    ageFromLegacyGroup(identity.ageGroup || recipe.ageGroup || identity.ageRange || recipe.ageRange)
+  );
 
   if (conflicts.length) {
     const error = new Error(`Please adjust this character recipe: ${conflicts.join(" ")}`);
@@ -352,10 +401,8 @@ function normalizeCharacterRecipe(recipe) {
     identity: {
       name: cleanText(identity.name || recipe.name || "New OPRealm hero", 60),
       tagline: cleanText(identity.tagline || recipe.tagline || "", 120),
-      ageGroup: enumValue(identity.ageGroup || recipe.ageGroup || identity.ageRange || recipe.ageRange, ["Baby", "Child", "Teen", "Adult", "Elder", "6-9", "10-12", "13-16"], "Child")
-        .replace("6-9", "Child")
-        .replace("10-12", "Child")
-        .replace("13-16", "Teen"),
+      characterAge,
+      ageGroup: ageBandFromAge(characterAge),
       genderPresentation: enumValue(identity.genderPresentation || recipe.genderPresentation, ["Boy", "Girl", "Other"], "Boy"),
       customGender: cleanText(identity.customGender || recipe.customGender || "", 120),
       characterType: cleanText(identity.characterType || recipe.characterType || "Young adventurer", 80),
@@ -371,6 +418,9 @@ function normalizeCharacterRecipe(recipe) {
       outfit,
       customOutfit: cleanText(components.customOutfit || recipe.customOutfit || "", 300),
       accessories,
+      customObject: cleanText(components.customObject || recipe.customObject || "", 300),
+      pet,
+      customPet: cleanText(components.customPet || recipe.customPet || "", 300),
       environment,
     },
     generation: {
@@ -388,6 +438,12 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
     ? `creator-specified custom outfit: ${recipe.components.customOutfit}`
     : OUTFIT_COMPONENTS[recipe.components.outfit];
   const accessoryPrompts = recipe.components.accessories.map((item) => ACCESSORY_COMPONENTS[item]).filter(Boolean);
+  const customObjectPrompt = recipe.components.accessories.includes("Custom Object") && recipe.components.customObject
+    ? `Creator-specified custom object/prop: ${recipe.components.customObject}.`
+    : "";
+  const petPrompt = recipe.components.pet === "Custom Pet" && recipe.components.customPet
+    ? `Creator-specified custom pet companion: ${recipe.components.customPet}.`
+    : PET_COMPONENTS[recipe.components.pet];
   const colorPrompts = recipe.visual.palette.map((item) => colorPrompt(item)).filter(Boolean);
   const traitPrompts = recipe.identity.traits.map((item) => PERSONALITY_COMPONENTS[item] || `custom trait "${item}" should influence the facial expression, pose, body language, and character energy`).filter(Boolean);
   const environmentPrompt = ENVIRONMENT_COMPONENTS[recipe.components.environment];
@@ -408,13 +464,14 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
     "Component descriptions define design only; they must not override or contradict the master visual style.",
     "Color palette boundary: selected colors apply only to outfit fabric, armor panels, accessories, held items, owned props, vehicles, trim, and small glow accents. Do not apply selected colors to skin tone, eye color, hair color, personality traits, facial features, body proportions, or the environment/background.",
     `Name: ${recipe.identity.name}.`,
-    `Age group: ${recipe.identity.ageGroup}. ${agePrompt}. Gender presentation: ${genderPrompt}. Character type: ${recipe.identity.characterType}.`,
+    `Character age: ${recipe.identity.characterAge}. Age styling group: ${recipe.identity.ageGroup}. ${agePrompt}. Gender presentation: ${genderPrompt}. Character type: ${recipe.identity.characterType}.`,
     recipe.identity.tagline ? `Tagline/vibe: ${recipe.identity.tagline}.` : "",
     `Personality: ${recipe.identity.traits.join(", ")}. ${traitPrompts.join(" ")}`,
     `Voice vibe: ${recipe.identity.voice}.`,
     "Presentation-aware outfit guidance: adapt clothing fit, cut, silhouette, and styling to the selected character presentation while keeping the same outfit concept, respecting creator details, avoiding stereotypes, and staying age-appropriate.",
     `Outfit: ${recipe.components.outfit}. ${outfitPrompt}.`,
-    `Accessories: ${recipe.components.accessories.join(", ")}. ${accessoryPrompts.join(" ")}`,
+    `Accessories/objects: ${recipe.components.accessories.join(", ")}. ${accessoryPrompts.join(" ")} ${customObjectPrompt}`,
+    `Pet companion: ${recipe.components.pet}. ${petPrompt}`,
     `Outfit/accessory color palette only: ${recipe.visual.palette.join(", ")}. ${colorPrompts.join(" ")}`,
     `Environment for this preview: ${recipe.components.environment}. ${environmentPrompt}.`,
     recipe.generation.consistencyLock

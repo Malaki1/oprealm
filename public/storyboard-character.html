@@ -8,8 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=13" />
-    <script src="/storyboard-character.js?v=2" defer></script>
+    <link rel="stylesheet" href="/creator-flow.css?v=16" />
+    <script src="/storyboard-character.js?v=7" defer></script>
   </head>
   <body class="storyboard-body character-builder-body">
     <header class="storyboard-topbar character-builder-topbar">
@@ -18,7 +18,6 @@
         <span>OPREALM Story Studio</span>
       </a>
       <nav class="storyboard-nav" aria-label="Story Studio navigation">
-        <a href="/realm-spark.html">Realm Spark</a>
         <a href="/storyboard-world.html">World</a>
         <a href="/storyboard-character.html" aria-current="page">Character</a>
         <a href="/storyboard.html">Story Builder</a>
@@ -29,24 +28,7 @@
     </header>
 
     <main class="character-builder-shell">
-      <aside class="story-rail" aria-label="Story Studio tools">
-        <a class="rail-link" href="/storyboard-world.html" aria-label="Create world"></a>
-        <a class="rail-link is-active" href="/storyboard-character.html" aria-label="Create character"></a>
-        <a class="rail-link" href="/storyboard.html" aria-label="Storyboard"></a>
-        <a class="rail-link" href="/storyboard.html#objects" aria-label="Objects"></a>
-        <a class="rail-link" href="/storyboard.html#scenes" aria-label="Scenes"></a>
-        <a class="rail-link" href="/storyboard.html#music" aria-label="Music"></a>
-        <a class="rail-link" href="/realm-spark.html" aria-label="Idea spark"></a>
-      </aside>
-
       <section class="character-builder-content" aria-label="Character creator">
-        <nav class="builder-stepper character-stepper" aria-label="Creation progress">
-          <a class="builder-step" href="/storyboard-world.html">World</a>
-          <a class="builder-step is-active" href="/storyboard-character.html">Characters</a>
-          <a class="builder-step" href="/storyboard.html#scenes">Scenes</a>
-          <a class="builder-step" href="/storyboard.html#generate">Generate & Share</a>
-        </nav>
-
         <header class="builder-heading">
           <div>
             <p class="spark-eyebrow">Character Creator</p>
@@ -60,11 +42,14 @@
             <h2>Character Essentials</h2>
             <label class="field-stack">
               <span>Character Name</span>
-              <span class="input-shell"><input id="characterNameInput" type="text" value="Kai" maxlength="30" /><small data-count-for="characterNameInput">3/30</small></span>
+              <span class="input-shell"><input id="characterNameInput" type="text" placeholder="Name your character..." maxlength="30" /><small data-count-for="characterNameInput">0/30</small></span>
             </label>
             <label class="field-stack">
-              <span>Tagline (optional)</span>
-              <span class="input-shell"><input id="characterTaglineInput" type="text" value="Brave explorer with a big heart." maxlength="80" /><small data-count-for="characterTaglineInput">32/80</small></span>
+              <span>Character Prompt (Description)</span>
+              <span class="textarea-shell">
+                <textarea id="characterTaglineInput" maxlength="300" placeholder="Describe who they are, what makes them interesting, and how they should feel in the story..."></textarea>
+                <small data-count-for="characterTaglineInput">0/300</small>
+              </span>
             </label>
             <div class="field-stack">
               <span>Personality Traits</span>
@@ -75,18 +60,17 @@
                 <button class="is-selected" type="button" data-recipe-multi="trait" data-value="Loyal">Loyal x</button>
                 <button class="is-selected" type="button" data-recipe-multi="trait" data-value="Smart">Smart x</button>
                 <button class="is-selected" type="button" data-recipe-multi="trait" data-value="Resourceful">Resourceful x</button>
-                <button class="ghost-add" id="addTraitButton" type="button">+ Add Trait</button>
+                <button type="button" data-recipe-multi="trait" data-value="Funny">Funny x</button>
+                <button type="button" data-recipe-multi="trait" data-value="Kind">Kind x</button>
+                <button type="button" data-recipe-multi="trait" data-value="Determined">Determined x</button>
               </div>
             </div>
             <div class="field-stack">
-              <span>Age Group</span>
-              <div class="choice-row age-group-row">
-                <button type="button" data-recipe-choice="ageGroup" data-value="Baby">Baby</button>
-                <button class="is-selected" type="button" data-recipe-choice="ageGroup" data-value="Child">Child</button>
-                <button type="button" data-recipe-choice="ageGroup" data-value="Teen">Teen</button>
-                <button type="button" data-recipe-choice="ageGroup" data-value="Adult">Adult</button>
-                <button type="button" data-recipe-choice="ageGroup" data-value="Elder">Elder</button>
-              </div>
+              <span>Character Age</span>
+              <label class="age-slider-shell" for="characterAgeSlider">
+                <input id="characterAgeSlider" type="range" min="0" max="100" value="10" />
+                <span id="characterAgeValue">10</span>
+              </label>
             </div>
             <div class="field-stack">
               <span>Gender</span>
@@ -123,11 +107,15 @@
               <button type="button" data-recipe-choice="sourceMode" data-value="Upload">Upload</button>
             </div>
             <figure class="character-art-frame">
-              <img src="/assets/character-creator/styles/3d-cartoon.png" alt="Generated character concept" />
-              <button class="character-regenerate-button" type="button">Regenerate</button>
+              <div class="blank-character-frame" id="characterPreviewBlank">
+                <strong>No character image yet</strong>
+                <span>Add your character details, then generate.</span>
+              </div>
+              <img id="characterPreviewImage" src="" alt="Generated character concept" hidden />
+              <button class="character-regenerate-button" type="button">Generate Preview</button>
               <div class="character-reference-actions" aria-label="Character reference image actions">
-                <button id="enlargeCharacterReferenceButton" type="button">Enlarge</button>
-                <button id="downloadCharacterReferenceButton" type="button" aria-label="Download character reference image">Download</button>
+                <button id="enlargeCharacterReferenceButton" type="button" disabled>Enlarge</button>
+                <button id="downloadCharacterReferenceButton" type="button" aria-label="Download character reference image" disabled>Download</button>
               </div>
             </figure>
             <div class="field-stack">
@@ -142,13 +130,6 @@
                 <button type="button" data-recipe-choice="masterStyle" data-value="90s Cartoon"><img src="/assets/character-creator/styles/90s-cartoon.png" alt="" /><span>90s Cartoon</span></button>
               </div>
             </div>
-            <label class="field-stack">
-              <span>AI Prompt (editable)</span>
-              <span class="textarea-shell">
-                <textarea id="characterPromptNotes" maxlength="300">A young boy with messy brown hair, orange jacket, backpack, adventurous look, standing in a junkyard with warm sunset lighting.</textarea>
-                <small data-count-for="characterPromptNotes">121/300</small>
-              </span>
-            </label>
             <button id="generateCharacterRecipeButton" class="generate-character-button" type="button">Generate Character</button>
             <p id="characterGenerationStatus" class="recipe-status" aria-live="polite"></p>
           </section>
@@ -169,7 +150,11 @@
             <div class="field-stack">
               <span>Outfit Style</span>
               <div class="outfit-grid outfit-card-grid">
-                <button class="is-selected" type="button" data-recipe-choice="outfit" data-value="Explorer"><img src="/assets/character-creator/outfits/explorer.png" alt="" />Explorer</button>
+                <div class="custom-choice-card is-selected" role="button" tabindex="0" data-recipe-choice="outfit" data-value="Custom">
+                  <strong>Custom Outfit</strong>
+                  <textarea id="customOutfitInlineInput" maxlength="300" placeholder="Describe their outfit, clothing, armour, vehicle gear or special look..."></textarea>
+                </div>
+                <button type="button" data-recipe-choice="outfit" data-value="Explorer"><img src="/assets/character-creator/outfits/explorer.png" alt="" />Explorer</button>
                 <button type="button" data-recipe-choice="outfit" data-value="Space Suit"><img src="/assets/character-creator/outfits/space-suit.png" alt="" />Space Suit</button>
                 <button type="button" data-recipe-choice="outfit" data-value="Ninja"><img src="/assets/character-creator/outfits/ninja.png" alt="" />Ninja</button>
                 <button type="button" data-recipe-choice="outfit" data-value="Armor"><img src="/assets/character-creator/outfits/armor.png" alt="" />Armor</button>
@@ -179,13 +164,16 @@
                 <button type="button" data-recipe-choice="outfit" data-value="Mech"><img src="/assets/character-creator/outfits/mech.png" alt="" />Mech</button>
                 <button type="button" data-recipe-choice="outfit" data-value="Survivor"><img src="/assets/character-creator/outfits/survivor.png" alt="" />Survivor</button>
                 <button type="button" data-recipe-choice="outfit" data-value="Royal Adventurer"><img src="/assets/character-creator/outfits/royal-adventurer.png" alt="" />Royal</button>
-                <button type="button" data-recipe-choice="outfit" data-value="Custom">Custom</button>
               </div>
             </div>
             <div class="field-stack">
               <span>Accessories</span>
               <div class="accessory-grid">
-                <button class="is-selected" type="button" data-recipe-multi="accessories" data-value="Backpack"><img src="/assets/homepage/tools/asset-library.png" alt="" />Backpack</button>
+                <div class="custom-choice-card compact-custom-choice is-selected" role="button" tabindex="0" data-recipe-multi="accessories" data-value="Custom Object">
+                  <strong>Custom Object</strong>
+                  <textarea id="customObjectInput" maxlength="300" placeholder="Describe a prop, item, weapon, vehicle or object..."></textarea>
+                </div>
+                <button type="button" data-recipe-multi="accessories" data-value="Backpack"><img src="/assets/homepage/tools/asset-library.png" alt="" />Backpack</button>
                 <button type="button" data-recipe-multi="accessories" data-value="Goggles"><img src="/assets/homepage/safety/monitored.png" alt="" />Goggles</button>
                 <button type="button" data-recipe-multi="accessories" data-value="Scarf"><img src="/assets/homepage/tools/story-games.png" alt="" />Scarf</button>
                 <button type="button" data-recipe-multi="accessories" data-value="Gloves"><img src="/assets/homepage/tools/remix.png" alt="" />Gloves</button>
@@ -194,17 +182,18 @@
               </div>
             </div>
             <div class="field-stack">
-              <span>Preview Environment</span>
-              <div class="environment-grid environment-card-grid">
-                <button class="is-selected" type="button" data-recipe-choice="environment" data-value="Magic portal studio"><img src="/assets/character-creator/environments/magic-portal-studio.png" alt="" /><span>Magic Portal</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Fantasy grove"><img src="/assets/character-creator/environments/fantasy-grove.png" alt="" /><span>Fantasy Grove</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Dark kingdom"><img src="/assets/character-creator/environments/dark-kingdom.png" alt="" /><span>Dark Kingdom</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Candy kingdom"><img src="/assets/character-creator/environments/candy-kingdom.png" alt="" /><span>Candy Kingdom</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Dinosaur jungle"><img src="/assets/character-creator/environments/dinosaur-jungle.png" alt="" /><span>Dinosaur Jungle</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Sky islands"><img src="/assets/character-creator/environments/sky-islands.png" alt="" /><span>Sky Islands</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Enchanted forest"><img src="/assets/character-creator/environments/enchanted-forest.png" alt="" /><span>Enchanted Forest</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Underwater realm"><img src="/assets/character-creator/environments/underwater-realm.png" alt="" /><span>Underwater Realm</span></button>
-                <button type="button" data-recipe-choice="environment" data-value="Lava planet"><img src="/assets/character-creator/environments/lava-planet.png" alt="" /><span>Lava Planet</span></button>
+              <span>Pet Companion</span>
+              <div class="accessory-grid pet-grid">
+                <div class="custom-choice-card compact-custom-choice is-selected" role="button" tabindex="0" data-recipe-choice="pet" data-value="Custom Pet">
+                  <strong>Custom Pet</strong>
+                  <textarea id="customPetInput" maxlength="300" placeholder="Describe their pet companion..."></textarea>
+                </div>
+                <button type="button" data-recipe-choice="pet" data-value="Robot Pet"><img src="/assets/homepage/mascot/orbit.png" alt="" />Robot Pet</button>
+                <button type="button" data-recipe-choice="pet" data-value="Magic Cat"><img src="/assets/homepage/tools/story-games.png" alt="" />Magic Cat</button>
+                <button type="button" data-recipe-choice="pet" data-value="Baby Dragon"><img src="/assets/homepage/tools/ai-magic.png" alt="" />Baby Dragon</button>
+                <button type="button" data-recipe-choice="pet" data-value="Space Pup"><img src="/assets/homepage/tools/terrain-generator.png" alt="" />Space Pup</button>
+                <button type="button" data-recipe-choice="pet" data-value="Tiny Dino"><img src="/assets/homepage/tools/obby-builder.png" alt="" />Tiny Dino</button>
+                <button type="button" data-recipe-choice="pet" data-value="No Pet">No Pet</button>
               </div>
             </div>
           </section>
@@ -212,7 +201,11 @@
           <aside class="builder-panel live-preview-panel">
             <h2>Live Preview</h2>
             <div class="live-character-stage">
-              <img src="/assets/character-creator/styles/3d-cartoon.png" alt="Kai live character preview" />
+              <div class="blank-character-frame live-blank-character-frame" id="characterLiveBlank">
+                <strong>Preview will appear here</strong>
+                <span>Your character stays blank until you generate it.</span>
+              </div>
+              <img id="characterLiveImage" src="" alt="Generated live character preview" hidden />
               <div class="preview-controls">
                 <button type="button" aria-label="Rotate preview"></button>
                 <button type="button" aria-label="Enlarge preview"></button>
@@ -220,16 +213,7 @@
             </div>
             <section class="character-summary">
               <h3>Character Summary</h3>
-              <dl id="characterRecipeSummary">
-                <div><dt>Name</dt><dd>Kai</dd></div>
-                <div><dt>Tagline</dt><dd>Brave explorer with a big heart.</dd></div>
-                <div><dt>Traits</dt><dd><span>Brave</span><span>Curious</span><span>Loyal</span><span>Smart</span></dd></div>
-                <div><dt>Age Range</dt><dd>10-12</dd></div>
-                <div><dt>Voice</dt><dd>Young Adventurer</dd></div>
-                <div><dt>Style</dt><dd>3D Cartoon</dd></div>
-                <div><dt>Outfit</dt><dd>Explorer</dd></div>
-                <div><dt>Accessories</dt><dd>Backpack</dd></div>
-              </dl>
+              <dl id="characterRecipeSummary"></dl>
             </section>
           </aside>
         </div>
@@ -243,6 +227,7 @@
           </label>
           <button class="scene-action primary save-character" id="saveCharacterButton" type="button">Save Character</button>
           <button class="scene-action add-another" id="saveAndAddCharacterButton" type="button">Save & Add Another</button>
+          <a class="scene-action primary recipe-next-step" id="proceedToStoryBuilderButton" href="/storyboard.html" hidden>Proceed To Story Builder</a>
         </footer>
       </section>
     </main>

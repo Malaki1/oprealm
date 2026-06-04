@@ -1,4 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
+import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import {
   assertRateLimit,
   createGenerationJob,
@@ -33,7 +34,7 @@ const DETAILS = ["Clean", "Detailed", "Premium"];
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
+    if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
 
     const user = await requireUser(request, env);
     if (Number(user.credits_remaining || 0) < WALLPAPER_COST) {
@@ -120,10 +121,9 @@ async function generateWallpaperImage(env, prompt) {
   let lastError;
 
   for (const attempt of attempts) {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await openAiFetch(env, "/v1/images/generations", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.OPENAI_API_KEY}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -133,7 +133,7 @@ async function generateWallpaperImage(env, prompt) {
         quality: attempt.quality,
         n: 1,
       }),
-    });
+    }, { seed: `${attempt.model}:${attempt.quality}:${prompt}`, retries: 2 });
 
     const data = await response.json();
     const b64 = data.data?.[0]?.b64_json;

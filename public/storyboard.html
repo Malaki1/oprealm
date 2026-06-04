@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -8,8 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=13" />
-    <script src="/creator-flow.js?v=10" defer></script>
+    <link rel="stylesheet" href="/creator-flow.css?v=16" />
+    <script src="/creator-bible.js?v=1" defer></script>
+    <script src="/creator-flow.js?v=16" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -18,7 +19,6 @@
         <span>OPREALM Story Studio</span>
       </a>
       <nav class="storyboard-nav" aria-label="Storyboard navigation">
-        <a href="/realm-spark.html">Realm Spark</a>
         <a href="/storyboard-world.html">World</a>
         <a href="/storyboard-character.html">Character</a>
         <a href="/storyboard.html" aria-current="page">Story Builder</a>
@@ -28,7 +28,7 @@
       </nav>
     </header>
 
-    <main class="storyboard-shell">
+    <main class="storyboard-shell cinematic-storyboard">
       <aside class="storyboard-sidebar" aria-label="Creative ingredients">
         <section class="ingredient-section" id="characters">
           <div class="ingredient-head">
@@ -88,33 +88,64 @@
             <button class="object-card" type="button"><img src="/assets/homepage/tools/ai-magic.png" alt="" /><span>Crystal Sword</span></button>
             <button class="object-card" type="button"><img src="/assets/homepage/tools/asset-library.png" alt="" /><span>Jetpack</span></button>
             <button class="object-card" type="button"><img src="/assets/homepage/mascot/orbit.png" alt="" /><span>Robot Pet</span></button>
-            <button class="object-card" type="button"><img src="/assets/homepage/safety/child-safe.png" alt="" /><span>Shield</span></button>
-            <button class="object-card" type="button"><img src="/assets/homepage/tools/generate.png" alt="" /><span>Power Core</span></button>
-            <button class="object-card" type="button"><img src="/assets/homepage/tools/remix.png" alt="" /><span>Portal Orb</span></button>
           </div>
+        </section>
+
+        <section class="story-power-card" aria-label="Story power">
+          <div class="story-power-head">
+            <span class="op-icon op-icon-time" aria-hidden="true"></span>
+            <strong>Story Power</strong>
+            <em>750 / 1000 XP</em>
+          </div>
+          <div class="story-xp-bar"><span style="width:75%"></span></div>
+          <div class="story-power-meta"><span>Level 5</span><span>Next reward at 1000 XP</span></div>
+          <div class="story-badge-row" aria-label="Creator badges">
+            <span class="op-icon op-icon-favorite" title="Story Creator" aria-label="Story Creator"></span>
+            <span class="op-icon op-icon-web" title="World Builder" aria-label="World Builder"></span>
+            <span class="op-icon op-icon-lock" title="Character Master" aria-label="Character Master"></span>
+            <span class="op-icon op-icon-time" title="7 Day Streak" aria-label="7 Day Streak"></span>
+          </div>
+        </section>
+
+        <section class="streak-card" aria-label="Creator streak">
+          <div>
+            <strong><span class="op-icon op-icon-time" aria-hidden="true"></span> 7 Day Streak</strong>
+            <p>Keep it going!</p>
+          </div>
+          <img src="/assets/homepage/mascot/orbit.png" alt="" />
         </section>
       </aside>
 
       <section class="storyboard-canvas" aria-label="Storyboard canvas">
-        <div class="story-progress story-progress-short">
-          <span class="progress-step is-done">Idea</span>
-          <span class="progress-step is-done">Character</span>
-          <span class="progress-step is-active">Story Builder</span>
-          <span class="progress-step">Creative Path</span>
-        </div>
         <div class="canvas-head">
           <div>
             <p class="spark-eyebrow">Story Builder</p>
-            <h1 id="storyboardProjectTitle">My Awesome Story</h1>
+            <h1><span id="storyboardProjectTitle">My Awesome Story</span> <button class="title-edit-button" type="button" aria-label="Edit story title"><span class="op-icon op-icon-options" aria-hidden="true"></span></button></h1>
+            <p class="autosave-status"><span></span> Auto-saved 2 min ago</p>
           </div>
           <div class="story-builder-actions" aria-label="Story builder actions">
+            <details class="lock-style-menu">
+              <summary><span class="op-icon op-icon-lock" aria-hidden="true"></span> Lock Style</summary>
+              <div>
+                <label><input type="checkbox" checked /> Lock Character</label>
+                <label><input type="checkbox" checked /> Lock Environment</label>
+                <label><input type="checkbox" /> Lock Outfit</label>
+                <label><input type="checkbox" /> Lock Camera Style</label>
+                <label><input type="checkbox" /> Lock Color Palette</label>
+              </div>
+            </details>
+            <button class="play-story-button" id="playStoryButton" type="button"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Play Story</button>
             <button class="scene-action" id="quickPopulateStoryButton" type="button">Quick Populate</button>
             <button class="scene-action" id="aiAssistStoryButton" type="button">AI Assist</button>
           </div>
+        </div>
+
+        <div class="storyboard-viewbar">
           <div class="view-toggle" role="group" aria-label="Storyboard view">
-            <button class="is-active" type="button">Storyboard View</button>
+            <button class="is-active" type="button">Storyboard</button>
             <button type="button">Timeline View</button>
           </div>
+          <button class="add-scene-inline" id="addSceneTopButton" type="button">+ Add Scene</button>
         </div>
 
         <div class="scene-list" id="scenes">
@@ -154,56 +185,77 @@
           </div>
 
           <button class="add-scene-card" id="addSceneButton" type="button">
-            <strong>+ Add Story Moment</strong>
-            <span>Continue your story with a new prompt.</span>
+            <strong>+ Add Scene</strong>
+            <span>Drag and drop to reorder scenes</span>
           </button>
+
+          <section class="creator-bible-export" aria-label="Creator Bible export">
+            <div>
+              <p class="spark-eyebrow">Creator Bible Ready</p>
+              <h2>Turn this story into a playable game mode.</h2>
+              <p>
+                OPREALM can compile your world, character, pets, props and scenes into one reusable Creator Bible,
+                then test it inside safe game templates.
+              </p>
+            </div>
+            <div class="creator-bible-actions">
+              <button class="primary-action" id="compileCreatorBibleButton" type="button">Compile Creator Bible</button>
+              <a class="secondary-action" href="/realmbeasts.html">Test RealmBeasts</a>
+            </div>
+            <p class="creator-bible-status" id="creatorBibleStatus">Not compiled yet.</p>
+          </section>
         </div>
       </section>
 
       <aside class="storyboard-director" aria-label="AI Director">
         <section class="director-hero">
-          <img src="/assets/homepage/mascot/orbit.png" alt="Orbit AI Director" />
-          <div class="director-message">I have some ideas to make your story even better.</div>
+          <img src="/assets/homepage/mascot/orbit.png" alt="" />
+          <div class="director-message">Great progress! Your story is full of adventure. Need ideas for the next scene?</div>
         </section>
 
-        <section class="suggestions">
-          <p class="spark-eyebrow">Suggestions</p>
-          <button class="suggestion-card" type="button">Add dramatic rain to Scene 3</button>
-          <button class="suggestion-card" type="button">Make Scene 2 more epic</button>
-          <button class="suggestion-card" type="button">Add a villain character</button>
-          <button class="suggestion-card" type="button">Create a plot twist</button>
-          <button class="suggestion-card" type="button">Show next scene idea</button>
-        </section>
+        <div class="director-tabs" role="tablist" aria-label="AI tools">
+          <button class="is-active" type="button">Style</button>
+          <button type="button">Music</button>
+          <button type="button">Effects</button>
+          <button type="button">AI Helper</button>
+        </div>
 
         <section class="style-transform">
           <p class="spark-eyebrow">Style Transform</p>
           <div class="style-grid">
             <button class="style-card" type="button"><img src="/assets/homepage/cards/story-games.png" alt="" /><span>Anime</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><span>3D</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><span>Pixar</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/cards/roblox-worlds.png" alt="" /><span>Roblox</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/cards/art-studio.png" alt="" /><span>Cinematic</span></button>
             <button class="style-card" type="button"><img src="/assets/homepage/cards/art-studio.png" alt="" /><span>Comic</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/cards/roblox-worlds.png" alt="" /><span>Toy World</span></button>
             <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/neon-beat.png" alt="" /><span>Cyberpunk</span></button>
             <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="" /><span>Dreamy</span></button>
+            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/lava-escape.png" alt="" /><span>Pixel Art</span></button>
           </div>
         </section>
 
-        <button class="generate-all" type="button">Generate All Scenes</button>
+        <button class="generate-all" type="button">Apply Style To All Scenes</button>
+
+        <section class="transition-card" aria-label="Scene transitions">
+          <p class="spark-eyebrow">Scene Transitions</p>
+          <label>
+            <span>Transition</span>
+            <select>
+              <option>Swipe</option>
+              <option>Fade</option>
+              <option>Portal Warp</option>
+              <option>Glitch</option>
+              <option>Comic Flip</option>
+              <option>Cinematic Blur</option>
+            </select>
+          </label>
+          <div class="transition-preview"><span></span></div>
+        </section>
       </aside>
     </main>
 
-    <section class="prompt-dock" aria-label="Scene prompt bar">
-      <button class="scene-action primary" type="button">Voice Prompt</button>
-      <input id="dockScenePrompt" type="text" placeholder="Describe your next story moment..." />
-      <button class="scene-action" id="dockAiAssistButton" type="button">AI Assist</button>
-      <button class="scene-action" id="dockAddSceneButton" type="button">Add Moment</button>
-    </section>
-
-    <nav class="bottom-mobile-nav" aria-label="Mobile storyboard navigation">
-      <a href="/realm-spark.html">Idea</a>
-      <a href="/storyboard-character.html">Character</a>
-      <a href="#scenes">Story</a>
-      <a href="#paths">Paths</a>
-      <a href="#settings">Settings</a>
-    </nav>
   </body>
 </html>
+
+
+

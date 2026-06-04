@@ -1,4 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
+import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
 
@@ -10,7 +11,7 @@ const COVER_TOOL = "story_game_cover";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
-  if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm cover generator is not connected yet." }, 500);
+  if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm cover generator is not connected yet." }, 500);
 
   let user;
   try {
@@ -83,10 +84,9 @@ async function generateCoverImage(env, prompt) {
   let lastError;
 
   for (const attempt of attempts) {
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await openAiFetch(env, "/v1/images/generations", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.OPENAI_API_KEY}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -96,7 +96,7 @@ async function generateCoverImage(env, prompt) {
         quality: attempt.quality,
         n: 1,
       }),
-    });
+    }, { seed: `${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
     const data = await response.json();
     const b64 = data.data?.[0]?.b64_json;
     if (response.ok && b64) return { b64, ...attempt };

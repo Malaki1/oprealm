@@ -89,6 +89,21 @@ export async function createGenerationJob(env, { id, userId, tool, promptHash, i
     .run();
 }
 
+export async function enqueueGenerationJob(env, jobId, payload = {}) {
+  if (env.OPREALM_GENERATION_QUEUE?.send) {
+    await env.OPREALM_GENERATION_QUEUE.send({
+      jobId,
+      tool: payload.tool || "",
+      userId: payload.userId || "",
+      createdAt: new Date().toISOString(),
+      metadata: payload.metadata || {},
+    });
+    return "cloudflare_queue";
+  }
+
+  return "d1_queue";
+}
+
 export async function markJobProcessing(env, jobId) {
   await env.OPREALM_DB.prepare(
     "UPDATE generation_jobs SET status = 'processing', updated_at = datetime('now') WHERE id = ?",

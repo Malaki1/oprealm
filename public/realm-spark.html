@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/creator-flow.css?v=13" />
-    <script src="/creator-flow.js?v=10" defer></script>
+    <script src="/creator-flow.js?v=15" defer></script>
   </head>
   <body class="spark-body">
     <header class="spark-topbar">
@@ -90,13 +90,13 @@
                   </div>
                 </div>
               </div>
-              <button class="mic-button" type="button" aria-label="Voice prompt">
+              <button class="mic-button" type="button" aria-label="Voice prompt" data-voice-prompt>
                 <img src="/assets/homepage/voice-mic-purple.png" alt="" />
               </button>
             </div>
 
             <div class="idea-actions idea-action-grid">
-              <button class="idea-action voice-idea-card" type="button">
+              <button class="idea-action voice-idea-card" type="button" data-voice-prompt>
                 <img src="/assets/homepage/voice-mic-purple.png" alt="" />
                 <span><strong>Voice Idea</strong><em>Speak your idea out loud</em></span>
               </button>
@@ -150,7 +150,7 @@
             <span>Space</span><span>Robot</span><span>Adventure</span>
           </div>
           <p id="ideaPreviewCopy">A brave kid discovers a glowing space world, but a robot friend needs help before the portals close.</p>
-          <a class="build-world-button" href="/storyboard-world.html">Build This World</a>
+          <a class="build-world-button" href="/storyboard-world.html?from=realm-spark">Build This World</a>
           <section>
             <p class="spark-eyebrow">Recent sparks</p>
             <p>Robot shark lava survival<br />Secret island crystals<br />Cyber pet glitch mystery</p>

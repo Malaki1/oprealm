@@ -1,4 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
+import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
 
@@ -11,7 +12,7 @@ const MAX_REFERENCE_IMAGES = 4;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
-  if (!env.OPENAI_API_KEY) return json({ ok: false, error: "The OPRealm reference board generator is not connected yet." }, 500);
+  if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm reference board generator is not connected yet." }, 500);
 
   let user;
   try {
@@ -101,10 +102,9 @@ async function generateReferenceBoard(env, prompt, referenceImages) {
 }
 
 async function requestImageGeneration(env, prompt, size, attempt) {
-  return fetch("https://api.openai.com/v1/images/generations", {
+  return openAiFetch(env, "/v1/images/generations", {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
@@ -114,7 +114,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
       quality: attempt.quality,
       n: 1,
     }),
-  });
+  }, { seed: `${attempt.model}:${attempt.quality}:${prompt}`, retries: 2 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -130,11 +130,10 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
     form.append("image[]", file);
   });
 
-  return fetch("https://api.openai.com/v1/images/edits", {
+  return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
-    headers: { authorization: `Bearer ${env.OPENAI_API_KEY}` },
     body: form,
-  });
+  }, { seed: `${attempt.model}:${attempt.quality}:${prompt}:edit`, retries: 2 });
 }
 
 function buildReferenceBoardPrompt(body, references) {

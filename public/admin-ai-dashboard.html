@@ -147,6 +147,13 @@
         margin-top: 16px;
       }
 
+      .reward-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 0.9fr 1.1fr;
+        margin-top: 16px;
+      }
+
       .panel {
         border-radius: 20px;
         padding: 18px;
@@ -155,6 +162,64 @@
       .panel h2 {
         margin: 0 0 14px;
         font-size: 1.1rem;
+      }
+
+      .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .mini-stat {
+        border: 1px solid rgba(130, 183, 255, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.045);
+        padding: 14px;
+      }
+
+      .mini-stat strong {
+        display: block;
+        margin-top: 6px;
+        font-size: 1.55rem;
+      }
+
+      .leaderboard-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .leaderboard-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 12px;
+        border: 1px solid rgba(130, 183, 255, 0.14);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.045);
+        padding: 12px;
+      }
+
+      .rank-bubble {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--cyan), var(--purple));
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .leaderboard-row strong,
+      .leaderboard-row span,
+      .leaderboard-row small {
+        display: block;
+      }
+
+      .badge-line {
+        color: var(--green);
+        font-size: 0.78rem;
+        margin-top: 4px;
       }
 
       table {
@@ -224,7 +289,8 @@
 
       @media (max-width: 900px) {
         .hero,
-        .grid {
+        .grid,
+        .reward-grid {
           grid-template-columns: 1fr;
         }
 
@@ -238,6 +304,10 @@
 
         .cards {
           grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .mini-grid {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -332,6 +402,38 @@
         </div>
       </section>
 
+      <section class="reward-grid" aria-label="Rewards and leaderboard dashboard">
+        <div class="panel">
+          <h2>Creator Rewards Overview</h2>
+          <div class="mini-grid">
+            <div class="mini-stat">
+              <div class="label">Active creators</div>
+              <strong id="activeUsers">0</strong>
+              <div class="hint">Creators with AI activity in this window</div>
+            </div>
+            <div class="mini-stat">
+              <div class="label">Creator points</div>
+              <strong id="totalPoints">0</strong>
+              <div class="hint">Estimated rewards value from usage</div>
+            </div>
+            <div class="mini-stat">
+              <div class="label">Badges unlocked</div>
+              <strong id="badgesUnlocked">0</strong>
+              <div class="hint">Estimated signals from current data</div>
+            </div>
+            <div class="mini-stat">
+              <div class="label">Top level</div>
+              <strong id="topLevel">0</strong>
+              <div class="hint">Highest estimated creator level</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Creator Leaderboard</h2>
+          <div id="leaderboard" class="leaderboard-list"></div>
+        </div>
+      </section>
+
       <section class="panel" style="margin-top: 16px">
         <h2>Recent AI Activity</h2>
         <table>
@@ -388,6 +490,10 @@
         document.querySelector("#remaining").textContent = credits(data.members.creditsRemaining);
         document.querySelector("#window").textContent = `${data.windowDays} days`;
         document.querySelector("#generated").textContent = new Date(data.generatedAt).toLocaleString();
+        document.querySelector("#activeUsers").textContent = number(data.rewards?.activeUsers || 0);
+        document.querySelector("#totalPoints").textContent = number(data.rewards?.totalPoints || 0);
+        document.querySelector("#badgesUnlocked").textContent = number(data.rewards?.unlockedBadges || 0);
+        document.querySelector("#topLevel").textContent = number(data.rewards?.topLevel || 0);
 
         const maxCost = Math.max(...data.byTool.map((row) => Number(row.estimated_cost_usd || 0)), 0.01);
         document.querySelector("#toolBars").innerHTML = data.byTool.length
@@ -399,7 +505,7 @@
                   <div class="bar-row">
                     <div class="bar-top">
                       <strong>/${escapeHtml(row.tool)}</strong>
-                      <span>${money(row.estimated_cost_usd)} · ${credits(row.creator_credits)} credits · ${number(row.requests)} uses</span>
+                      <span>${money(row.estimated_cost_usd)} - ${credits(row.creator_credits)} credits - ${number(row.requests)} uses</span>
                     </div>
                     <div class="hint">${escapeHtml(meta)}</div>
                     <div class="bar"><span style="width:${width}%"></span></div>
@@ -408,6 +514,28 @@
               })
               .join("")
           : '<div class="hint">No AI usage in this window yet.</div>';
+
+        document.querySelector("#leaderboard").innerHTML = data.leaderboard?.length
+          ? data.leaderboard
+              .map((row) => {
+                const badges = row.badges?.length ? row.badges.join(", ") : "No badges yet";
+                return `
+                  <div class="leaderboard-row">
+                    <span class="rank-bubble">${number(row.rank)}</span>
+                    <div>
+                      <strong>${escapeHtml(row.displayName)}</strong>
+                      <small>${escapeHtml(formatTier(row.tier))} - Level ${number(row.level)} - ${number(row.requests)} requests</small>
+                      <span class="badge-line">${escapeHtml(badges)}</span>
+                    </div>
+                    <div>
+                      <strong>${number(row.points)}</strong>
+                      <small>${credits(row.creditsUsed)} credits</small>
+                    </div>
+                  </div>
+                `;
+              })
+              .join("")
+          : '<div class="hint">No creator leaderboard activity yet.</div>';
 
         document.querySelector("#recent").innerHTML = data.recent.length
           ? data.recent
@@ -441,6 +569,15 @@
 
       function number(value) {
         return Number(value || 0).toLocaleString();
+      }
+
+      function formatTier(tier) {
+        return {
+          explorer: "Explorer",
+          creator: "Creator+",
+          pro: "Elite Creator",
+          elite: "Elite Creator",
+        }[tier] || "Explorer";
       }
 
       function escapeHtml(value) {

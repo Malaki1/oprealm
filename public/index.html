@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
@@ -11,9 +11,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/home.css?v=13" />
+    <link rel="stylesheet" href="/home.css?v=15" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/home.js?v=1" defer></script>
+    <script src="/realm-spark-core.js?v=1" defer></script>
+    <script src="/home.js?v=2" defer></script>
   </head>
   <body>
     <header class="home-header">
@@ -36,7 +37,7 @@
 
       <div class="header-actions">
         <a class="button ghost" href="/login" data-account-link>Log in</a>
-        <a class="button primary" href="/realm-spark.html">Start Creating</a>
+        <a class="button primary" href="#creation-tools">Start Creating</a>
       </div>
 
       <nav class="mobile-nav" aria-label="Mobile navigation">
@@ -46,7 +47,7 @@
         <a href="/how-to-story-game">Story Guide</a>
         <a href="#membership">Membership</a>
         <a href="/login" data-account-link>Log in</a>
-        <a class="button primary" href="/realm-spark.html">Start Creating</a>
+        <a class="button primary" href="#creation-tools">Start Creating</a>
       </nav>
     </header>
 
@@ -75,7 +76,7 @@
           <h1>Enter the world of <span>no-code creation.</span></h1>
           <p class="hero-text">Easy-to-use tools help kids create games, stories, videos, art and music with safe guided AI.</p>
           <div class="hero-actions">
-            <a class="button primary large" href="/realm-spark.html">Start Creating</a>
+            <a class="button primary large" href="#creation-tools">Start Creating</a>
             <a class="button dark large" href="#worlds"><span class="play-dot"></span>Watch Worlds Come To Life</a>
           </div>
           <div class="trust-row" aria-label="Trust highlights">
@@ -92,48 +93,53 @@
         </div>
       </section>
 
-      <section class="home-section path-section" id="paths">
+      <section class="home-section tools-section" id="creation-tools">
         <div class="section-magic" aria-hidden="true">
-          <img class="magic-streak path-streak" src="/assets/homepage/magic streaks3.png" alt="" />
+          <img class="magic-streak tools-streak" src="/assets/homepage/magic streaks 4.png" alt="" />
+          <img class="mini-world tools-cloud" src="/assets/homepage/cloud .png" alt="" />
         </div>
-        <div class="section-title split">
-          <div>
-            <p class="eyebrow">Create anything you imagine</p>
-            <h2>Choose your creation path.</h2>
+        <div class="describe-anything" aria-labelledby="describe-anything-title">
+          <div class="describe-particles" aria-hidden="true"></div>
+          <div class="describe-mascot-wrap" aria-hidden="true">
+            <span class="describe-mascot-glow"></span>
+            <span class="describe-orbit describe-orbit-one"></span>
+            <span class="describe-orbit describe-orbit-two"></span>
+            <span class="describe-orbit describe-orbit-three"></span>
+            <img class="describe-mascot" src="/assets/homepage/mascot/orbit.png" alt="" />
           </div>
-          <div class="carousel-controls" aria-hidden="true"><span></span><span></span></div>
-        </div>
-        <div class="path-grid">
-          <a class="path-card" href="/roblox-creator">
-            <div class="image-slot path-image filled path-roblox" role="img" aria-label="Roblox lava obby world"></div>
-            <h3>Roblox Worlds</h3>
-            <p>Obbies, simulators, tycoons, horror maps and more.</p>
-            <i class="card-icon gamepad"></i>
-          </a>
-          <a class="path-card" href="/realm-spark.html">
-            <div class="image-slot path-image filled path-story" role="img" aria-label="Fantasy story game world"></div>
-            <h3>Story Games</h3>
-            <p>Build adventures with choices, characters and quests. <span class="mini-link">How-to guide</span></p>
-            <i class="card-icon book"></i>
-          </a>
-          <a class="path-card" href="/studio">
-            <div class="image-slot path-image filled path-music" role="img" aria-label="Music and sound creation studio"></div>
-            <h3>Music & Sound</h3>
-            <p>Compose music, sound effects and theme songs.</p>
-            <i class="card-icon music"></i>
-          </a>
-          <a class="path-card" href="/studio">
-            <div class="image-slot path-image filled path-movies" role="img" aria-label="AI movie creation studio"></div>
-            <h3>AI Movies</h3>
-            <p>Create animated movies, trailers and visual scenes.</p>
-            <i class="card-icon film"></i>
-          </a>
-          <a class="path-card" href="/studio">
-            <div class="image-slot path-image filled path-art" role="img" aria-label="Digital art creation studio"></div>
-            <h3>Art Studio</h3>
-            <p>Design images, textures, covers and pixel art.</p>
-            <i class="card-icon palette"></i>
-          </a>
+
+          <div class="describe-copy">
+            <p class="eyebrow">Powerful AI creation tools</p>
+            <h2 id="describe-anything-title">Describe <span>Anything</span></h2>
+            <p>Games, stories, worlds, characters, music and more.</p>
+          </div>
+          <form class="describe-prompt" data-home-prompt-form action="/realm-spark-loading.html">
+            <label class="sr-only" for="homeIdeaPrompt">Describe your idea</label>
+            <button class="describe-prompt-button describe-voice-button" type="button" data-home-voice aria-label="Start voice prompt">
+              <span class="op-icon op-icon-mic" aria-hidden="true"></span>
+            </button>
+            <input id="homeIdeaPrompt" name="idea" type="text" autocomplete="off" placeholder="Describe your idea..." aria-label="Describe your idea" />
+            <input id="homeIdeaUpload" type="file" accept="image/*" hidden data-home-upload-input />
+            <button class="describe-prompt-button describe-upload-button" type="button" data-home-upload aria-label="Upload an image or drawing">
+              <span class="op-icon op-icon-upload" aria-hidden="true"></span>
+            </button>
+            <button class="describe-prompt-button describe-generate-button" type="submit" aria-label="Generate from idea">
+              <span class="op-icon op-icon-favorite" aria-hidden="true"></span>
+            </button>
+          </form>
+
+          <p class="describe-tip"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Tip: Try <span>“a futuristic racing game in space”</span></p>
+
+          <div class="describe-chips" aria-label="AI creation shortcuts">
+            <button type="button" data-home-chip="voice"><span class="op-icon op-icon-mic" aria-hidden="true"></span> Voice</button>
+            <button type="button" data-home-chip="draw"><span class="op-icon op-icon-image" aria-hidden="true"></span> Draw</button>
+            <button type="button" data-home-random><span class="op-icon op-icon-options" aria-hidden="true"></span> Random Idea</button>
+            <button type="button" data-home-chip="inspire"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Inspire Me</button>
+            <button type="button" data-home-chip="trending"><span class="op-icon op-icon-time" aria-hidden="true"></span> Trending</button>
+            <button type="button" data-home-chip="remix"><span class="op-icon op-icon-refresh" aria-hidden="true"></span> Remix</button>
+            <button type="button" data-home-chip="build-game"><span class="op-icon op-icon-dashboard" aria-hidden="true"></span> Build Game</button>
+            <button type="button" data-home-chip="make-story"><span class="op-icon op-icon-document" aria-hidden="true"></span> Make Story</button>
+          </div>
         </div>
       </section>
 
@@ -151,62 +157,6 @@
           <article><i class="orb cube"></i><h3>Generate</h3><p>Build your world, assets and systems.</p></article>
           <article><i class="orb pencil"></i><h3>Remix</h3><p>Adjust, customize and make it yours.</p></article>
           <article><i class="orb rocket"></i><h3>Publish</h3><p>Share safely to the OPREALM Library.</p></article>
-        </div>
-      </section>
-
-      <section class="home-section tools-section">
-        <div class="section-magic" aria-hidden="true">
-          <img class="magic-streak tools-streak" src="/assets/homepage/magic streaks 4.png" alt="" />
-          <img class="mini-world tools-cloud" src="/assets/homepage/cloud .png" alt="" />
-        </div>
-        <div class="describe-anything" aria-labelledby="describe-anything-title">
-          <div class="describe-actions describe-actions-left">
-            <a class="describe-card voice-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>Voice Idea</strong><em>Speak your idea out loud</em></span>
-            </a>
-            <a class="describe-card draw-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>Draw Your Idea</strong><em>Upload or draw what you imagine</em></span>
-            </a>
-            <a class="describe-card type-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>Type Your Idea</strong><em>Write your idea in your own words</em></span>
-            </a>
-          </div>
-
-          <div class="describe-orb-wrap">
-            <div class="describe-orb" role="img" aria-label="Glowing OPREALM idea orb">
-              <div class="describe-orb-content">
-                <p class="eyebrow">Powerful AI tools made simple</p>
-                <h2 id="describe-anything-title">Describe ANYTHING...</h2>
-                <p>e.g. "A cat astronaut who finds a candy planet"</p>
-                <div class="describe-pills">
-                  <a href="/realm-spark.html">Random Idea</a>
-                  <a href="/realm-spark.html">Enhance</a>
-                </div>
-              </div>
-            </div>
-            <a class="describe-mic" href="/realm-spark.html" aria-label="Tap to speak your idea">
-              <span></span>
-            </a>
-            <p class="describe-caption">Tap to speak your idea</p>
-          </div>
-
-          <div class="describe-actions describe-actions-right">
-            <a class="describe-card mix-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>Mix &amp; Match</strong><em>Combine themes, characters &amp; more</em></span>
-            </a>
-            <a class="describe-card remix-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>Remix a Story</strong><em>Put your own twist on existing stories</em></span>
-            </a>
-            <a class="describe-card inspire-card" href="/realm-spark.html">
-              <span class="describe-card-icon" aria-hidden="true"></span>
-              <span><strong>AI Inspiration</strong><em>Let AI suggest something awesome</em></span>
-            </a>
-          </div>
         </div>
       </section>
 
@@ -269,7 +219,7 @@
         <div class="pricing-layout">
           <aside class="review-credit-promo" aria-label="Review bonus credits">
             <div class="review-logo" aria-hidden="true">
-              <span class="review-stars">★★★★★</span>
+              <span class="review-stars" aria-label="Five star review"><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span></span>
               <strong>ProductReview</strong>
             </div>
             <div class="review-copy">
@@ -311,7 +261,7 @@
           <span>Join families of kids creating the future.</span>
         </div>
         <div class="image-slot cta-art filled" role="img" aria-label="Mini OPREALM floating world with Orbit"></div>
-        <a class="button primary large" href="/realm-spark.html">Start Creating Now</a>
+        <a class="button primary large" href="#creation-tools">Start Creating Now</a>
       </section>
     </main>
 
@@ -358,3 +308,5 @@
     </footer>
   </body>
 </html>
+
+

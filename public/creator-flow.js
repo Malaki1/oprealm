@@ -1,4 +1,4 @@
-const ideaExamples = [
+﻿const ideaExamples = [
   {
     title: "Space Robot Adventure",
     idea: "A brave kid and a tiny robot discover candy planets in space",
@@ -37,9 +37,12 @@ const ideaPreviewTags = document.querySelector("#ideaPreviewTags");
 const ideaPreviewCopy = document.querySelector("#ideaPreviewCopy");
 
 let ideaIndex = 0;
+let activeVoiceRecognition = null;
+let currentSparkIdea = { ...ideaExamples[0] };
 
 function updateIdeaPreview(idea) {
   if (!ideaPreviewImage || !ideaPreviewTitle || !ideaPreviewTags || !ideaPreviewCopy) return;
+  currentSparkIdea = { ...idea };
   ideaPreviewImage.src = idea.image;
   ideaPreviewTitle.textContent = idea.title;
   ideaPreviewTags.innerHTML = idea.tags.map((tag) => `<span>${tag}</span>`).join("");
@@ -50,6 +53,95 @@ function updateIdeaPreview(idea) {
 function nextIdea() {
   ideaIndex = (ideaIndex + 1) % ideaExamples.length;
   updateIdeaPreview(ideaExamples[ideaIndex]);
+}
+
+function ideaFromVoiceText(value) {
+  const cleanValue = String(value || "").trim();
+  if (!cleanValue) return;
+  if (sparkInput) sparkInput.value = cleanValue;
+  updateIdeaPreview({
+    title: cleanValue.split(" ").slice(0, 4).join(" "),
+    idea: cleanValue,
+    image: "/assets/homepage/hero/main-hero-world.png",
+    tags: cleanValue.split(/[,\s]+/).filter(Boolean).slice(0, 4),
+    copy: `Voice spark captured. OPREALM can turn this into characters, scenes and a story path: ${cleanValue}`,
+  });
+}
+
+function setVoiceButtonState(isListening, message = "") {
+  document.querySelectorAll("[data-voice-prompt]").forEach((button) => {
+    button.classList.toggle("is-listening", isListening);
+    if (button.matches(".mic-button")) {
+      button.setAttribute("aria-label", isListening ? "Listening for your idea" : "Voice prompt");
+    }
+  });
+  if (rotatingIdea && message) rotatingIdea.textContent = message;
+}
+
+function startVoicePrompt() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    if (rotatingIdea) rotatingIdea.textContent = "Voice prompts work best in Chrome or Edge. You can type your idea below.";
+    sparkInput?.focus();
+    return;
+  }
+
+  if (activeVoiceRecognition) {
+    activeVoiceRecognition.stop();
+    activeVoiceRecognition = null;
+    setVoiceButtonState(false);
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  activeVoiceRecognition = recognition;
+  recognition.lang = "en-US";
+  recognition.interimResults = true;
+  recognition.continuous = false;
+
+  let finalTranscript = "";
+  recognition.onstart = () => setVoiceButtonState(true, "Listening... say your game or story idea.");
+  recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map((result) => result[0]?.transcript || "")
+      .join(" ")
+      .trim();
+    if (transcript) {
+      finalTranscript = transcript;
+      if (rotatingIdea) rotatingIdea.textContent = transcript;
+    }
+  };
+  recognition.onerror = () => {
+    setVoiceButtonState(false, "I couldn't hear that. Try again or type your idea.");
+    activeVoiceRecognition = null;
+  };
+  recognition.onend = () => {
+    setVoiceButtonState(false);
+    activeVoiceRecognition = null;
+    ideaFromVoiceText(finalTranscript);
+  };
+  recognition.start();
+}
+
+function saveCurrentSparkForWorldBuilder() {
+  const engine = window.OPREALMRealmSpark;
+  const rawIdea = sparkInput?.value?.trim() || currentSparkIdea?.idea || currentSparkIdea?.title || "";
+  if (!rawIdea) return;
+  engine?.saveSparkInput?.(rawIdea);
+  const output = engine?.makeOutput ? engine.makeOutput(rawIdea) : {
+    originalIdea: rawIdea,
+    expandedIdea: currentSparkIdea?.copy || rawIdea,
+    story: { title: currentSparkIdea?.title || "My OPREALM Story" },
+    world: {
+      name: currentSparkIdea?.title || "My Story World",
+      hook: currentSparkIdea?.copy || rawIdea,
+      theme: (currentSparkIdea?.tags || [])[0] || "Custom",
+      moods: currentSparkIdea?.tags || [],
+      visualStyle: "kid-friendly OPREALM fantasy",
+      prompt: rawIdea,
+    },
+  };
+  engine?.saveSparkOutput?.(output);
 }
 
 if (rotatingIdea) {
@@ -64,6 +156,13 @@ document.addEventListener("click", (event) => {
   if (random) {
     event.preventDefault();
     nextIdea();
+    return;
+  }
+
+  const voicePrompt = event.target.closest("[data-voice-prompt]");
+  if (voicePrompt) {
+    event.preventDefault();
+    startVoicePrompt();
     return;
   }
 
@@ -94,7 +193,16 @@ document.addEventListener("click", (event) => {
       copy: `Nice spark. OPREALM can build characters, scene ideas and a first storyboard from: ${sparkInput.value}.`,
     };
     updateIdeaPreview(idea);
+    return;
   }
+
+  const buildWorld = event.target.closest(".build-world-button[href*='storyboard-world']");
+  if (buildWorld) {
+    event.preventDefault();
+    saveCurrentSparkForWorldBuilder();
+    window.location.href = buildWorld.getAttribute("href") || "/storyboard-world.html?from=home";
+  }
+
 });
 
 if (sparkInput) {
@@ -111,7 +219,22 @@ if (sparkInput) {
   });
 }
 
+const creatorFlowParams = new URLSearchParams(window.location.search);
+const starterIdea = creatorFlowParams.get("idea") || localStorage.getItem("oprealm_home_prompt");
+
+if (starterIdea) {
+  ideaFromVoiceText(starterIdea);
+}
+
+if (creatorFlowParams.get("voice") === "1") {
+  window.setTimeout(() => {
+    document.querySelector("[data-voice-prompt]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    startVoicePrompt();
+  }, 500);
+}
+
 const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
+const MIN_STORY_SCENES = 5;
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -133,6 +256,48 @@ function readStoryboardProject() {
 
 function writeStoryboardProject(project) {
   localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(project));
+  return project;
+}
+
+function dataUrlSize(value = "") {
+  const data = String(value || "");
+  const comma = data.indexOf(",");
+  return comma >= 0 ? Math.ceil((data.length - comma - 1) * 0.75) : data.length;
+}
+
+function compressImageDataUrl(dataUrl, maxWidth = 960, maxHeight = 640, quality = 0.82) {
+  const source = String(dataUrl || "");
+  if (!source.startsWith("data:image/") || dataUrlSize(source) < 850000) return Promise.resolve(source);
+
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch {
+        resolve(source);
+      }
+    };
+    image.onerror = () => resolve(source);
+    image.src = source;
+  });
+}
+
+async function compactStoryboardImages(project) {
+  const scenes = Array.isArray(project.scenes) ? project.scenes : [];
+  for (const scene of scenes) {
+    if (scene.generatedImageUrl) {
+      scene.generatedImageUrl = await compressImageDataUrl(scene.generatedImageUrl);
+    }
+  }
   return project;
 }
 
@@ -222,14 +387,14 @@ function renderStoryboardScenes(project) {
   const target = document.querySelector("#storyboardSceneList");
   if (!target) return;
   const scenes = Array.isArray(project.scenes) ? project.scenes : [];
+  const orderedScenes = [...scenes].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   const worldById = new Map((project.worlds || []).map((world) => [world.id, world]));
-  if (!scenes.length) {
+  if (!orderedScenes.length) {
     target.innerHTML = "";
     return;
   }
-  target.innerHTML = scenes
-    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+  target.innerHTML = orderedScenes
     .map((scene, index) => {
       const world = worldById.get(scene.selectedWorldId);
       const characters = (scene.selectedCharacterIds || []).map((id) => characterById.get(id)).filter(Boolean);
@@ -237,37 +402,76 @@ function renderStoryboardScenes(project) {
         ...characters.map((character) => character.name),
         world?.name,
       ].filter(Boolean);
-      const media = scene.generatedImageUrl
-        ? `<div class="scene-card-media"><img src="${escapeHtml(scene.generatedImageUrl)}" alt="${escapeHtml(scene.title || `Scene ${index + 1}`)} preview" /></div>`
-        : `<div class="scene-card-media is-empty">
-            <div class="blank-scene-frame">
-              <span>16:9 scene image</span>
-              <strong>Blank until generated</strong>
-              <small>Add a prompt, then generate this story moment.</small>
-            </div>
-          </div>`;
+      const status = scene.status === "generating"
+        ? "generating"
+        : scene.generatedImageUrl
+          ? "complete"
+          : scene.status === "ready_to_generate"
+            ? "needs-image"
+            : "draft";
+      const statusLabel = {
+        complete: "Complete",
+        generating: "Generating",
+        "needs-image": "Needs Image",
+        draft: "Draft",
+      }[status];
+      const mood = scene.mood || ["Wonder", "Mystery", "Action", "Epic"][index % 4];
+      const camera = scene.camera || ["Wide Shot", "Medium Shot", "Low Angle", "Drone Shot"][index % 4];
       return `
-        <article class="scene-card" data-scene-id="${escapeHtml(scene.id)}" draggable="true">
+        <article class="scene-card cinematic-scene-card scene-status-${status}" data-scene-id="${escapeHtml(scene.id)}" draggable="true">
           <div class="scene-order-tools">
-            <span class="scene-number">${index + 1}</span>
-            <button class="scene-drag-handle" type="button" aria-label="Drag scene ${index + 1} to reorder" title="Drag to reorder">
+            <span class="scene-number status-node">${index + 1}</span>
+            <button class="scene-drag-handle" type="button" draggable="true" aria-label="Drag scene ${index + 1} to reorder" title="Drag to reorder">
               <span></span><span></span><span></span><span></span><span></span><span></span>
             </button>
             <div class="scene-move-controls" aria-label="Move scene ${index + 1}">
-              <button type="button" data-move-scene="${escapeHtml(scene.id)}" data-move-direction="up" aria-label="Move scene ${index + 1} up">↑</button>
-              <button type="button" data-move-scene="${escapeHtml(scene.id)}" data-move-direction="down" aria-label="Move scene ${index + 1} down">↓</button>
+              <button type="button" data-move-scene="${escapeHtml(scene.id)}" data-move-direction="up" aria-label="Move scene ${index + 1} up">&uarr;</button>
+              <button type="button" data-move-scene="${escapeHtml(scene.id)}" data-move-direction="down" aria-label="Move scene ${index + 1} down">&darr;</button>
             </div>
           </div>
-          ${media}
+          <div class="scene-card-media ${status === "generating" ? "is-generating-image" : ""} ${!scene.generatedImageUrl && status !== "generating" ? "is-empty" : ""}">
+            ${status === "generating"
+              ? `<div class="scene-image-loader" aria-label="Generating scene image">
+                  <span class="image-loader-dotfield"></span>
+                  <span class="image-loader-dotfield is-second"></span>
+                  <span class="image-loader-wave"></span>
+                  <strong>Image forming...</strong>
+                  <small>OPREALM is sketching the scene, lighting and character details.</small>
+                </div>`
+              : scene.generatedImageUrl
+                ? `<img src="${escapeHtml(scene.generatedImageUrl)}" alt="${escapeHtml(scene.title || `Scene ${index + 1}`)} preview" />`
+                : `<div class="blank-scene-frame" aria-label="Scene ${index + 1} has no image yet">
+                    <span>16:9</span>
+                    <strong>Blank scene canvas</strong>
+                    <small>Add or approve the prompt, then generate the image.</small>
+                  </div>`}
+            ${scene.generatedImageUrl ? `<button class="scene-play-chip" type="button" aria-label="Preview scene ${index + 1}">&#9658;</button>` : ""}
+            <span class="scene-ratio-chip">16:9</span>
+          </div>
           <div class="scene-card-body">
-            <input class="scene-title-input" data-scene-title="${escapeHtml(scene.id)}" value="${escapeHtml(scene.title || `Scene ${index + 1}`)}" aria-label="Scene ${index + 1} title" />
+            <div class="scene-title-row">
+              <input class="scene-title-input" data-scene-title="${escapeHtml(scene.id)}" value="${escapeHtml(scene.title || `Scene ${index + 1}`)}" aria-label="Scene ${index + 1} title" />
+              <span class="scene-status-badge">${statusLabel}</span>
+            </div>
             <textarea class="scene-prompt-input" data-scene-prompt="${escapeHtml(scene.id)}" placeholder="Describe what happens in this story moment.">${escapeHtml(scene.prompt || "")}</textarea>
             <div class="scene-chip-row">${chips.map((chip, chipIndex) => `<span class="scene-chip ${chipIndex === 0 ? "is-active" : ""}">${escapeHtml(chip)}</span>`).join("")}</div>
-            <div class="scene-actions">
-              <button class="scene-action" data-ai-assist-scene="${escapeHtml(scene.id)}" type="button">AI Assist Prompt</button>
-              <button class="scene-action primary" data-generate-scene="${escapeHtml(scene.id)}" type="button">Generate Scene Image</button>
+            <div class="scene-image-tools">
+              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button">${status === "generating" ? "Generating Image..." : "Generate Image"}</button>
+              <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "needs-image" ? "Ready for artwork." : ""}</span>
             </div>
-            <p class="scene-status">${scene.generatedImageUrl ? "Image ready" : scene.status === "ready_to_generate" ? "Prompt ready. Image generation is the next step." : "No image generated yet"}</p>
+          </div>
+          <div class="scene-control-panel">
+            <label><span>Mood</span><select data-scene-mood="${escapeHtml(scene.id)}">
+              ${["Wonder", "Mystery", "Action", "Epic", "Horror", "Funny", "Emotional"].map((item) => `<option ${item === mood ? "selected" : ""}>${item}</option>`).join("")}
+            </select></label>
+            <label><span>Camera</span><select data-scene-camera="${escapeHtml(scene.id)}">
+              ${["Wide Shot", "Close Up", "Low Angle", "Medium Shot", "POV", "Drone Shot"].map((item) => `<option ${item === camera ? "selected" : ""}>${item}</option>`).join("")}
+            </select></label>
+          </div>
+          <div class="scene-quick-stack" aria-label="Scene quick actions">
+            <button type="button" data-edit-scene="${escapeHtml(scene.id)}" aria-label="Edit scene ${index + 1}"><span class="op-icon op-icon-options" aria-hidden="true"></span></button>
+            <button type="button" data-duplicate-scene="${escapeHtml(scene.id)}" aria-label="Duplicate scene ${index + 1}"><span class="op-icon op-icon-document" aria-hidden="true"></span></button>
+            <button type="button" data-delete-scene="${escapeHtml(scene.id)}" aria-label="Delete scene ${index + 1}"><span class="op-icon op-icon-trash" aria-hidden="true"></span></button>
           </div>
         </article>`;
     }).join("");
@@ -281,23 +485,112 @@ function activeWorld(project) {
   return (project.worlds || []).find((world) => world.id === project.activeWorldId) || (project.worlds || [])[0] || {};
 }
 
-function storyPromptForIndex(project, index, previousPrompt = "") {
+function activeObjects(project) {
+  return (project.objects || []).filter((item) => item && item.name && item.name !== "None");
+}
+
+function storyMoralForCharacter(character = {}) {
+  const traits = (character.traits || []).map((trait) => String(trait).toLowerCase());
+  if (traits.some((trait) => trait.includes("kind") || trait.includes("loyal") || trait.includes("friend"))) {
+    return "kindness and loyalty matter more than winning alone";
+  }
+  if (traits.some((trait) => trait.includes("brave") || trait.includes("bold") || trait.includes("courage"))) {
+    return "real courage means doing the right thing even when it feels scary";
+  }
+  if (traits.some((trait) => trait.includes("smart") || trait.includes("curious") || trait.includes("resource"))) {
+    return "curiosity and creative thinking can solve problems that strength cannot";
+  }
+  return "the best heroes use imagination, teamwork and honesty to make their world better";
+}
+
+function storyArcForCount(count) {
+  const safeCount = Math.max(MIN_STORY_SCENES, Number(count) || MIN_STORY_SCENES);
+  if (safeCount === 5) return ["Intro", "Chapter 1", "Chapter 2", "Climax", "Ending"];
+  const middleCount = safeCount - 3;
+  return [
+    "Intro",
+    ...Array.from({ length: middleCount }, (_, index) => `Chapter ${index + 1}`),
+    "Climax",
+    "Ending",
+  ];
+}
+
+function storySeed(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
+  const objects = activeObjects(project);
   const hero = character.name || "the hero";
-  const place = world.name || "the story world";
-  const traits = compactList((character.traits || []).slice(0, 3), "brave and curious");
+  const place = world.name || project.title || "the story world";
+  const traits = compactList((character.traits || []).slice(0, 4), "brave and curious");
   const style = character.masterStyle || project.globalStyle || "cinematic kid-friendly";
-  const prop = (project.objects || []).find((item) => item.name && item.name !== "None")?.name || "a mysterious clue";
-  const beats = [
-    `${hero} arrives in ${place} and notices something magical is wrong. Show the world clearly, introduce ${hero}'s ${traits} personality, and preserve the ${style} character design.`,
-    `${hero} discovers ${prop} and realizes it is connected to the main mystery. Make the scene exciting, readable, and safe for kids.`,
-    `A surprising obstacle blocks ${hero}'s path in ${place}. Build naturally from the last moment: ${previousPrompt || "the opening discovery"}`,
-    `${hero} must make a meaningful choice that changes the direction of the story. Add a clear emotional beat and a strong visual hook.`,
-    `The choice creates a big consequence. Raise the stakes while keeping the same character outfit, colors, face, age, and art style.`,
-    `${hero} reaches a launch moment where the player can choose the next creative path: story game, comic, short film, song, Roblox obby, or pixel game.`,
-  ];
-  return beats[index % beats.length];
+  const prop = objects[0]?.name || "a mysterious clue";
+  const companion = (character.pet && character.pet !== "None") ? character.pet : objects.find((item) => /pet|companion|friend/i.test(item.name || ""))?.name || "";
+  const worldPrompt = world.description || world.prompt || world.hook || "a vivid, safe world full of discovery";
+  const originalIdea = project.originalIdea || project.idea || project.sparkIdea || project.title || "an original OPREALM adventure";
+  const moral = storyMoralForCharacter(character);
+  return { character, world, hero, place, traits, style, prop, companion, worldPrompt, originalIdea, moral };
+}
+
+function storyPlanForCount(project, count) {
+  const seed = storySeed(project);
+  const labels = storyArcForCount(count);
+  const lastChapterIndex = labels.findLastIndex((label) => /^Chapter/i.test(label));
+  return labels.map((label, index) => {
+    const sceneNumber = index + 1;
+    const isIntro = index === 0;
+    const isClimax = label === "Climax";
+    const isEnding = label === "Ending";
+    const isLastChapter = index === lastChapterIndex;
+    const previousLabel = labels[index - 1] || "the spark";
+    const nextLabel = labels[index + 1] || "the ending";
+    let title = `${label}: ${seed.hero} enters ${seed.place}`;
+    let prompt = "";
+    let mood = "Wonder";
+    let camera = "Wide Shot";
+
+    if (isIntro) {
+      title = "Intro: The spark appears";
+      prompt = `${seed.hero} enters ${seed.place}. Establish the world from the idea "${seed.originalIdea}". Show the hero's ${seed.traits} personality, the saved outfit, colors and ${seed.style} art style. Introduce a clear mystery or problem that makes the story worth following.`;
+      mood = "Wonder";
+      camera = "Wide Shot";
+    } else if (isClimax) {
+      title = "Climax: The brave choice";
+      prompt = `${seed.hero} reaches the biggest challenge in ${seed.place}. Build directly from ${previousLabel}. The problem should feel exciting but kid-safe. ${seed.hero} must make a brave choice that uses their ${seed.traits} traits instead of just fighting. Show high emotion, clear action and the same consistent character design.`;
+      mood = "Epic";
+      camera = "Low Angle";
+    } else if (isEnding) {
+      title = "Ending: The world changes";
+      prompt = `${seed.hero} resolves the story after the climax. Show the consequence of the brave choice, give the adventure a satisfying ending, and make the moral clear: ${seed.moral}. Leave the audience feeling proud, hopeful and ready to create the next story. Preserve the same world, outfit, face, colors and ${seed.style} style.`;
+      mood = "Emotional";
+      camera = "Medium Shot";
+    } else if (isLastChapter) {
+      title = `${label}: The secret is revealed`;
+      prompt = `${seed.hero} discovers the truth behind the main mystery in ${seed.place}. The discovery should connect ${seed.prop} ${seed.companion ? `and ${seed.companion}` : ""} to the coming climax. Build naturally from ${previousLabel} and set up ${nextLabel}. Keep the story readable, cinematic and safe for ages 6+.`;
+      mood = "Mystery";
+      camera = "Close Up";
+    } else {
+      title = `${label}: The adventure grows`;
+      prompt = `${seed.hero} follows the clue deeper into ${seed.place}. Add a new challenge, surprising ally, funny obstacle or discovery that grows from ${previousLabel}. Use ${seed.prop} as a useful story detail. End the scene with a question or decision that pushes toward ${nextLabel}.`;
+      mood = index % 2 ? "Mystery" : "Action";
+      camera = index % 2 ? "Medium Shot" : "Drone Shot";
+    }
+
+    return {
+      order: sceneNumber,
+      arcRole: label,
+      title,
+      prompt,
+      mood,
+      camera,
+    };
+  });
+}
+
+function storyPromptForIndex(project, index, previousPrompt = "") {
+  const count = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || MIN_STORY_SCENES);
+  const plan = storyPlanForCount(project, count)[index] || storyPlanForCount(project, index + 1)[index];
+  if (!previousPrompt || !plan?.prompt) return plan?.prompt || "";
+  return `${plan.prompt} Build naturally from the previous scene: ${previousPrompt}`;
 }
 
 function sceneTitleFromPrompt(prompt, fallback) {
@@ -307,21 +600,23 @@ function sceneTitleFromPrompt(prompt, fallback) {
 }
 
 function ensureSceneList(project) {
-  if (!Array.isArray(project.scenes) || !project.scenes.length) {
-    const character = activeCharacter(project);
-    const world = activeWorld(project);
-    project.scenes = [{
+  const character = activeCharacter(project);
+  const world = activeWorld(project);
+  if (!Array.isArray(project.scenes)) project.scenes = [];
+  while (project.scenes.length < MIN_STORY_SCENES) {
+    const nextOrder = project.scenes.length + 1;
+    project.scenes.push({
       id: uid("scene"),
-      order: 1,
-      title: "Scene 1",
+      order: nextOrder,
+      title: `Scene ${nextOrder}`,
       prompt: "",
       selectedCharacterIds: character.id ? [character.id] : [],
       selectedWorldId: world.id || "",
       selectedObjectIds: [],
       status: "draft",
-    }];
+    });
   }
-  return project;
+  return normalizeSceneOrders(project);
 }
 
 function normalizeSceneOrders(project) {
@@ -377,24 +672,128 @@ function addStoryScene(project, prompt = "") {
   return project;
 }
 
+function storyboardReferenceImages(project, scene) {
+  const references = [];
+  const addReference = (imageDataUrl, label) => {
+    if (!imageDataUrl || typeof imageDataUrl !== "string") return;
+    if (!imageDataUrl.startsWith("data:image/")) return;
+    references.push({ imageDataUrl, label });
+  };
+
+  const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
+  (scene.selectedCharacterIds || []).forEach((id) => {
+    const character = characterById.get(id);
+    addReference(character?.imageUrl, character?.name || "Character");
+  });
+
+  const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
+  addReference(world?.imageUrl, world?.name || "World");
+
+  return references.slice(0, 4);
+}
+
+async function generateStoryboardSceneImage(project, sceneId) {
+  project = await compactStoryboardImages(ensureSceneList(readStoryboardProject()));
+  const sceneIndex = (project.scenes || []).findIndex((item) => item.id === sceneId);
+  const scene = project.scenes?.[sceneIndex];
+  if (!scene) return;
+
+  const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
+  const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
+  const characters = (scene.selectedCharacterIds || []).map((id) => characterById.get(id)).filter(Boolean);
+  const character = characters[0] || activeCharacter(project);
+  const secondCharacter = characters[1] || {};
+  const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
+  const prompt = String(scene.prompt || "").trim() || storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
+
+  scene.prompt = prompt;
+  scene.title = scene.title || sceneTitleFromPrompt(prompt, `Scene ${sceneIndex + 1}`);
+  scene.status = "generating";
+  writeStoryboardProject(project);
+  rerenderStoryboard(project);
+
+  const freshStatusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`) || statusTarget;
+  if (freshStatusTarget) freshStatusTarget.textContent = "Generating scene artwork...";
+
+  try {
+    const response = await fetch("/api/story-scene-images", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        camera: scene.camera || "Wide Shot",
+        background: world.description || world.name || "A safe OPREALM story world",
+        character: character.name || "Use saved character",
+        mood: scene.mood || "Wonder",
+        type: "Story builder scene",
+        characterName: character.name || "",
+        characterPrompt: character.prompt || character.description || "",
+        characterType: character.characterType || character.type || "",
+        characterPersonality: compactList(character.traits || [], character.personality || ""),
+        characterStyle: character.masterStyle || character.style || project.globalStyle || "",
+        characterSafety: character.safety || "Friendly and safe for kids",
+        secondCharacterName: secondCharacter.name || "",
+        secondCharacterPrompt: secondCharacter.prompt || secondCharacter.description || "",
+        secondCharacterType: secondCharacter.characterType || secondCharacter.type || "",
+        secondCharacterPersonality: compactList(secondCharacter.traits || [], secondCharacter.personality || ""),
+        secondCharacterStyle: secondCharacter.masterStyle || secondCharacter.style || "",
+        secondCharacterSafety: secondCharacter.safety || "",
+        sceneStyle: character.masterStyle || project.globalStyle || "inherit",
+        lockCharacterStyle: true,
+        lockSceneContinuity: true,
+        continuityBrief: `Scene ${sceneIndex + 1} of ${project.title || "an OPREALM story"}. Preserve the saved character, selected world, outfit colors, accessories, and the previous scene logic.`,
+        referenceImages: storyboardReferenceImages(project, scene),
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.webImageDataUrl) {
+      throw new Error(result.error || "Scene image generation failed.");
+    }
+
+    const latestProject = await compactStoryboardImages(ensureSceneList(readStoryboardProject()));
+    const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId);
+    if (!latestScene) throw new Error("Scene was removed before the image finished.");
+    latestScene.generatedImageUrl = await compressImageDataUrl(result.webImageDataUrl);
+    latestScene.status = "complete";
+    latestScene.completed = true;
+    writeStoryboardProject(latestProject);
+    rerenderStoryboard(latestProject);
+  } catch (error) {
+    const latestProject = ensureSceneList(readStoryboardProject());
+    const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId) || scene;
+    latestScene.status = "ready_to_generate";
+    writeStoryboardProject(latestProject);
+    rerenderStoryboard(latestProject);
+    const errorTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
+    if (errorTarget) errorTarget.textContent = error.message || "Could not generate scene image.";
+  }
+}
+
 function quickPopulateStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
-  const scenes = [];
-  for (let index = 0; index < 6; index += 1) {
-    const prompt = storyPromptForIndex(project, index, scenes[index - 1]?.prompt || "");
-    scenes.push({
-      id: uid("scene"),
+  const targetCount = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || 0);
+  const plan = storyPlanForCount(project, targetCount);
+  const existingScenes = [...(project.scenes || [])].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  project.scenes = plan.map((beat, index) => {
+    const existing = existingScenes[index] || {};
+    return {
+      ...existing,
+      id: existing.id || uid("scene"),
       order: index + 1,
-      title: sceneTitleFromPrompt(prompt, `Scene ${index + 1}`),
-      prompt,
+      arcRole: beat.arcRole,
+      title: beat.title,
+      prompt: beat.prompt,
+      mood: existing.mood || beat.mood,
+      camera: existing.camera || beat.camera,
       selectedCharacterIds: character.id ? [character.id] : [],
       selectedWorldId: world.id || "",
-      selectedObjectIds: [],
-      status: "draft",
-    });
-  }
-  project.scenes = scenes;
+      selectedObjectIds: existing.selectedObjectIds || activeObjects(project).map((item) => item.id).filter(Boolean),
+      status: existing.status === "complete" ? "complete" : "draft",
+    };
+  });
+  project.storyArc = plan.map(({ arcRole, title }) => ({ arcRole, title }));
+  project.moral = storyMoralForCharacter(character);
   return project;
 }
 
@@ -480,15 +879,69 @@ function bindStoryboardSceneControls(project) {
     });
   });
 
-  document.querySelectorAll("[data-ai-assist-scene]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const sceneIndex = (project.scenes || []).findIndex((item) => item.id === button.dataset.aiAssistScene);
+  document.querySelectorAll("[data-scene-mood], [data-scene-camera]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const sceneId = select.dataset.sceneMood || select.dataset.sceneCamera;
+      const scene = (project.scenes || []).find((item) => item.id === sceneId);
+      if (!scene) return;
+      if (select.dataset.sceneMood) scene.mood = select.value;
+      if (select.dataset.sceneCamera) scene.camera = select.value;
+      writeStoryboardProject(project);
+    });
+  });
+
+  document.querySelectorAll("[data-ai-assist-scene]").forEach((control) => {
+    control.addEventListener("click", () => {
+      if (control.tagName === "SELECT") return;
+      const sceneIndex = (project.scenes || []).findIndex((item) => item.id === control.dataset.aiAssistScene);
       const scene = project.scenes?.[sceneIndex];
       if (!scene) return;
       scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
       scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       writeStoryboardProject(project);
       rerenderStoryboard(project);
+    });
+  });
+
+  document.querySelectorAll(".scene-ai-select").forEach((select) => {
+    select.addEventListener("change", () => {
+      const sceneIndex = (project.scenes || []).findIndex((item) => item.id === select.dataset.aiAssistScene);
+      const scene = project.scenes?.[sceneIndex];
+      if (!scene || select.value === "AI Assist") return;
+      scene.prompt = `${scene.prompt || storyPromptForIndex(project, sceneIndex)} ${select.value}: add a polished, kid-friendly cinematic beat that keeps the same character and world style.`;
+      scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
+      writeStoryboardProject(project);
+      rerenderStoryboard(project);
+    });
+  });
+
+  document.querySelectorAll("[data-duplicate-scene]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const source = (project.scenes || []).find((item) => item.id === button.dataset.duplicateScene);
+      if (!source) return;
+      const copy = { ...source, id: uid("scene"), title: `${source.title || "Scene"} Copy`, order: Number(source.order || 0) + 0.5 };
+      project.scenes = [...(project.scenes || []), copy];
+      writeStoryboardProject(normalizeSceneOrders(project));
+      rerenderStoryboard(project);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-scene]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if ((project.scenes || []).length <= MIN_STORY_SCENES) {
+        const status = button.closest(".scene-card")?.querySelector(".scene-image-status");
+        if (status) status.textContent = `A story needs at least ${MIN_STORY_SCENES} scenes.`;
+        return;
+      }
+      project.scenes = (project.scenes || []).filter((item) => item.id !== button.dataset.deleteScene);
+      writeStoryboardProject(normalizeSceneOrders(project));
+      rerenderStoryboard(project);
+    });
+  });
+
+  document.querySelectorAll("[data-edit-scene]").forEach((button) => {
+    button.addEventListener("click", () => {
+      button.closest(".scene-card")?.querySelector(".scene-prompt-input")?.focus();
     });
   });
 
@@ -501,9 +954,20 @@ function bindStoryboardSceneControls(project) {
         scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
         scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       }
-      scene.status = "ready_to_generate";
+      scene.status = "generating";
       writeStoryboardProject(project);
       rerenderStoryboard(project);
+      window.setTimeout(() => {
+        scene.status = "ready_to_generate";
+        writeStoryboardProject(project);
+        rerenderStoryboard(project);
+      }, 1400);
+    });
+  });
+
+  document.querySelectorAll("[data-generate-scene-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      generateStoryboardSceneImage(project, button.dataset.generateSceneImage);
     });
   });
 }
@@ -535,17 +999,43 @@ function hydrateStoryboardPage() {
     writeStoryboardProject(normalizeSceneOrders(project));
     rerenderStoryboard(project);
   });
-  document.querySelector("#dockAiAssistButton")?.addEventListener("click", () => {
-    const input = document.querySelector("#dockScenePrompt");
-    if (input) input.value = storyPromptForIndex(project, project.scenes?.length || 0, project.scenes?.at(-1)?.prompt || "");
-  });
-  document.querySelector("#dockAddSceneButton")?.addEventListener("click", () => {
-    const input = document.querySelector("#dockScenePrompt");
-    addStoryScene(project, input?.value.trim());
-    if (input) input.value = "";
+  document.querySelector("#addSceneTopButton")?.addEventListener("click", () => {
+    addStoryScene(project);
     writeStoryboardProject(normalizeSceneOrders(project));
     rerenderStoryboard(project);
+  });
+  document.querySelector("#playStoryButton")?.addEventListener("click", () => {
+    document.querySelector(".scene-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.querySelectorAll(".scene-card").forEach((card, index) => {
+      window.setTimeout(() => card.classList.add("is-playing"), index * 260);
+      window.setTimeout(() => card.classList.remove("is-playing"), index * 260 + 900);
+    });
+  });
+
+  document.querySelector("#compileCreatorBibleButton")?.addEventListener("click", () => {
+    const status = document.querySelector("#creatorBibleStatus");
+    if (!window.OPREALMCreatorBible) {
+      if (status) status.textContent = "Creator Bible tools are still loading. Try again in a moment.";
+      return;
+    }
+    const latestProject = readStoryboardProject();
+    const bible = window.OPREALMCreatorBible.compileCreatorBible(latestProject, {
+      selectedOutcome: "realmbeasts"
+    });
+    const safety = window.OPREALMCreatorBible.runSafetyChecks(bible);
+    window.OPREALMCreatorBible.saveBible(bible);
+    window.OPREALMCreatorBible.saveRealmBeastsConfig(
+      window.OPREALMCreatorBible.generateRealmBeastsConfig(bible)
+    );
+    if (status) {
+      status.textContent = safety.allowed
+        ? "Creator Bible compiled. RealmBeasts test draft is ready."
+        : `Creator Bible saved for private review: ${safety.reasons.join(", ")}`;
+    }
   });
 }
 
 hydrateStoryboardPage();
+
+
+

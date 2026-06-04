@@ -1,3 +1,5 @@
+import { createStatelessSessionToken, sessionSecret, verifyStatelessSession } from "../_lib/auth.js";
+
 export async function onRequestGet({ request, env }) {
   const user = await currentUser(request, env);
   return json({
@@ -233,11 +235,21 @@ async function resetPassword(env, body) {
 
 function logout() {
   return json({ ok: true }, 200, {
-    "set-cookie": cookie("oprealm_session", "", 0),
+    "set-cookie": [
+      cookie("oprealm_session", "", 0),
+      cookie("oprealm_auth", "", 0),
+    ],
   });
 }
 
 async function createSessionResponse(request, env, userId, extra = {}) {
+  if (sessionSecret(env)) {
+    const token = await createStatelessSessionToken(env, userId);
+    return json({ ok: true, ...extra }, 200, {
+      "set-cookie": cookie("oprealm_auth", token, 30 * 24 * 60 * 60),
+    });
+  }
+
   const sessionId = crypto.randomUUID();
   await env.OPREALM_DB.prepare(
     "INSERT INTO web_sessions (id, web_user_id, expires_at, created_at) VALUES (?, ?, datetime('now', '+30 days'), datetime('now'))",
@@ -254,7 +266,13 @@ async function currentUser(request, env) {
   if (!env.OPREALM_DB) return null;
   await ensureAccountSchema(env);
 
-  const sessionId = parseCookies(request.headers.get("cookie") || "").oprealm_session;
+  const cookies = parseCookies(request.headers.get("cookie") || "");
+  const signedUserId = await verifyStatelessSession(env, cookies.oprealm_auth);
+  if (signedUserId) {
+    return env.OPREALM_DB.prepare("SELECT * FROM web_users WHERE id = ? LIMIT 1").bind(signedUserId).first();
+  }
+
+  const sessionId = cookies.oprealm_session;
   if (!sessionId) return null;
 
   return env.OPREALM_DB.prepare(
@@ -446,12 +464,19 @@ function cookie(name, value, maxAge) {
 }
 
 function json(data, status = 200, extraHeaders = {}) {
+  const headers = new Headers({
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+  });
+  for (const [key, value] of Object.entries(extraHeaders || {})) {
+    if (Array.isArray(value)) {
+      value.forEach((item) => headers.append(key, item));
+    } else {
+      headers.set(key, value);
+    }
+  }
   return new Response(JSON.stringify(data, null, 2), {
     status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store",
-      ...extraHeaders,
-    },
+    headers,
   });
 }

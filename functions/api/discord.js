@@ -1,3 +1,5 @@
+import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
+
 const InteractionType = {
   PING: 1,
   APPLICATION_COMMAND: 2,
@@ -353,7 +355,7 @@ async function handleTextAiTool(interaction, env, waitUntil, tool) {
     if (premiumBlocked) return premiumBlocked;
   }
 
-  if (!env.OPENAI_API_KEY) {
+  if (!hasOpenAiKey(env)) {
     return ephemeral("The OPRealm AI tools are not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
   }
 
@@ -444,7 +446,7 @@ async function handleImageTool(interaction, env, waitUntil, tool = "image") {
     if (premiumBlocked) return premiumBlocked;
   }
 
-  if (!env.OPENAI_API_KEY) {
+  if (!hasOpenAiKey(env)) {
     return ephemeral("The OPRealm image generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
   }
 
@@ -470,7 +472,7 @@ async function handleStoryboardStart(interaction, env) {
   const blocked = requireSafety(interaction, env);
   if (blocked) return blocked;
 
-  if (!env.OPENAI_API_KEY) {
+  if (!hasOpenAiKey(env)) {
     return ephemeral("The OPRealm visual storyboard generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
   }
 
@@ -1029,7 +1031,7 @@ async function createNextStepFromResult(interaction, env, result, nextStep) {
   const prompt = buildFlowPrompt(result, tool);
 
   if (tool === "image" || tool === "image_pro" || tool === "game_cover" || tool === "storyboard" || tool === "sprite") {
-    if (!env.OPENAI_API_KEY) {
+    if (!hasOpenAiKey(env)) {
       await editOriginalInteraction(interaction, env, "The OPRealm image generator is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
       return;
     }
@@ -1048,7 +1050,7 @@ async function createNextStepFromResult(interaction, env, result, nextStep) {
     return;
   }
 
-  if (!env.OPENAI_API_KEY) {
+  if (!hasOpenAiKey(env)) {
     await editOriginalInteraction(interaction, env, "The OPRealm AI Coach is not connected yet. Ask an OPRealm admin to add the OpenAI API key.");
     return;
   }
@@ -1157,10 +1159,9 @@ async function generateOpenAIImage(env, prompt, tool = "image") {
     const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout
       ? AbortSignal.timeout(25_000)
       : undefined;
-    const response = await fetch("https://api.openai.com/v1/images/generations", {
+    const response = await openAiFetch(env, "/v1/images/generations", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.OPENAI_API_KEY}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -1173,7 +1174,7 @@ async function generateOpenAIImage(env, prompt, tool = "image") {
         moderation: "auto",
       }),
       signal,
-    });
+    }, { seed: `${tool}:${spec.model}:${spec.quality}:${promptText}`, retries: 2 });
 
     const data = await response.json();
 
@@ -1334,10 +1335,9 @@ async function generateOpenAIText(env, prompt, tool) {
   let lastError = null;
 
   for (const model of modelsToTry) {
-    const response = await fetch("https://api.openai.com/v1/responses", {
+    const response = await openAiFetch(env, "/v1/responses", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.OPENAI_API_KEY}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
@@ -1346,7 +1346,7 @@ async function generateOpenAIText(env, prompt, tool) {
         input: buildTextToolInput(prompt, tool),
         max_output_tokens: maxOutputTokensForTextTool(tool),
       }),
-    });
+    }, { seed: `${tool}:${model}:${prompt}`, retries: 2 });
 
     const data = await response.json();
 
