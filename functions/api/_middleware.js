@@ -6,6 +6,7 @@ const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-character-image", 180],
   ["/api/story-scene-images", 180],
   ["/api/story-game-cover", 120],
+  ["/api/story-generator", 60],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],
 ]);
