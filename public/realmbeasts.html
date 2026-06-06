@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="RealmBeasts Arena is an OPREALM egg-hatch creature battler with randomized layered beasts, rarity stats and animated arena combat."
+    />
+    <title>RealmBeasts Arena | OPREALM</title>
+    <link rel="stylesheet" href="/styles.css?v=trust-2" />
+    <link rel="stylesheet" href="/page.css?v=trust-2" />
+    <link rel="stylesheet" href="/realmbeasts.css?v=egg-mint-1" />
+    <script src="/realmbeasts.js?v=egg-mint-1" defer></script>
+  </head>
+  <body>
+    <main class="realm-app" aria-label="RealmBeasts Arena playable app">
+      <section class="realm-shell">
+        <header class="realm-topbar">
+          <a class="realm-brand" href="/">
+            <span class="realm-crest" aria-hidden="true"></span>
+            <span>
+              <strong>OPREALM</strong>
+              <em>RealmBeasts Arena</em>
+            </span>
+          </a>
+          <nav class="realm-tabs" aria-label="RealmBeasts sections">
+            <button class="is-active" type="button">Play</button>
+            <button type="button">Eggs</button>
+            <button type="button">Collection</button>
+            <button type="button">Evolve</button>
+          </nav>
+          <div class="realm-wallet" aria-label="Player resources">
+            <span>Coins <strong data-coins>12500</strong></span>
+            <span>Shards <strong data-shards>860</strong></span>
+          </div>
+        </header>
+
+        <div class="realm-layout">
+          <aside class="realm-card realm-hatch">
+            <div class="realm-panel-title">
+              <span>Egg Chamber</span>
+              <strong data-hatch-count>3 Free</strong>
+            </div>
+            <div class="realm-egg-stage">
+              <button class="realm-egg" type="button" data-action="hatch" aria-label="Hatch a RealmBeast egg">
+                <span class="egg-core"></span>
+                <span class="egg-glow"></span>
+              </button>
+              <div class="realm-hatch-copy">
+                <strong>Tap to hatch</strong>
+                <span>Layered body, colours, features and rarity stats are rolled together.</span>
+              </div>
+            </div>
+            <div class="realm-reveal" data-reveal></div>
+            <div class="realm-trait-list" data-traits></div>
+            <div class="realm-lobby-panel" data-lobby>
+              <strong>Battle Lobby</strong>
+              <span data-lobby-status>Select a ready beast to queue.</span>
+              <button class="realm-primary" type="button" data-action="find-match">Find Match</button>
+            </div>
+          </aside>
+
+          <section class="realm-card realm-battle">
+            <div class="realm-battle-header">
+              <div data-status="opponent"></div>
+              <div class="realm-turn-pill" data-turn>Turn 1</div>
+            </div>
+
+            <div class="realm-arena" data-arena>
+              <div class="arena-sky"></div>
+              <div class="arena-depth"></div>
+              <div class="arena-floor"></div>
+              <div class="realm-beast-slot player" data-beast="player"></div>
+              <div class="realm-beast-slot opponent" data-beast="opponent"></div>
+              <div class="realm-vfx" data-vfx></div>
+              <div class="realm-number" data-number></div>
+              <div class="realm-arena-label">Crystal Jungle Arena</div>
+            </div>
+
+            <div class="realm-player-bar" data-status="player"></div>
+            <div class="realm-abilities" data-abilities></div>
+          </section>
+
+          <aside class="realm-card realm-side">
+            <div class="realm-panel-title">
+              <span>Collection</span>
+              <strong data-collected>0/128</strong>
+            </div>
+            <div class="realm-collection" data-collection></div>
+            <div class="realm-panel-title compact">
+              <span>Battle Log</span>
+              <strong data-battle-state>Ready</strong>
+            </div>
+            <div class="realm-log" data-log aria-live="polite"></div>
+            <button class="realm-primary" type="button" data-action="reset">New Match</button>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
