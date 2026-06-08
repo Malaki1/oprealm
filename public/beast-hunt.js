@@ -68,7 +68,7 @@ let secondsRemaining = 15 * 60 + 32;
 function renderHunt() {
   document.body.classList.add(hunt.theme);
   document.querySelector("#backToHub").href = `/planet-hub.html?planet=${planetId}`;
-  document.querySelector("#craftingLink").href = `/planet-hub.html?planet=${planetId}#crafting`;
+  document.querySelector("#craftingLink").href = `/crafting-station.html?planet=${planetId}`;
   document.querySelector("#planetBiome").textContent = hunt.biome;
   document.querySelector("#huntPlanetName").textContent = `${hunt.planet} Planet`;
   document.querySelector("#mapPlanet").textContent = hunt.planet;

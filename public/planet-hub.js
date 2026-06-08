@@ -57,6 +57,7 @@ const zoneDetails = {
     title: "Crafting Station",
     body: "Combine harvested resources into lures, tranquilizers, trackers and tools.",
     action: "Start Crafting",
+    href: "/crafting-station.html",
   },
   resources: {
     title: "Resource Nodes",

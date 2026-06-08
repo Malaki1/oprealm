@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Craft lures, tranquilizers and beast hunting tools from OPREALM planet resources." />
+    <title>Crafting Station | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/crafting-station.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/crafting-station.js?v=1" defer></script>
+  </head>
+  <body>
+    <main class="craft-shell">
+      <header class="craft-topbar">
+        <a class="back-button" id="backToHub" href="/planet-hub.html?planet=lumora" aria-label="Back to Planet Hub">&lt;</a>
+        <div>
+          <p class="eyebrow" id="workshopName">Crystal Jungle Workshop</p>
+          <h1>Crafting Station</h1>
+          <span>Combine ingredients. Create powerful tools. Discover new recipes.</span>
+        </div>
+        <section class="currency-row" aria-label="Player currencies">
+          <span><b class="crystal"></b>12,450</span>
+          <span><b class="coin"></b>8,230</span>
+          <span><b class="gem"></b>315</span>
+        </section>
+      </header>
+
+      <section class="craft-layout">
+        <aside class="recipe-panel">
+          <nav class="recipe-tabs" aria-label="Recipe categories">
+            <button class="is-active" type="button" data-category="all">All</button>
+            <button type="button" data-category="lures">Lures</button>
+            <button type="button" data-category="tranquilizers">Tranquilizers</button>
+            <button type="button" data-category="tools">Tools</button>
+            <button type="button" data-category="other">Other</button>
+          </nav>
+          <h2>Recipes</h2>
+          <div class="recipe-list" id="recipeList"></div>
+          <button class="discover-button" type="button" id="discoverButton">Discover New Recipes</button>
+        </aside>
+
+        <section class="craft-stage" aria-live="polite">
+          <div class="workshop-glow" aria-hidden="true"></div>
+          <div class="crafting-table" aria-hidden="true">
+            <div class="rune-ring"></div>
+            <div class="beam beam-one"></div>
+            <div class="beam beam-two"></div>
+            <div class="beam beam-three"></div>
+          </div>
+          <section class="selected-recipe">
+            <div>
+              <p class="eyebrow" id="selectedRarity">Epic</p>
+              <h2 id="selectedName">Stormbyte Lure</h2>
+              <p id="selectedDescription">A special lure that attracts Stormbyte and Electric-type beasts.</p>
+            </div>
+            <div class="item-preview" id="itemPreview" aria-hidden="true"></div>
+          </section>
+          <section class="ingredient-row" id="ingredientRow"></section>
+          <section class="craft-controls">
+            <button class="craft-button" type="button" id="craftButton">Craft <span id="craftCost">250</span></button>
+            <div class="quantity-control" aria-label="Craft quantity">
+              <button type="button" id="decreaseQuantity">-</button>
+              <strong id="quantityValue">1</strong>
+              <button type="button" id="increaseQuantity">+</button>
+            </div>
+          </section>
+          <p class="bonus-line" id="bonusLine">Crafting Bonus: 10% chance to create an extra item.</p>
+        </section>
+
+        <aside class="detail-panel">
+          <section>
+            <h2>About This Item</h2>
+            <p><strong>Rarity:</strong> <span id="aboutRarity">Epic</span></p>
+            <p><strong>Type:</strong> <span id="aboutType">Lure</span></p>
+            <p><strong>Use:</strong> <span id="aboutUse">Attracts Stormbyte and increases encounter chance.</span></p>
+          </section>
+          <section>
+            <h2>Best Used On</h2>
+            <div class="beast-card">
+              <span id="beastToken" aria-hidden="true"></span>
+              <div>
+                <strong id="bestBeast">Stormbyte</strong>
+                <small id="bestBeastCopy">Electric Beast - Encounter Chance: High</small>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Requires</h2>
+            <p id="requirementLine">Player Level 15+ - Ready</p>
+          </section>
+          <section class="tip-card">
+            <h2>Tip</h2>
+            <p>Higher quality ingredients increase your chance of attracting rare beasts.</p>
+          </section>
+        </aside>
+      </section>
+
+      <footer class="inventory-bar">
+        <section>
+          <h2>My Inventory</h2>
+          <strong>23 / 60</strong>
+        </section>
+        <div class="inventory-list" id="inventoryList"></div>
+        <nav class="craft-dock" aria-label="Crafting actions">
+          <a href="/crafting-station.html?planet=lumora" id="recipesLink">Recipes</a>
+          <a href="#inventory">Inventory</a>
+          <a href="#merchant">Merchant</a>
+          <a href="/beast-hunt.html?planet=lumora" id="huntLink">Hunt</a>
+          <a href="/planet-hub.html?planet=lumora" id="leaveLink">Leave</a>
+        </nav>
+      </footer>
+    </main>
+  </body>
+</html>
