@@ -260,7 +260,7 @@ function updateDrawer() {
   document.querySelector("#planetPreview").className = `planet-preview planet-${selectedPlanet.color}`;
   document.querySelector("#planetRarity").textContent = `${selectedPlanet.rarity} Planet`;
   document.querySelector("#planetName").textContent = selectedPlanet.name;
-  document.querySelector("#planetOwner").textContent = `${selectedPlanet.subtitle} · By ${selectedPlanet.owner}`;
+  document.querySelector("#planetOwner").textContent = `${selectedPlanet.subtitle} - By ${selectedPlanet.owner}`;
   document.querySelector("#planetLevel").textContent = selectedPlanet.level;
   document.querySelector("#planetXp").textContent = selectedPlanet.xp;
   document.querySelector("#planetProgress").style.width = `${selectedPlanet.progress}%`;

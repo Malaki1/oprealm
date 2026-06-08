@@ -3,22 +3,95 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="OPREALM Planet Hub prototype placeholder." />
+    <meta name="description" content="Explore an OPREALM creator planet hub with portals, crafting, resource nodes, beasts and NPCs." />
     <title>Planet Hub | OPREALM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/galaxy.css?v=1" />
+    <link rel="stylesheet" href="/planet-hub.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/planet-hub.js?v=1" defer></script>
   </head>
   <body>
-    <main class="hub-placeholder">
-      <a class="back-button" href="/galaxy.html" aria-label="Back to Galaxy">‹</a>
-      <section>
-        <p class="eyebrow">Next Build Slice</p>
-        <h1>Planet Hub</h1>
-        <p>The Galaxy can now route here. Next we build the 2.5D explorable hub with game portals, crafting, resource nodes, beast arena, owner NPC and guest spawn.</p>
-        <a class="visit-button" href="/galaxy.html">Back To Galaxy</a>
+    <main class="hub-shell">
+      <header class="hub-topbar">
+        <a class="back-button" href="/galaxy.html" aria-label="Back to Galaxy">&lt;</a>
+        <section class="player-panel" aria-label="Player profile">
+          <div class="avatar" aria-hidden="true">EM</div>
+          <div>
+            <strong>ExplorerMax</strong>
+            <span>Level 24</span>
+            <div class="xp-bar"><i style="width: 61%"></i></div>
+          </div>
+        </section>
+        <section class="planet-title">
+          <p class="eyebrow">Example Planet Hub</p>
+          <h1 id="planetName">Lumora</h1>
+          <span id="planetSubtitle">Crystal Jungle World</span>
+        </section>
+        <section class="currency-row" aria-label="Player currencies">
+          <span><b class="crystal"></b>12,450</span>
+          <span><b class="coin"></b>8,230</span>
+          <span><b class="gem"></b>315</span>
+        </section>
+      </header>
+
+      <section class="hub-layout">
+        <aside class="info-panel how-panel">
+          <h2>What You Can Do</h2>
+          <article><span>1</span><div><strong>Walk & Explore</strong><small>Move around the planet hub.</small></div></article>
+          <article><span>2</span><div><strong>Talk & Interact</strong><small>Meet the owner NPC and guides.</small></div></article>
+          <article><span>3</span><div><strong>Harvest Resources</strong><small>Gather ingredients from nodes.</small></div></article>
+          <article><span>4</span><div><strong>Visit Portals</strong><small>Play games created on this planet.</small></div></article>
+          <article><span>5</span><div><strong>Battle & Collect</strong><small>Find native beasts and fill RealmDex.</small></div></article>
+        </aside>
+
+        <section class="world-stage" aria-label="2.5D planet hub">
+          <div class="sky-glow" aria-hidden="true"></div>
+          <div class="waterfall fall-one" aria-hidden="true"></div>
+          <div class="waterfall fall-two" aria-hidden="true"></div>
+          <div class="floating-cliff cliff-one" aria-hidden="true"></div>
+          <div class="floating-cliff cliff-two" aria-hidden="true"></div>
+          <div class="hub-ground">
+            <div class="path main-path" aria-hidden="true"></div>
+            <button class="hub-zone merchant" type="button" data-zone="merchant"><span>1</span><strong>Merchant Shop</strong></button>
+            <button class="hub-zone portals" type="button" data-zone="portals"><span>2</span><strong>Game Portals</strong></button>
+            <button class="hub-zone arena" type="button" data-zone="arena"><span>3</span><strong>Beast Arena</strong></button>
+            <button class="hub-zone crafting" type="button" data-zone="crafting"><span>4</span><strong>Crafting Station</strong></button>
+            <button class="hub-zone resources" type="button" data-zone="resources"><span>5</span><strong>Resource Nodes</strong></button>
+            <button class="hub-zone owner" type="button" data-zone="owner"><span>6</span><strong>Owner Avatar</strong></button>
+            <button class="hub-zone spawn is-active" type="button" data-zone="spawn"><span>7</span><strong>Guest Spawn</strong></button>
+            <div class="hub-crystal" aria-hidden="true"></div>
+            <div class="player-token" aria-label="ExplorerMax player avatar"></div>
+          </div>
+          <section class="zone-card" id="zoneCard" aria-live="polite"></section>
+        </section>
+
+        <aside class="info-panel planet-panel">
+          <div class="mini-map">
+            <div class="mini-map-world" aria-hidden="true"><i></i></div>
+            <strong id="mapPlanetName">Lumora</strong>
+            <span>Population: 15 / 50</span>
+          </div>
+          <h2>Native Planet Loop</h2>
+          <article><span>*</span><div><strong>Featured Beast</strong><small id="featuredBeast">Tempest Lord</small></div></article>
+          <article><span>R</span><div><strong>Resources</strong><small id="resourceSummary">Glowberry, Moon Nectar, Crystal Flower</small></div></article>
+          <article><span>C</span><div><strong>Next Unlock</strong><small>Crafting station recipes and lures.</small></div></article>
+          <div class="hub-actions">
+            <a href="/galaxy.html">Galaxy</a>
+            <a href="/planet-hub.html#realmdex">RealmDex</a>
+            <a href="/planet-hub.html#inventory">Inventory</a>
+          </div>
+        </aside>
       </section>
+
+      <nav class="bottom-dock" aria-label="Planet hub actions">
+        <a href="/galaxy.html"><span>*</span>Galaxy</a>
+        <a href="#inventory"><span>I</span>Inventory</a>
+        <a href="#crafting"><span>C</span>Crafting</a>
+        <a href="#map"><span>M</span>Map</a>
+        <a href="#realmdex"><span>R</span>RealmDex</a>
+      </nav>
     </main>
   </body>
 </html>
