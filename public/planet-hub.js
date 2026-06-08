@@ -51,6 +51,7 @@ const zoneDetails = {
     title: "Beast Arena",
     body: "Challenge native beasts, test companions and earn RealmDex progress.",
     action: "Enter Arena",
+    href: "/beast-hunt.html",
   },
   crafting: {
     title: "Crafting Station",
@@ -61,6 +62,7 @@ const zoneDetails = {
     title: "Resource Nodes",
     body: "Harvest Glowberry, Thunder Moss, Moon Nectar and rare biome ingredients.",
     action: "Harvest",
+    href: "/beast-hunt.html",
   },
   owner: {
     title: "Owner Avatar",
@@ -91,11 +93,14 @@ function setTheme() {
 
 function renderZone(zoneId) {
   const zone = zoneDetails[zoneId] || zoneDetails.spawn;
+  const actionMarkup = zone.href
+    ? `<a href="${zone.href}?planet=${selectedId}">${zone.action}</a>`
+    : `<button type="button">${zone.action}</button>`;
   zoneCard.innerHTML = `
     <p class="eyebrow">Selected Zone</p>
     <h2>${zone.title}</h2>
     <p>${zone.body}</p>
-    <button type="button">${zone.action}</button>
+    ${actionMarkup}
   `;
   zoneButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.zone === zoneId));
 }

@@ -466,6 +466,7 @@ h2 {
 }
 
 .zone-card button,
+.zone-card a,
 .hub-actions a,
 .bottom-dock a {
   min-height: 42px;
@@ -480,7 +481,8 @@ h2 {
   font-weight: 1000;
 }
 
-.zone-card button {
+.zone-card button,
+.zone-card a {
   min-width: 160px;
   background: linear-gradient(135deg, var(--theme-a), var(--theme-b));
   box-shadow: 0 0 28px color-mix(in srgb, var(--theme-a), transparent 52%);
