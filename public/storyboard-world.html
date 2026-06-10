@@ -8,9 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=16" />
+    <link rel="stylesheet" href="/creator-flow.css?v=43" />
     <script src="/realm-spark-core.js?v=1" defer></script>
-    <script src="/storyboard-world.js?v=4" defer></script>
+    <script src="/storyboard-account.js?v=2" defer></script>
+    <script src="/storyboard-world.js?v=15" defer></script>
   </head>
   <body class="storyboard-body character-builder-body world-builder-body">
     <header class="storyboard-topbar character-builder-topbar">
@@ -24,7 +25,7 @@
         <a href="/storyboard.html">Story Builder</a>
         <a href="/library">My Creations</a>
         <a href="/account.html">Profile</a>
-        <span class="spark-pill">1200</span>
+        <span class="spark-pill" data-credit-pill>...</span>
       </nav>
     </header>
 
@@ -34,7 +35,7 @@
           <div>
             <p class="spark-eyebrow">World Creator</p>
             <h1>Create New World</h1>
-            <p>Build the place your story happens in. Lock the mood, landmarks and visual style before characters enter it.</p>
+            <p>Build the place your story happens in. Lock the mood and visual style before characters enter it.</p>
           </div>
         </header>
 
@@ -48,10 +49,14 @@
             <label class="field-stack">
               <span>World Prompt (Description)</span>
               <span class="textarea-shell">
-                <textarea id="worldPromptNotes" maxlength="900" placeholder="Describe the world you want OPREALM to create. Include the central platform, background details, mood, colours, landmarks and anything special."></textarea>
+                <textarea id="worldPromptNotes" maxlength="900" placeholder="Describe the world you want OPREALM to create."></textarea>
                 <small data-count-for="worldPromptNotes">0/900</small>
               </span>
             </label>
+            <div class="world-generate-action">
+              <button id="generateWorldPreviewButton" class="scene-action primary" type="button">Generate World (20 credits)</button>
+              <p id="worldGenerationStatus" class="recipe-status world-generation-status" aria-live="polite"></p>
+            </div>
             <div class="field-stack">
               <span>Story Mood</span>
               <div class="trait-row">
@@ -65,21 +70,6 @@
                 <button type="button" data-world-multi="mood" data-value="Spooky">Spooky</button>
                 <button type="button" data-world-multi="mood" data-value="Dreamy">Dreamy</button>
                 <button type="button" data-world-multi="mood" data-value="Chaotic">Chaotic</button>
-              </div>
-            </div>
-            <div class="world-details-inline">
-              <h2>World Landmarks</h2>
-              <p>Pick important places the story can reuse.</p>
-              <div class="field-stack">
-                <span>Landmarks</span>
-                <div class="accessory-grid world-detail-grid">
-                  <button class="is-selected" type="button" data-world-multi="landmarks" data-value="Central hero platform">Central Platform</button>
-                  <button class="is-selected" type="button" data-world-multi="landmarks" data-value="Glowing portal">Portal</button>
-                  <button type="button" data-world-multi="landmarks" data-value="Floating islands">Floating Islands</button>
-                  <button type="button" data-world-multi="landmarks" data-value="Ancient ruins">Ancient Ruins</button>
-                  <button type="button" data-world-multi="landmarks" data-value="Secret bridge">Secret Bridge</button>
-                  <button type="button" data-world-multi="landmarks" data-value="Crystal towers">Crystal Towers</button>
-                </div>
               </div>
             </div>
           </section>
@@ -102,7 +92,6 @@
                 <span>Describe your world, choose Custom or a starter, then generate.</span>
               </div>
               <img id="worldPreviewImage" src="" alt="Generated world concept" hidden />
-              <button id="generateWorldPreviewButton" class="character-regenerate-button" type="button">Generate World</button>
             </figure>
             <div class="field-stack">
               <span>Choose a world style</span>
@@ -138,15 +127,14 @@
         </div>
 
         <footer class="builder-action-bar">
-          <a class="scene-action" href="/#creation-tools">Back To Start</a>
           <label class="consistency-lock">
             <span class="lock-glyph" aria-hidden="true"></span>
             <span><strong>World Memory</strong><small>Reuse this location across scenes.</small></span>
             <input id="worldConsistencyLockInput" type="checkbox" checked />
           </label>
+          <button class="scene-action clear-world-button" id="clearWorldButton" type="button">Clear World</button>
           <button class="scene-action primary save-character" id="saveWorldButton" type="button">Save World</button>
-          <button class="scene-action add-another" id="saveWorldAndCharacterButton" type="button">Save & Create Character</button>
-          <a class="scene-action primary recipe-next-step" id="proceedToCharacterButton" href="/storyboard-character.html" hidden>Proceed To Character</a>
+          <button class="scene-action primary recipe-next-step" id="proceedToCharacterButton" type="button" disabled aria-disabled="true">Proceed To Character</button>
         </footer>
         <p id="worldSaveStatus" class="recipe-status" aria-live="polite"></p>
       </section>

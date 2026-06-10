@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Generate a safe branching story, hero, world and scene plan with OPREALM AI." />
+    <title>AI Story Generator | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/story-generator.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/story-generator.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="generator-header">
+      <a class="generator-brand" href="/studio/stories"><span></span>OPREALM Stories</a>
+      <nav><a href="/studio/stories">Stories</a><a href="/story-game">Story Maker</a><a href="/library">Library</a><a href="/account.html" data-account-link>My Account</a></nav>
+    </header>
+
+    <main class="generator-shell">
+      <section class="generator-hero">
+        <div>
+          <p class="eyebrow">AI Story Generator</p>
+          <h1>Turn one idea into a playable adventure.</h1>
+          <p>Generate a hero, world, 8-12 connected scenes and meaningful choices. Then open everything in the Story Game Maker.</p>
+        </div>
+        <div class="credit-badge"><strong>5</strong><span>Creator credits</span></div>
+      </section>
+
+      <section class="generator-grid">
+        <form class="generator-panel generator-form" id="storyGeneratorForm">
+          <div>
+            <p class="step-label">Step 1</p>
+            <h2>Describe your story</h2>
+          </div>
+          <label>Story idea
+            <textarea name="idea" rows="6" maxlength="900" required placeholder="A shy inventor discovers a tiny dragon hiding inside a broken arcade machine..."></textarea>
+          </label>
+          <div class="form-grid">
+            <label>Genre<select name="genre"><option>Adventure</option><option>Fantasy</option><option>Mystery</option><option>Sci-Fi</option><option>Comedy</option><option>Superhero</option></select></label>
+            <label>Mood<select name="mood"><option>Magical</option><option>Epic</option><option>Funny</option><option>Mysterious</option><option>Cozy</option><option>Exciting</option></select></label>
+            <label>Age group<select name="ageGroup"><option>6-8</option><option selected>9-12</option><option>13-16</option></select></label>
+            <label>Visual style<select name="visualStyle"><option>Bright 3D</option><option>Cartoon Adventure</option><option>Anime Adventure</option><option>Comic Book</option><option>Cozy Storybook</option><option>Pixel Game</option></select></label>
+            <label>Story length<select name="sceneCount"><option value="8">8 scenes</option><option value="10" selected>10 scenes</option><option value="12">12 scenes</option></select></label>
+          </div>
+          <button class="primary-button" id="generateStoryButton" type="submit">Generate My Story</button>
+          <p class="generator-status" id="generatorStatus" aria-live="polite"></p>
+        </form>
+
+        <section class="generator-panel result-panel" id="storyResult" aria-live="polite">
+          <div class="empty-result" id="emptyResult">
+            <span class="spark-orb"></span>
+            <h2>Your story will appear here</h2>
+            <p>OPREALM will create the plan. You stay in control and can edit every part in the Story Maker.</p>
+          </div>
+          <div class="generated-result" id="generatedResult" hidden>
+            <p class="step-label">Story ready</p>
+            <h2 id="resultTitle"></h2>
+            <p id="resultSynopsis"></p>
+            <div class="result-cards">
+              <article><span>Hero</span><strong id="resultHero"></strong><p id="resultHeroCopy"></p></article>
+              <article><span>World</span><strong id="resultWorld"></strong><p id="resultWorldCopy"></p></article>
+            </div>
+            <div class="scene-preview" id="resultScenes"></div>
+            <button class="primary-button" id="openStoryMakerButton" type="button">Open In Story Maker</button>
+          </div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

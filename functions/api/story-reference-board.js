@@ -2,8 +2,9 @@ import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
-const REFERENCE_BOARD_COST = 20;
+const REFERENCE_BOARD_COST = CREATOR_CREDIT_COSTS.referenceBoard;
 const REFERENCE_BOARD_ESTIMATED_COST_USD = 0.2;
 const REFERENCE_BOARD_MODEL = "gpt-image-1.5";
 const REFERENCE_BOARD_QUALITY = "high";

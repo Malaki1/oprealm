@@ -2,8 +2,9 @@ import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
-const SCENE_IMAGE_COST = 18;
+const SCENE_IMAGE_COST = CREATOR_CREDIT_COSTS.sceneImage;
 const SCENE_IMAGE_MODEL = "gpt-image-1.5";
 const SCENE_IMAGE_QUALITY = "high";
 const SCENE_IMAGE_ESTIMATED_COST_USD = 0.2;
@@ -38,6 +39,7 @@ export async function onRequestPost({ request, env }) {
 
   const safetyWarning = checkPromptSafety([
     body.prompt,
+    body.visualPrompt,
     body.camera,
     body.background,
     body.character,
@@ -48,12 +50,18 @@ export async function onRequestPost({ request, env }) {
     body.characterType,
     body.characterPersonality,
     body.characterStyle,
+    body.characterOutfit,
+    body.characterAccessories,
+    body.characterPalette,
     body.characterSafety,
     body.secondCharacterName,
     body.secondCharacterPrompt,
     body.secondCharacterType,
     body.secondCharacterPersonality,
     body.secondCharacterStyle,
+    body.secondCharacterOutfit,
+    body.secondCharacterAccessories,
+    body.secondCharacterPalette,
     body.secondCharacterSafety,
     body.sceneStyle,
     body.continuityBrief,
@@ -88,20 +96,27 @@ export async function onRequestPost({ request, env }) {
 }
 
 async function generateImage(env, prompt, size, referenceImages = []) {
-  const attempts = [
+  const referenceAttempts = [
     { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
     { model: SCENE_IMAGE_MODEL, quality: "medium" },
+  ];
+  const generationAttempts = [
+    { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
     { model: "gpt-image-1", quality: "high" },
-    { model: "gpt-image-1", quality: "medium" },
-    { model: "gpt-image-1-mini", quality: "high" },
   ];
   let lastError;
 
-  for (const attempt of attempts) {
+  for (const attempt of referenceImages.length ? referenceAttempts : generationAttempts) {
     const response = referenceImages.length
       ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
       : await requestImageGeneration(env, prompt, size, attempt);
-    const data = await readJsonResponse(response);
+    let data;
+    try {
+      data = await readJsonResponse(response);
+    } catch (error) {
+      lastError = error;
+      continue;
+    }
     const b64 = data.data?.[0]?.b64_json;
     if (response.ok && b64) {
       return {
@@ -111,6 +126,28 @@ async function generateImage(env, prompt, size, referenceImages = []) {
       };
     }
     lastError = new Error(data.error?.message || `Scene image generation failed with ${attempt.model}.`);
+  }
+
+  if (referenceImages.length) {
+    for (const attempt of generationAttempts) {
+      const response = await requestImageGeneration(env, prompt, size, attempt);
+      let data;
+      try {
+        data = await readJsonResponse(response);
+      } catch (error) {
+        lastError = error;
+        continue;
+      }
+      const b64 = data.data?.[0]?.b64_json;
+      if (response.ok && b64) {
+        return {
+          b64,
+          ...attempt,
+          mode: "generation fallback",
+        };
+      }
+      lastError = new Error(data.error?.message || `Scene image generation fallback failed with ${attempt.model}.`);
+    }
   }
 
   throw lastError || new Error("Scene image generation failed.");
@@ -143,7 +180,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -162,7 +199,7 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
     body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
 }
 
 function buildScenePrompt(body, format) {
@@ -199,7 +236,8 @@ function buildScenePrompt(body, format) {
     hasSecondHero
       ? "TWO HERO LOCK: Include both saved heroes as distinct characters. Do not merge them, swap their outfits, mix their features, or turn one into a sidekick unless the scene prompt asks for it."
       : "ONE HERO LOCK: Include the saved hero as the main character unless the scene says no character is shown.",
-    `Scene prompt: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
+    `Reader-facing story passage for context only: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
+    `Internal visual scene direction to illustrate: ${cleanText(body.visualPrompt || body.prompt || "A magical choice moment begins.", 1800)}`,
     `Camera angle: ${cleanText(body.camera || "Wide cinematic reveal", 80)}`,
     `Background: ${cleanText(body.background || "Custom background", 120)}`,
     `Character use: ${cleanText(body.character || "Use saved character", 120)}`,
@@ -209,6 +247,9 @@ function buildScenePrompt(body, format) {
     `Saved character type/species/role: ${cleanText(body.characterType || "Original story hero", 120)}`,
     `Saved character personality: ${cleanText(body.characterPersonality || "Brave and kind", 120)}`,
     `Saved character visual style: ${savedStyle}`,
+    `Saved character outfit lock: ${cleanText(body.characterOutfit || "Preserve the exact approved outfit from the character reference.", 700)}`,
+    `Saved character accessories lock: ${cleanText(body.characterAccessories || "Preserve approved accessories only.", 500)}`,
+    `Saved character color palette lock: ${cleanText(body.characterPalette || "Preserve the approved character colors.", 400)}`,
     `Scene style selector: ${requestedSceneStyle}`,
     `Final locked scene style: ${lockedStyle}`,
     `Saved character safety tone: ${cleanText(body.characterSafety || "Friendly and safe for all ages", 160)}`,
@@ -217,6 +258,9 @@ function buildScenePrompt(body, format) {
     hasSecondHero ? `Second saved hero type/species/role: ${cleanText(body.secondCharacterType || "Original story hero", 120)}` : "",
     hasSecondHero ? `Second saved hero personality: ${cleanText(body.secondCharacterPersonality || "Brave and kind", 120)}` : "",
     hasSecondHero ? `Second saved hero visual style: ${cleanText(body.secondCharacterStyle || savedStyle, 120)}` : "",
+    hasSecondHero ? `Second saved hero outfit lock: ${cleanText(body.secondCharacterOutfit || "Preserve the exact approved outfit from the second character reference.", 700)}` : "",
+    hasSecondHero ? `Second saved hero accessories lock: ${cleanText(body.secondCharacterAccessories || "Preserve approved accessories only.", 500)}` : "",
+    hasSecondHero ? `Second saved hero color palette lock: ${cleanText(body.secondCharacterPalette || "Preserve the approved character colors.", 400)}` : "",
     hasSecondHero ? `Second saved hero safety tone: ${cleanText(body.secondCharacterSafety || "Friendly and safe for all ages", 160)}` : "",
     hasSecondHero ? `Second saved hero core design bible: ${cleanText(body.secondCharacterPrompt || "A friendly original second story character.", 1200)}` : "",
   ].join("\n");

@@ -5,8 +5,13 @@ const LOGIN_LIMIT = 5;
 const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-character-image", 180],
   ["/api/story-scene-images", 180],
+  ["/api/story-scene-video", 90],
   ["/api/story-world-image", 180],
   ["/api/story-game-cover", 120],
+  ["/api/story-generator", 60],
+  ["/api/story-draft", 60],
+  ["/api/story-read-audio", 30],
+  ["/api/story-branch", 30],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],
 ]);
@@ -14,6 +19,8 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;
 const LARGE_BODY_PATHS = new Set([
   "/api/story-scene-images",
+  "/api/story-scene-video",
+  "/api/story-branch",
   "/api/story-character-image",
   "/api/story-world-image",
   "/api/story-game-cover",
@@ -155,7 +162,7 @@ function validateJsonValue(value, context) {
     return;
   }
   if (typeof value === "string") {
-    validateSafeString(value, { label: context.path, maxLength: stringLimit(value), dataUrlCount: context.dataUrlCount });
+    validateSafeString(value, { label: context.path, maxLength: stringLimit(value, context.path), dataUrlCount: context.dataUrlCount });
     return;
   }
   if (Array.isArray(value)) {
@@ -193,8 +200,9 @@ function validateSafeString(value, { label, maxLength, dataUrlCount }) {
   }
 }
 
-function stringLimit(value) {
+function stringLimit(value, path = "") {
   if (isDataImage(value)) return 8 * 1024 * 1024;
+  if (path === "body.approvedStory" || path === "body.text") return 40000;
   return 5000;
 }
 

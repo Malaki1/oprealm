@@ -2,8 +2,9 @@ import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
-const COVER_IMAGE_COST = 18;
+const COVER_IMAGE_COST = CREATOR_CREDIT_COSTS.gameCover;
 const COVER_IMAGE_ESTIMATED_COST_USD = 0.2;
 const COVER_IMAGE_MODEL = "gpt-image-1.5";
 const COVER_IMAGE_QUALITY = "high";

@@ -14,7 +14,6 @@ const worldState = {
   },
   details: {
     mood: ["Magical", "Epic", "Mysterious"],
-    landmarks: ["Central hero platform"],
   },
   generation: {
     consistencyLock: true,
@@ -42,12 +41,16 @@ const worldPreviewBlank = document.querySelector("#worldPreviewBlank");
 const worldLiveBlank = document.querySelector("#worldLiveBlank");
 const worldSummary = document.querySelector("#worldRecipeSummary");
 const worldConsistencyLockInput = document.querySelector("#worldConsistencyLockInput");
+const clearWorldButton = document.querySelector("#clearWorldButton");
 const saveWorldButton = document.querySelector("#saveWorldButton");
-const saveWorldAndCharacterButton = document.querySelector("#saveWorldAndCharacterButton");
 const proceedToCharacterButton = document.querySelector("#proceedToCharacterButton");
 const generateWorldPreviewButton = document.querySelector("#generateWorldPreviewButton");
 const worldSaveStatus = document.querySelector("#worldSaveStatus");
+const worldGenerationStatus = document.querySelector("#worldGenerationStatus");
 const worldPromptField = worldPromptNotes?.closest(".field-stack");
+const WORLD_IMAGE_TIMEOUT_MS = 210000;
+let worldGenerationProgress = 0;
+let worldGenerationProgressTimer = null;
 
 function uid(prefix = "item") {
   if (crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
@@ -118,7 +121,7 @@ function dataUrlSize(value = "") {
   return Math.ceil((payload.length * 3) / 4);
 }
 
-function compressImageDataUrl(dataUrl, maxWidth = 960, maxHeight = 1280, quality = 0.84) {
+function compressImageDataUrl(dataUrl, maxWidth = 1200, maxHeight = 1800, quality = 0.9) {
   const source = String(dataUrl || "");
   if (!source.startsWith("data:image/") || dataUrlSize(source) < 450000) return Promise.resolve(source);
   return new Promise((resolve) => {
@@ -192,6 +195,9 @@ function worldDescription() {
 }
 
 function renderWorldFrames() {
+  const isGenerating = document.querySelector(".world-art-frame")?.classList.contains("is-generating-image")
+    || document.querySelector(".live-world-stage")?.classList.contains("is-generating-image");
+  if (isGenerating) return;
   const image = selectedThemeImage();
   const showImage = Boolean(image);
   [worldPreviewImage, worldLiveImage].forEach((img) => {
@@ -229,28 +235,75 @@ function renderSummary() {
     row("Theme", worldState.visual.generatedTheme || worldState.visual.theme),
     row("Image", worldState.visual.generated ? "Generated" : "Not generated yet"),
     row("Mood", worldState.details.mood),
-    row("Landmarks", worldState.details.landmarks),
     row("Memory", worldState.generation.consistencyLock ? "Locked" : "Exploring"),
   ].join("");
 }
 
 function setWorldPromptMessage(message, isError = false) {
-  if (worldSaveStatus) {
-    worldSaveStatus.textContent = message;
-    worldSaveStatus.classList.toggle("is-error", isError);
-  }
+  [worldSaveStatus, worldGenerationStatus].forEach((statusNode) => {
+    if (!statusNode) return;
+    statusNode.textContent = "";
+    if (message) {
+      const loginMatch = /log in|login|sign in/i.test(message);
+      if (loginMatch) {
+        statusNode.append("Please ");
+        const link = document.createElement("a");
+        link.href = `/login.html?return=${encodeURIComponent(location.pathname)}`;
+        link.textContent = "log in";
+        statusNode.append(link, " before generating a world image.");
+      } else {
+        statusNode.textContent = message;
+      }
+    }
+    statusNode.classList.toggle("is-error", isError);
+  });
   worldPromptField?.classList.toggle("has-error", isError);
 }
 
-function imageLoaderMarkup(title = "Generating artwork...", detail = "OPREALM is shaping the dots into a safe creator world.") {
+function isCustomSavedWorld(world) {
+  if (!world) return false;
+  if (world.theme === "Custom world") return true;
+  if (world.generatedImageUrl && String(world.generatedImageUrl).startsWith("data:image/")) return true;
+  if (world.source === "world_creator_saved") return true;
+  return false;
+}
+
+function imageLoaderMarkup(title = "Generating artwork...", detail = "OPREALM is shaping the dots into a safe creator world.", progress = 0) {
+  const safeProgress = Math.max(0, Math.min(100, Math.round(progress)));
   return `
-    <div class="scene-image-loader" aria-live="polite">
+    <div class="scene-image-loader generator-image-loader" aria-live="polite">
       <span class="image-loader-dotfield"></span>
       <span class="image-loader-dotfield is-second"></span>
       <span class="image-loader-wave"></span>
+      <div class="scene-image-progress" style="--scene-image-progress:${safeProgress * 3.6}deg;"><span>${safeProgress}%</span></div>
       <strong>${escapeHtml(title)}</strong>
       <small>${escapeHtml(detail)}</small>
     </div>`;
+}
+
+function renderWorldGenerationProgress() {
+  document.querySelectorAll(".world-art-frame .scene-image-loader, .live-world-stage .scene-image-loader").forEach((loader) => {
+    const ring = loader.querySelector(".scene-image-progress");
+    const label = ring?.querySelector("span");
+    if (ring) ring.style.setProperty("--scene-image-progress", `${worldGenerationProgress * 3.6}deg`);
+    if (label) label.textContent = `${worldGenerationProgress}%`;
+  });
+}
+
+function startWorldGenerationProgress() {
+  window.clearInterval(worldGenerationProgressTimer);
+  worldGenerationProgress = 3;
+  worldGenerationProgressTimer = window.setInterval(() => {
+    worldGenerationProgress = Math.min(94, worldGenerationProgress + Math.max(1, Math.ceil((94 - worldGenerationProgress) * 0.075)));
+    renderWorldGenerationProgress();
+    if (worldGenerationProgress >= 94) window.clearInterval(worldGenerationProgressTimer);
+  }, 620);
+}
+
+function finishWorldGenerationProgress() {
+  window.clearInterval(worldGenerationProgressTimer);
+  worldGenerationProgress = 100;
+  renderWorldGenerationProgress();
 }
 
 function setSingleChoice(group, value, button) {
@@ -300,30 +353,36 @@ function inferGeneratedTheme() {
 function setWorldGenerating(isGenerating) {
   if (!generateWorldPreviewButton) return;
   generateWorldPreviewButton.disabled = isGenerating;
-  generateWorldPreviewButton.textContent = isGenerating ? "Generating..." : "Generate World";
+  generateWorldPreviewButton.textContent = isGenerating ? "Generating..." : "Generate World (20 credits)";
   document.querySelectorAll(".world-art-frame, .live-world-stage").forEach((frame) => {
     frame.classList.toggle("is-generating-image", isGenerating);
   });
   if (isGenerating) {
+    startWorldGenerationProgress();
     [worldPreviewImage, worldLiveImage].forEach((img) => {
       if (img) img.hidden = true;
     });
     [worldPreviewBlank, worldLiveBlank].forEach((blank) => {
       if (!blank) return;
       blank.hidden = false;
-      blank.innerHTML = imageLoaderMarkup("Generating world...", "Building a clean central platform, background depth and reusable story details.");
+      blank.innerHTML = imageLoaderMarkup("Generating world...", "Building a clean central platform, background depth and reusable story details.", worldGenerationProgress);
     });
+  } else {
+    window.clearInterval(worldGenerationProgressTimer);
   }
 }
 
 async function generateWorldPreview() {
   syncInputs();
-  if (!cleanText(worldPromptNotes?.value, "")) {
+  const promptText = cleanText(worldPromptNotes?.value, "");
+  setWorldPromptMessage("", false);
+  if (!promptText) {
     setWorldPromptMessage("You need to enter a world prompt before you can generate this world.", true);
     worldPromptNotes?.focus();
     return;
   }
   const theme = worldState.visual.theme === "Custom world" ? "Custom world" : worldState.visual.theme;
+  worldPromptNotes?.blur();
   setWorldGenerating(true);
   setWorldPromptMessage(theme === "Custom world" ? "Generating a custom world from your prompt..." : "Using the selected preset world art.");
   try {
@@ -331,31 +390,41 @@ async function generateWorldPreview() {
     worldState.visual.generatedTheme = theme;
     if (theme === "Custom world") {
       worldState.visual.generatedImageUrl = "";
-      renderSummary();
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), WORLD_IMAGE_TIMEOUT_MS);
       const response = await fetch("/api/story-world-image", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           name: worldState.identity.name || "Custom Story World",
           prompt: cleanText(worldPromptNotes?.value, ""),
           moods: worldState.details.mood,
-          landmarks: worldState.details.landmarks.filter((landmark) => landmark !== "Glowing portal"),
         }),
-      });
+      }).finally(() => window.clearTimeout(timeoutId));
       const data = await response.json().catch(() => ({}));
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Please log in before generating a world image.");
+      }
       if (!response.ok || !data.ok || !data.imageDataUrl) {
         throw new Error(data.error || "World image generation failed.");
       }
       worldState.visual.generatedImageUrl = await compressImageDataUrl(data.imageDataUrl);
+      if (data.elapsedMs && worldGenerationStatus) {
+        worldGenerationStatus.textContent = `World generated in ${Math.max(1, Math.round(data.elapsedMs / 1000))} seconds.`;
+      }
     } else {
       worldState.visual.generatedImageUrl = imageForTheme(theme);
     }
   } catch (error) {
     worldState.visual.generated = false;
     worldState.visual.generatedImageUrl = "";
-    setWorldPromptMessage(error.message || "World image generation failed.", true);
-    renderSummary();
+    const message = error.name === "AbortError"
+      ? "World image generation is taking too long. Please try again with a shorter prompt or try again in a moment."
+      : error.message || "World image generation failed.";
+    setWorldPromptMessage(message, true);
     setWorldGenerating(false);
+    renderSummary();
     return;
   }
   if (!worldState.identity.name && worldNameInput) {
@@ -367,8 +436,11 @@ async function generateWorldPreview() {
   setWorldPromptMessage(theme === "Custom world"
     ? "Custom world generated from your prompt. Review it, adjust details, then save it for character creation."
     : "Preset world preview loaded. Review it, adjust details, then save it for character creation.");
-  renderSummary();
-  setWorldGenerating(false);
+  finishWorldGenerationProgress();
+  window.setTimeout(() => {
+    setWorldGenerating(false);
+    renderSummary();
+  }, 280);
 }
 
 function worldRecordFromState({ keepExistingId = true } = {}) {
@@ -386,15 +458,14 @@ function worldRecordFromState({ keepExistingId = true } = {}) {
     styleNotes: [
       `Theme: ${worldState.visual.generatedTheme || worldState.visual.theme}`,
       `Mood: ${worldState.details.mood.join(", ")}`,
-      `Landmarks: ${worldState.details.landmarks.join(", ")}`,
     ],
     sourceMode: worldState.visual.sourceMode,
+    source: "world_creator_saved",
     theme: worldState.visual.theme,
     generatedTheme: worldState.visual.generatedTheme,
     generatedImageUrl: worldState.visual.generatedImageUrl,
     generated: worldState.visual.generated,
     mood: [...worldState.details.mood],
-    landmarks: [...worldState.details.landmarks],
     consistencyLocked: worldState.generation.consistencyLock,
     updatedAt: new Date().toISOString(),
     createdAt: existing.createdAt || new Date().toISOString(),
@@ -404,14 +475,24 @@ function worldRecordFromState({ keepExistingId = true } = {}) {
 function saveWorld({ navigateToCharacter = false } = {}) {
   const world = worldRecordFromState();
   const worlds = storyboardProject.worlds.filter((item) => item.id !== world.id);
+  const scenes = (storyboardProject.scenes || []).map((scene) => ({
+    ...scene,
+    selectedWorldId: world.id,
+    status: scene.generatedImageUrl ? "complete" : scene.status || "draft",
+  }));
   storyboardProject = saveStoryboardProject({
     ...storyboardProject,
     activeWorldId: world.id,
     worlds: [world, ...worlds],
+    scenes,
   });
   editingWorldId = world.id;
   if (worldSaveStatus) worldSaveStatus.textContent = `${world.name} saved. It is ready for character creation and scene prompts.`;
-  proceedToCharacterButton?.removeAttribute("hidden");
+  window.OPREALMRefreshCreatorSteps?.();
+  if (proceedToCharacterButton) {
+    proceedToCharacterButton.disabled = false;
+    proceedToCharacterButton.setAttribute("aria-disabled", "false");
+  }
   if (navigateToCharacter) window.location.href = "/storyboard-character.html";
 }
 
@@ -424,12 +505,34 @@ function applyWorldToForm(world) {
   worldState.visual.generatedImageUrl = world.generatedImageUrl || world.imageUrl || "";
   worldState.visual.generated = Boolean(world.generated || world.imageUrl);
   worldState.details.mood = world.mood || worldState.details.mood;
-  worldState.details.landmarks = world.landmarks || worldState.details.landmarks;
   worldState.generation.consistencyLock = Boolean(world.consistencyLocked ?? true);
   if (worldNameInput) worldNameInput.value = worldState.identity.name;
   if (worldPromptNotes) worldPromptNotes.value = world.description || worldDescription();
   if (worldConsistencyLockInput) worldConsistencyLockInput.checked = worldState.generation.consistencyLock;
   refreshChoiceUi();
+}
+
+function resetWorldCreator() {
+  editingWorldId = "";
+  worldState.identity.name = "";
+  worldState.visual.sourceMode = "AI Generate";
+  worldState.visual.theme = "Custom world";
+  worldState.visual.generated = false;
+  worldState.visual.generatedTheme = "";
+  worldState.visual.generatedImageUrl = "";
+  worldState.details.mood = ["Magical", "Epic", "Mysterious"];
+  worldState.generation.consistencyLock = true;
+  if (worldNameInput) worldNameInput.value = "";
+  if (worldPromptNotes) worldPromptNotes.value = "";
+  if (worldConsistencyLockInput) worldConsistencyLockInput.checked = true;
+  if (proceedToCharacterButton) {
+    proceedToCharacterButton.disabled = true;
+    proceedToCharacterButton.setAttribute("aria-disabled", "true");
+  }
+  setWorldPromptMessage("", false);
+  if (worldSaveStatus) worldSaveStatus.textContent = "World cleared. Describe a new world when you are ready.";
+  refreshChoiceUi();
+  renderSummary();
 }
 
 function refreshChoiceUi() {
@@ -471,8 +574,17 @@ document.querySelectorAll("[data-world-multi]").forEach((button) => {
 });
 
 generateWorldPreviewButton?.addEventListener("click", generateWorldPreview);
+document.addEventListener("click", (event) => {
+  if (!event.target.closest("#clearWorldButton")) return;
+  const shouldClear = window.confirm(
+    "Clear this world creator? This removes the current world name, prompt, preview image and unsaved world settings from this screen. Saved characters and scenes will stay as they are.",
+  );
+  if (shouldClear) resetWorldCreator();
+});
 saveWorldButton?.addEventListener("click", () => saveWorld());
-saveWorldAndCharacterButton?.addEventListener("click", () => saveWorld({ navigateToCharacter: true }));
+proceedToCharacterButton?.addEventListener("click", () => {
+  if (!proceedToCharacterButton.disabled) window.location.href = "/storyboard-character.html";
+});
 
 function normalizeSparkTheme(value = "") {
   const direct = Object.keys(worldDescriptions).find((theme) => theme.toLowerCase() === String(value).toLowerCase());
@@ -510,11 +622,6 @@ function applyRealmSparkToWorldCreator() {
     ["Magical", "Epic", "Mysterious", "Funny", "Cozy", "Adventure", "Peaceful", "Spooky", "Dreamy", "Chaotic"],
     ["Magical", "Epic"]
   );
-  const landmarks = allowedList(
-    world.landmarks,
-    ["Central hero platform", "Glowing portal", "Floating islands", "Ancient ruins", "Secret bridge", "Crystal towers"],
-    ["Central hero platform"]
-  );
   const description = cleanText(world.prompt, worldDescriptions[theme]).slice(0, 900);
   const record = {
     id,
@@ -527,12 +634,10 @@ function applyRealmSparkToWorldCreator() {
       `Visual style: ${cleanText(world.visualStyle, theme)}`,
       `Theme: ${theme}`,
       `Mood: ${moods.join(", ")}`,
-      `Landmarks: ${landmarks.join(", ")}`,
     ],
     sourceMode: "AI Generate",
     theme,
     mood: moods,
-    landmarks,
     consistencyLocked: Boolean(world.memoryEnabled ?? true),
     referenceId: spark.id || `realm-spark-${Date.now()}`,
     originalIdea: spark.originalIdea,
@@ -568,11 +673,14 @@ function applyRealmSparkToWorldCreator() {
 
 const sparkedWorld = applyRealmSparkToWorldCreator();
 const activeSavedWorld = storyboardProject.worlds.find((world) => world.id === storyboardProject.activeWorldId) || storyboardProject.worlds[0] || null;
-const worldToEdit = sparkedWorld || (editingWorldId ? storyboardProject.worlds.find((world) => world.id === editingWorldId) : activeSavedWorld);
+const params = new URLSearchParams(window.location.search);
+const shouldResumeSavedWorld = params.get("resume") === "1" || isCustomSavedWorld(activeSavedWorld);
+const worldToEdit = sparkedWorld || (editingWorldId ? storyboardProject.worlds.find((world) => world.id === editingWorldId) : shouldResumeSavedWorld ? activeSavedWorld : null);
 if (worldToEdit) {
   editingWorldId = worldToEdit.id;
   applyWorldToForm(worldToEdit);
 } else {
   refreshChoiceUi();
+  setWorldPromptMessage("", false);
 }
 renderSummary();

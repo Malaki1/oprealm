@@ -234,7 +234,30 @@ if (creatorFlowParams.get("voice") === "1") {
 }
 
 const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
-const MIN_STORY_SCENES = 5;
+const STORYBOARD_MOVIE_DB = "oprealm_storyboard_movie_v1";
+const STORYBOARD_MOVIE_STORE = "movie_previews";
+const MIN_STORY_SCENES = 8;
+const STORY_DIRECTION_DEFAULTS = {
+  storyType: "epic-quest",
+  endingType: "happy",
+  lessonTheme: "courage",
+};
+
+const STORY_INTERNAL_OPTIONS = {
+  structures: ["classic-quest", "mystery-trail", "emotional-arc", "boss-level", "twist-path"],
+  tones: ["cinematic", "wonder", "funny", "heartfelt", "mythic"],
+  conflicts: ["broken-world", "ancient-secret", "rival-pressure", "lost-friend", "moral-choice"],
+};
+
+let activeMoviePlayback = null;
+let storyReaderAudioUrl = "";
+let storyReaderProgressTimer = null;
+let storyReaderGenerationToken = 0;
+const sceneImageProgressTimers = new Map();
+const sceneImageGenerationQueue = [];
+let sceneImageQueueActive = false;
+const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
+const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -248,15 +271,76 @@ function escapeHtml(value) {
 
 function readStoryboardProject() {
   try {
-    return JSON.parse(localStorage.getItem(STORYBOARD_PROJECT_KEY) || "{}") || {};
+    const project = sanitizeStoryboardProject(JSON.parse(localStorage.getItem(STORYBOARD_PROJECT_KEY) || "{}") || {});
+    localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(project));
+    return project;
   } catch {
     return {};
   }
 }
 
-function writeStoryboardProject(project) {
-  localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(project));
+function sanitizeStoryPlaceholders(value = "") {
+  return String(value || "")
+    .replace(/\btries to ignore (?:the\s+)?custom\s+(?:pet|object), but it appears again near\b/gi, "receives an urgent warning near")
+    .replace(/\b(?:the\s+)?custom\s+(?:pet|object)\b/gi, "")
+    .replace(/\s+([,.;!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function isPlaceholderProjectObject(item = {}) {
+  return /^(custom\s+pet|custom\s+object)$/i.test(cleanStoryText(item.name));
+}
+
+function sanitizeStoryboardProject(project = {}) {
+  const placeholderIds = new Set((project.objects || []).filter(isPlaceholderProjectObject).map((item) => item.id).filter(Boolean));
+  project.objects = (project.objects || []).filter((item) => !isPlaceholderProjectObject(item));
+  project.characters = (project.characters || []).map((character) => {
+    const customPet = cleanStoryText(character.customPet);
+    const hasRealCustomPet = customPet && !/^(custom\s+pet|none|no\s+pet)$/i.test(customPet);
+    if (!/^custom\s+pet$/i.test(cleanStoryText(character.pet)) || hasRealCustomPet) return character;
+    return { ...character, pet: "No Pet", customPet: "", petDescription: "no pet companion" };
+  });
+  project.scenes = (project.scenes || []).map((scene) => {
+    const generationStartedAt = Date.parse(scene.imageGenerationStartedAt || "");
+    const generationIsStale = scene.status === "generating"
+      && (!Number.isFinite(generationStartedAt) || Date.now() - generationStartedAt > 3 * 60 * 1000);
+    return {
+      ...scene,
+      title: sanitizeStoryPlaceholders(scene.title),
+      prompt: sanitizeStoryPlaceholders(scene.prompt),
+      imagePromptInternal: sanitizeStoryPlaceholders(scene.imagePromptInternal),
+      videoPromptInternal: sanitizeStoryPlaceholders(scene.videoPromptInternal),
+      selectedObjectIds: (scene.selectedObjectIds || []).filter((id) => !placeholderIds.has(id)),
+      status: generationIsStale ? "image_error" : scene.status,
+      imageProgress: generationIsStale ? 0 : scene.imageProgress,
+      imageGenerationStartedAt: generationIsStale ? "" : scene.imageGenerationStartedAt,
+      imageError: generationIsStale ? "Image generation was interrupted. Press Try Again." : scene.imageError,
+    };
+  });
+  applySceneCinematicSettings(project);
+  const containsPlanningProse = project.scenes.some((scene) => (
+    /the wonder matters|the story begins|is entering a mystery|the adventure will ask|the climax pays off|the final image leaves|the meaning is clear|proving the lesson|pain underneath the whole adventure/i
+      .test(scene.prompt || "")
+  ));
+  if (containsPlanningProse && project.scenes.length) {
+    const plan = storyPlanForCount(project, project.scenes.length);
+    project.scenes = project.scenes.map((scene, index) => ({
+      ...scene,
+      title: plan[index]?.title || scene.title,
+      prompt: plan[index]?.prompt || scene.prompt,
+      planInternal: plan[index]?.planInternal || scene.planInternal || {},
+      imagePromptInternal: "",
+    }));
+  }
   return project;
+}
+
+function writeStoryboardProject(project) {
+  const sanitized = sanitizeStoryboardProject(project);
+  localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(sanitized));
+  window.OPREALMRefreshCreatorSteps?.();
+  return sanitized;
 }
 
 function dataUrlSize(value = "") {
@@ -298,6 +382,24 @@ async function compactStoryboardImages(project) {
       scene.generatedImageUrl = await compressImageDataUrl(scene.generatedImageUrl);
     }
   }
+  const characters = Array.isArray(project.characters) ? project.characters : [];
+  for (const character of characters) {
+    if (character.imageUrl) {
+      character.imageUrl = await compressImageDataUrl(character.imageUrl, 900, 1200, 0.84);
+    }
+    if (character.recipe?.generation?.generatedImageUrl) {
+      character.recipe.generation.generatedImageUrl = character.imageUrl || await compressImageDataUrl(character.recipe.generation.generatedImageUrl, 900, 1200, 0.84);
+    }
+  }
+  const worlds = Array.isArray(project.worlds) ? project.worlds : [];
+  for (const world of worlds) {
+    if (world.imageUrl) {
+      world.imageUrl = await compressImageDataUrl(world.imageUrl, 960, 1280, 0.84);
+    }
+    if (world.generatedImageUrl) {
+      world.generatedImageUrl = world.imageUrl || await compressImageDataUrl(world.generatedImageUrl, 960, 1280, 0.84);
+    }
+  }
   return project;
 }
 
@@ -324,19 +426,22 @@ function renderStoryboardCharacters(project) {
       </article>`;
     return;
   }
-  target.innerHTML = characters.map((character) => `
-    <article class="ingredient-card ${character.id === project.activeCharacterId ? "is-active" : ""}">
-      ${character.imageUrl ? `<img src="${escapeHtml(character.imageUrl)}" alt="${escapeHtml(character.name)} character" />` : ""}
+  const active = activeCharacter(project) || characters[0];
+  const extraCount = Math.max(0, characters.length - 1);
+  target.innerHTML = `
+    <article class="ingredient-card is-active">
+      ${active.imageUrl ? `<img src="${escapeHtml(active.imageUrl)}" alt="${escapeHtml(active.name)} character" />` : ""}
       <div>
-        <h3>${escapeHtml(character.name || "Unnamed character")}</h3>
+        <h3>${escapeHtml(active.name || "Unnamed character")}</h3>
         <p>${escapeHtml(compactList([
-          character.characterType,
-          ...(character.traits || []).slice(0, 3),
-          character.masterStyle,
+          active.characterType,
+          ...(active.traits || []).slice(0, 3),
+          active.masterStyle,
         ], "Saved character"))}</p>
-        <span class="lock-pill">${character.consistencyLocked ? "Locked" : "Draft"}</span>
+        <span class="lock-pill">${active.consistencyLocked ? "Locked" : "Draft"}</span>
       </div>
-    </article>`).join("");
+    </article>
+    ${extraCount ? `<p class="ingredient-summary">${extraCount} more saved character${extraCount === 1 ? "" : "s"} available in Character.</p>` : ""}`;
 }
 
 function renderStoryboardWorlds(project) {
@@ -354,15 +459,18 @@ function renderStoryboardWorlds(project) {
       </article>`;
     return;
   }
-  target.innerHTML = worlds.map((world) => `
-    <article class="ingredient-card ${world.id === project.activeWorldId ? "is-active" : ""}">
-      ${world.imageUrl ? `<img src="${escapeHtml(world.imageUrl)}" alt="${escapeHtml(world.name)} world" />` : ""}
+  const active = activeWorld(project) || worlds[0];
+  const extraCount = Math.max(0, worlds.length - 1);
+  target.innerHTML = `
+    <article class="ingredient-card is-active">
+      ${active.imageUrl ? `<img src="${escapeHtml(active.imageUrl)}" alt="${escapeHtml(active.name)} world" />` : ""}
       <div>
-        <h3>${escapeHtml(world.name || "Story world")}</h3>
-        <p>${escapeHtml(world.description || compactList(world.styleNotes, "World details ready"))}</p>
-        <span class="lock-pill">${world.id === project.activeWorldId ? "Selected" : "Reusable"}</span>
+        <h3>${escapeHtml(active.name || "Story world")}</h3>
+        <p>${escapeHtml(active.description || compactList(active.styleNotes, "World details ready"))}</p>
+        <span class="lock-pill">Selected</span>
       </div>
-    </article>`).join("");
+    </article>
+    ${extraCount ? `<p class="ingredient-summary">${extraCount} more saved world${extraCount === 1 ? "" : "s"} available in World.</p>` : ""}`;
 }
 
 function renderStoryboardObjects(project) {
@@ -388,6 +496,17 @@ function renderStoryboardScenes(project) {
   if (!target) return;
   const scenes = Array.isArray(project.scenes) ? project.scenes : [];
   const orderedScenes = [...scenes].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+  const queuedScenes = orderedScenes
+    .filter((scene) => scene.status === "image_queued" && !scene.generatedImageUrl)
+    .sort((a, b) => {
+      const aQueuedAt = Date.parse(a.imageQueuedAt || "");
+      const bQueuedAt = Date.parse(b.imageQueuedAt || "");
+      if (Number.isFinite(aQueuedAt) && Number.isFinite(bQueuedAt) && aQueuedAt !== bQueuedAt) return aQueuedAt - bQueuedAt;
+      if (Number.isFinite(aQueuedAt) !== Number.isFinite(bQueuedAt)) return Number.isFinite(aQueuedAt) ? -1 : 1;
+      return Number(a.order || 0) - Number(b.order || 0);
+    });
+  const queuePositionById = new Map(queuedScenes.map((scene, index) => [scene.id, index + 1]));
+  const queuedTotal = queuedScenes.length;
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   const worldById = new Map((project.worlds || []).map((world) => [world.id, world]));
   if (!orderedScenes.length) {
@@ -404,21 +523,45 @@ function renderStoryboardScenes(project) {
       ].filter(Boolean);
       const status = scene.status === "generating"
         ? "generating"
+        : scene.status === "image_queued"
+          ? "queued"
         : scene.generatedImageUrl
           ? "complete"
-          : scene.status === "ready_to_generate"
-            ? "needs-image"
-            : "draft";
+          : scene.status === "image_error"
+            ? "image-error"
+            : scene.status === "ready_to_generate"
+              ? "needs-image"
+              : "draft";
+      const queuePosition = queuePositionById.get(scene.id) || 0;
+      const queueLabel = queuePosition ? `Queued ${queuePosition} of ${queuedTotal}` : "Queued";
       const statusLabel = {
         complete: "Complete",
         generating: "Generating",
+        queued: queueLabel,
         "needs-image": "Needs Image",
+        "image-error": "Image Error",
         draft: "Draft",
       }[status];
-      const mood = scene.mood || ["Wonder", "Mystery", "Action", "Epic"][index % 4];
-      const camera = scene.camera || ["Wide Shot", "Medium Shot", "Low Angle", "Drone Shot"][index % 4];
+      const mood = normalizeSceneMood(scene.mood, scene.storyExcerpt || scene.prompt, index);
+      const camera = normalizeSceneCamera(scene.camera, scene.storyExcerpt || scene.prompt, index);
+      const expanded = Boolean(scene.editorExpanded);
+      const hasImage = Boolean(scene.generatedImageUrl);
+      const hasVideo = Boolean(scene.generatedVideoUrl);
+      const mediaMode = hasImage && scene.mediaMode === "video" ? "video" : "image";
+      const videoStatus = scene.videoStatus || "";
+      const videoButtonText = !hasImage
+        ? "Generate Image First"
+        : videoStatus === "generating"
+          ? "Creating Video..."
+          : hasVideo
+            ? "Regenerate Video (325 credits)"
+            : videoStatus === "video_ready"
+              ? "Video Canvas Ready"
+              : videoStatus === "video_error"
+                ? "Try Video Again (325 credits)"
+                : "Generate Image to Video (325 credits)";
       return `
-        <article class="scene-card cinematic-scene-card scene-status-${status}" data-scene-id="${escapeHtml(scene.id)}" draggable="true">
+        <article class="scene-card cinematic-scene-card scene-status-${status} ${expanded ? "is-editor-expanded" : ""}" data-scene-id="${escapeHtml(scene.id)}" draggable="${expanded ? "false" : "true"}">
           <div class="scene-order-tools">
             <span class="scene-number status-node">${index + 1}</span>
             <button class="scene-drag-handle" type="button" draggable="true" aria-label="Drag scene ${index + 1} to reorder" title="Drag to reorder">
@@ -430,22 +573,45 @@ function renderStoryboardScenes(project) {
             </div>
           </div>
           <div class="scene-card-media ${status === "generating" ? "is-generating-image" : ""} ${!scene.generatedImageUrl && status !== "generating" ? "is-empty" : ""}">
+            ${hasImage ? `<div class="scene-media-tabs" role="group" aria-label="Scene ${index + 1} media">
+              <button type="button" data-scene-media-mode="${escapeHtml(scene.id)}" data-media-mode="image" class="${mediaMode === "image" ? "is-selected" : ""}">Image</button>
+              <button type="button" data-scene-media-mode="${escapeHtml(scene.id)}" data-media-mode="video" class="${mediaMode === "video" ? "is-selected" : ""}">Video</button>
+            </div>` : ""}
             ${status === "generating"
               ? `<div class="scene-image-loader" aria-label="Generating scene image">
                   <span class="image-loader-dotfield"></span>
                   <span class="image-loader-dotfield is-second"></span>
                   <span class="image-loader-wave"></span>
+                  <div class="scene-image-progress" data-scene-image-progress="${escapeHtml(scene.id)}" style="--scene-image-progress: ${Math.max(0, Math.min(100, Number(scene.imageProgress || 0))) * 3.6}deg;">
+                    <span>${Math.max(0, Math.min(100, Math.round(Number(scene.imageProgress || 0))))}%</span>
+                  </div>
                   <strong>Image forming...</strong>
                   <small>OPREALM is sketching the scene, lighting and character details.</small>
                 </div>`
-              : scene.generatedImageUrl
-                ? `<img src="${escapeHtml(scene.generatedImageUrl)}" alt="${escapeHtml(scene.title || `Scene ${index + 1}`)} preview" />`
+              : status === "queued"
+                ? `${hasImage ? `<img src="${escapeHtml(scene.generatedImageUrl)}" alt="${escapeHtml(scene.title || `Scene ${index + 1}`)} preview" />` : ""}
+                  <div class="scene-image-queue-state" aria-label="Scene ${index + 1} is ${escapeHtml(queueLabel.toLowerCase())}">
+                    <span class="scene-queue-position">${queuePosition || "?"}</span>
+                    <strong>${escapeHtml(queueLabel)}</strong>
+                    <small>Scene ${index + 1}: ${escapeHtml(scene.title || `Scene ${index + 1}`)}</small>
+                    <small>Its image will start automatically when the current one finishes.</small>
+                  </div>`
+              : hasImage && mediaMode === "video"
+                ? hasVideo
+                  ? `<video class="scene-video-preview" src="${escapeHtml(scene.generatedVideoUrl)}" poster="${escapeHtml(scene.generatedImageUrl)}" controls playsinline preload="metadata" aria-label="${escapeHtml(scene.title || `Scene ${index + 1}`)} video"></video>`
+                  : `<div class="blank-scene-frame scene-video-canvas ${videoStatus === "generating" ? "is-generating-video" : ""}" aria-label="Scene ${index + 1} video canvas">
+                      ${videoStatus === "generating" ? `<span class="image-loader-dotfield"></span><span class="image-loader-dotfield is-second"></span><span class="image-loader-wave"></span>` : ""}
+                      <span>5-10s</span>
+                      <strong>${videoStatus === "generating" ? "Creating scene video" : "Video canvas ready"}</strong>
+                      <small>${escapeHtml(scene.videoMessage || "OPREALM will animate the scene image using the story text.")}</small>
+                    </div>`
+                : hasImage
+                  ? `<img src="${escapeHtml(scene.generatedImageUrl)}" alt="${escapeHtml(scene.title || `Scene ${index + 1}`)} preview" />`
                 : `<div class="blank-scene-frame" aria-label="Scene ${index + 1} has no image yet">
                     <span>16:9</span>
                     <strong>Blank scene canvas</strong>
                     <small>Add or approve the prompt, then generate the image.</small>
                   </div>`}
-            ${scene.generatedImageUrl ? `<button class="scene-play-chip" type="button" aria-label="Preview scene ${index + 1}">&#9658;</button>` : ""}
             <span class="scene-ratio-chip">16:9</span>
           </div>
           <div class="scene-card-body">
@@ -453,28 +619,249 @@ function renderStoryboardScenes(project) {
               <input class="scene-title-input" data-scene-title="${escapeHtml(scene.id)}" value="${escapeHtml(scene.title || `Scene ${index + 1}`)}" aria-label="Scene ${index + 1} title" />
               <span class="scene-status-badge">${statusLabel}</span>
             </div>
-            <textarea class="scene-prompt-input" data-scene-prompt="${escapeHtml(scene.id)}" placeholder="Describe what happens in this story moment.">${escapeHtml(scene.prompt || "")}</textarea>
+            <textarea class="scene-prompt-input" data-scene-prompt="${escapeHtml(scene.id)}" placeholder="Describe what the image or video should show.">${escapeHtml(scene.prompt || "")}</textarea>
             <div class="scene-chip-row">${chips.map((chip, chipIndex) => `<span class="scene-chip ${chipIndex === 0 ? "is-active" : ""}">${escapeHtml(chip)}</span>`).join("")}</div>
             <div class="scene-image-tools">
-              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button">${status === "generating" ? "Generating Image..." : "Generate Image"}</button>
-              <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "needs-image" ? "Ready for artwork." : ""}</span>
+              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? "Try Again (24 credits)" : "Generate Image (24 credits)"}</button>
+              <button class="scene-action scene-video-button" data-bring-scene-to-life="${escapeHtml(scene.id)}" type="button" ${!hasImage || videoStatus === "generating" ? "disabled" : ""}>${videoButtonText}</button>
+              <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "queued" ? `${escapeHtml(queueLabel)}: Scene ${index + 1} will generate automatically.` : status === "needs-image" ? "Ready for artwork." : status === "image-error" ? escapeHtml(scene.imageError || "Image generation failed. Try again.") : ""}</span>
+              <span class="scene-video-status" data-scene-video-status="${escapeHtml(scene.id)}">${videoStatus === "generating" ? escapeHtml(scene.videoMessage || "Creating video...") : videoStatus === "complete" ? "Scene video ready." : videoStatus === "video_ready" ? "Scene video canvas is ready." : videoStatus === "video_error" ? escapeHtml(scene.videoError || "Video setup failed. Try again.") : ""}</span>
             </div>
           </div>
           <div class="scene-control-panel">
             <label><span>Mood</span><select data-scene-mood="${escapeHtml(scene.id)}">
-              ${["Wonder", "Mystery", "Action", "Epic", "Horror", "Funny", "Emotional"].map((item) => `<option ${item === mood ? "selected" : ""}>${item}</option>`).join("")}
+              ${STORY_SCENE_MOODS.map((item) => `<option ${item === mood ? "selected" : ""}>${item}</option>`).join("")}
             </select></label>
             <label><span>Camera</span><select data-scene-camera="${escapeHtml(scene.id)}">
-              ${["Wide Shot", "Close Up", "Low Angle", "Medium Shot", "POV", "Drone Shot"].map((item) => `<option ${item === camera ? "selected" : ""}>${item}</option>`).join("")}
+              ${STORY_SCENE_CAMERAS.map((item) => `<option ${item === camera ? "selected" : ""}>${item}</option>`).join("")}
             </select></label>
           </div>
           <div class="scene-quick-stack" aria-label="Scene quick actions">
+            <button type="button" data-toggle-scene-expand="${escapeHtml(scene.id)}" aria-label="${expanded ? `Minimize scene ${index + 1}` : `Enlarge scene ${index + 1}`}">
+              <span aria-hidden="true">${expanded ? "&minus;" : "&#x26F6;"}</span>
+            </button>
             <button type="button" data-edit-scene="${escapeHtml(scene.id)}" aria-label="Edit scene ${index + 1}"><span class="op-icon op-icon-options" aria-hidden="true"></span></button>
             <button type="button" data-duplicate-scene="${escapeHtml(scene.id)}" aria-label="Duplicate scene ${index + 1}"><span class="op-icon op-icon-document" aria-hidden="true"></span></button>
             <button type="button" data-delete-scene="${escapeHtml(scene.id)}" aria-label="Delete scene ${index + 1}"><span class="op-icon op-icon-trash" aria-hidden="true"></span></button>
           </div>
         </article>`;
     }).join("");
+}
+
+function renderStoryApproval(project) {
+  const draft = project.storyDraft || {};
+  const textarea = document.querySelector("#fullStoryDraft");
+  const state = document.querySelector("#storyApprovalState");
+  const approveButton = document.querySelector("#approveFullStoryButton");
+  const reviewDetails = document.querySelector("#storyReviewDetails");
+  const contextNode = document.querySelector("#storyContext");
+  const summaryNode = document.querySelector("#storySummary");
+  const outcomesNode = document.querySelector("#storyPossibleOutcomes");
+  const sceneList = document.querySelector("#scenes");
+  const sceneHead = document.querySelector("#storyScenesStepHead");
+  const hasStory = cleanStoryText(draft.story).length >= 200;
+  const outcomes = Array.isArray(draft.possibleOutcomes) ? draft.possibleOutcomes.filter(Boolean) : [];
+  const hasReviewDetails = Boolean(draft.context || draft.summary || outcomes.length);
+  const hasExistingScenes = (project.scenes || []).some((scene) => cleanStoryText(scene.prompt) || scene.generatedImageUrl);
+  if (textarea && document.activeElement !== textarea) textarea.value = draft.story || "";
+  if (reviewDetails) reviewDetails.hidden = !hasReviewDetails;
+  if (contextNode) contextNode.textContent = draft.context || "The story context will appear after generation.";
+  if (summaryNode) summaryNode.textContent = draft.summary || "The story summary will appear after generation.";
+  if (outcomesNode) {
+    outcomesNode.innerHTML = outcomes.map((outcome) => `<li>${escapeHtml(outcome)}</li>`).join("");
+  }
+  if (approveButton) approveButton.disabled = !hasStory || ["generating", "splitting"].includes(draft.status);
+  if (state) {
+    state.textContent = draft.approved
+      ? `Approved - ${draft.sceneCount || project.scenes?.length || 0} scenes`
+      : draft.status === "generating"
+        ? "Writing story..."
+        : draft.status === "splitting"
+          ? "Building scenes..."
+          : hasStory
+            ? "Ready for approval"
+            : "Not written yet";
+    state.classList.toggle("is-approved", Boolean(draft.approved));
+  }
+  const showScenes = Boolean(draft.approved || hasExistingScenes);
+  if (sceneList) sceneList.hidden = !showScenes;
+  if (sceneHead) sceneHead.hidden = !showScenes;
+  renderStoryReaderState(project);
+}
+
+function setStorySetupLoading(isLoading, message = "") {
+  const loading = document.querySelector("#storySetupLoading");
+  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  if (!loading) return;
+  loading.hidden = !isLoading;
+  document.body.classList.toggle("is-story-setup-loading", isLoading);
+  if (messageNode && message) messageNode.textContent = message;
+}
+
+function storyDraftPayload(project, mode = "write") {
+  const character = activeCharacter(project);
+  const world = activeWorld(project);
+  const settings = storySettings(project);
+  return {
+    mode,
+    title: project.storyDraft?.title || project.title || "My OPREALM Story",
+    approvedStory: mode === "split" ? preserveStoryFormatting(project.storyDraft?.story) : "",
+    character: JSON.stringify({
+      name: character.name || "The hero",
+      type: character.characterType || character.type || "original hero",
+      traits: character.traits || [],
+      description: character.prompt || character.description || "",
+    }),
+    world: JSON.stringify({
+      name: world.name || "the story world",
+      description: world.description || world.prompt || world.hook || "",
+      mood: world.mood || [],
+    }),
+    storyType: settings.storyType,
+    endingType: settings.endingType,
+    lessonTheme: settings.lessonTheme,
+    objects: activeObjects(project).map(storyObjectName).filter(Boolean),
+  };
+}
+
+async function requestFullStory(project, mode = "write") {
+  const status = document.querySelector("#fullStoryStatus");
+  const previousDraft = project.storyDraft || {};
+  if (mode === "write") resetStoryReaderAudio();
+  project.storyDraft = { ...previousDraft, status: mode === "split" ? "splitting" : "generating", approved: false };
+  writeStoryboardProject(project);
+  renderStoryApproval(project);
+  if (status) status.textContent = mode === "split"
+    ? "Reading the approved story and choosing scene boundaries..."
+    : "Writing the complete story...";
+  if (mode === "split") {
+    setStorySetupLoading(true, "Orbit is reading the approved story, choosing the strongest scene breaks and preparing cinematic visual prompts.");
+  }
+  try {
+    const response = await fetch("/api/story-draft", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(storyDraftPayload(project, mode)),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.draft?.story) {
+      throw new Error(result.error || "Story writing failed.");
+    }
+    project.storyDraft = {
+      title: result.draft.title,
+      context: result.draft.context || previousDraft.context || "",
+      summary: result.draft.summary || previousDraft.summary || "",
+      possibleOutcomes: result.draft.possibleOutcomes || previousDraft.possibleOutcomes || [],
+      chapters: result.draft.chapters || previousDraft.chapters || [],
+      story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
+      scenePlan: result.draft.scenes || [],
+      status: "ready",
+      approved: mode === "split",
+      sceneCount: result.draft.scenes?.length || 0,
+      updatedAt: new Date().toISOString(),
+    };
+    project.title = result.draft.title || project.title || "My OPREALM Story";
+    if (mode === "split") buildScenesFromApprovedStory(project);
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    setStorySetupLoading(false);
+    const currentStatus = document.querySelector("#fullStoryStatus") || status;
+    if (currentStatus) currentStatus.textContent = mode === "split"
+      ? `Story approved and divided into ${project.storyDraft.sceneCount} visual scenes.`
+      : `Story written using ${result.creditsUsed || 0} Creator credits. Review and edit it before approval.`;
+  } catch (error) {
+    setStorySetupLoading(false);
+    project.storyDraft = { ...previousDraft, status: "error", approved: false };
+    writeStoryboardProject(project);
+    renderStoryApproval(project);
+    const currentStatus = document.querySelector("#fullStoryStatus") || status;
+    if (currentStatus) currentStatus.textContent = error.message || "Story writing failed.";
+  }
+}
+
+function buildScenesFromApprovedStory(project) {
+  const character = activeCharacter(project);
+  const world = activeWorld(project);
+  const plan = project.storyDraft?.scenePlan || [];
+  const existingScenes = [...(project.scenes || [])];
+  const generatedMoods = new Set(plan.map((beat) => String(beat.mood || "").trim().toLowerCase()).filter(Boolean));
+  const generatedCameras = new Set(plan.map((beat) => String(beat.camera || "").trim().toLowerCase()).filter(Boolean));
+  const repeatedMood = plan.length > 2 && generatedMoods.size <= 1;
+  const repeatedCamera = plan.length > 2 && generatedCameras.size <= 1;
+  project.scenes = plan.map((beat, index) => {
+    const existing = existingScenes[index] || {};
+    const visualPrompt = cleanStoryText(beat.visualDirection, "Show this story moment as a clear cinematic scene.");
+    return {
+      ...existing,
+      id: existing.id || uid("scene"),
+      order: index + 1,
+      title: beat.title || `Scene ${index + 1}`,
+      prompt: visualPrompt,
+      visualPrompt,
+      storyExcerpt: beat.passage || "",
+      choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
+      imagePromptInternal: visualPrompt,
+      mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${visualPrompt}`, index),
+      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${visualPrompt}`, index),
+      selectedCharacterIds: character.id ? [character.id] : [],
+      selectedWorldId: world.id || "",
+      selectedObjectIds: [],
+      status: existing.generatedImageUrl ? "complete" : "draft",
+    };
+  });
+  project.storyDraft.sceneCount = project.scenes.length;
+  project.storyDraft.approved = true;
+  project.storyDraft.cinematicSettingsVersion = 2;
+}
+
+function normalizeSceneMood(value, sceneText = "", index = 0) {
+  const exact = STORY_SCENE_MOODS.find((item) => item.toLowerCase() === String(value || "").trim().toLowerCase());
+  if (exact) return exact;
+  const text = lowerStoryText(`${value || ""} ${sceneText}`);
+  if (/laugh|funny|joke|silly|chaos|mischief|grin|giggle/.test(text)) return "Funny";
+  if (/run|chase|fight|escape|race|leap|attack|crash|urgent/.test(text)) return "Action";
+  if (/fear|danger|threat|trap|warning|closing in|tense|risk/.test(text)) return "Tense";
+  if (/secret|clue|unknown|shadow|signal|strange|discover|mystery/.test(text)) return "Mystery";
+  if (/cry|heart|promise|goodbye|hope|trust|forgive|lonely/.test(text)) return "Emotional";
+  if (/victory|tower|army|final|great|power|hero|climax/.test(text)) return "Epic";
+  if (/calm|home|rest|sunset|gentle|quiet|safe|peace/.test(text)) return "Peaceful";
+  return ["Wonder", "Mystery", "Emotional", "Action"][index % 4];
+}
+
+function normalizeSceneCamera(value, sceneText = "", index = 0) {
+  const exact = STORY_SCENE_CAMERAS.find((item) => item.toLowerCase() === String(value || "").trim().toLowerCase());
+  if (exact) return exact;
+  const text = lowerStoryText(`${value || ""} ${sceneText}`);
+  if (/face|eyes|tear|whisper|realize|expression|small detail/.test(text)) return "Close Up";
+  if (/conversation|speaks|asks|answers|beside|together|shows/.test(text)) return "Over Shoulder";
+  if (/run|chase|follows|rush|race|moves through|escape/.test(text)) return "Tracking Shot";
+  if (/sees through|from .* view|looks down|reaches toward|first person/.test(text)) return "POV";
+  if (/towering|heroic|rises|stands against|powerful|guardian/.test(text)) return "Low Angle";
+  if (/city|kingdom|valley|island|forest canopy|world below|vast/.test(text)) return "Drone Shot";
+  if (/arrives|enters|reveals|landscape|crowd|battlefield|horizon/.test(text)) return "Wide Shot";
+  return ["Medium Shot", "Close Up", "Tracking Shot", "Wide Shot"][index % 4];
+}
+
+function applySceneCinematicSettings(project) {
+  const scenes = project.scenes || [];
+  if (!project.storyDraft?.approved || scenes.length < 8 || Number(project.storyDraft.cinematicSettingsVersion || 0) >= 2) return;
+  const moods = new Set(scenes.map((scene) => String(scene.mood || "").trim().toLowerCase()).filter(Boolean));
+  const cameras = new Set(scenes.map((scene) => String(scene.camera || "").trim().toLowerCase()).filter(Boolean));
+  const repeatedMood = moods.size <= 1;
+  const repeatedCamera = cameras.size <= 1;
+  if (!repeatedMood && !repeatedCamera) {
+    project.storyDraft.cinematicSettingsVersion = 2;
+    return;
+  }
+  project.scenes = scenes.map((scene, index) => {
+    const sceneText = `${scene.storyExcerpt || ""} ${scene.prompt || ""}`;
+    return {
+      ...scene,
+      mood: repeatedMood ? normalizeSceneMood("", sceneText, index) : normalizeSceneMood(scene.mood, sceneText, index),
+      camera: repeatedCamera ? normalizeSceneCamera("", sceneText, index) : normalizeSceneCamera(scene.camera, sceneText, index),
+    };
+  });
+  project.storyDraft.cinematicSettingsVersion = 2;
 }
 
 function activeCharacter(project) {
@@ -487,6 +874,546 @@ function activeWorld(project) {
 
 function activeObjects(project) {
   return (project.objects || []).filter((item) => item && item.name && item.name !== "None");
+}
+
+function cleanStoryText(value, fallback = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text || fallback;
+}
+
+function preserveStoryFormatting(value, fallback = "") {
+  const text = String(value || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return text || fallback;
+}
+
+function renderStoryReaderState(project) {
+  const readButton = document.querySelector("#readStoryButton");
+  const audio = document.querySelector("#storyReaderAudio");
+  const controls = document.querySelector("#storyReaderControls");
+  const hasStory = preserveStoryFormatting(project.storyDraft?.story).length >= 200;
+  const isGenerating = !document.querySelector("#storyReaderLoading")?.hidden;
+  if (readButton) readButton.disabled = !hasStory || isGenerating;
+  if (controls && !audio?.src) controls.hidden = true;
+}
+
+function setStoryReaderProgress(percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+  const ring = document.querySelector("#storyReaderProgress");
+  const label = document.querySelector("#storyReaderPercent");
+  if (ring) ring.style.setProperty("--story-reader-progress", `${safePercent * 3.6}deg`);
+  if (label) label.textContent = `${safePercent}%`;
+}
+
+function startStoryReaderProgress() {
+  window.clearInterval(storyReaderProgressTimer);
+  let percent = 3;
+  setStoryReaderProgress(percent);
+  storyReaderProgressTimer = window.setInterval(() => {
+    const remaining = 92 - percent;
+    percent += Math.max(1, Math.ceil(remaining * 0.08));
+    setStoryReaderProgress(Math.min(92, percent));
+    if (percent >= 92) window.clearInterval(storyReaderProgressTimer);
+  }, 650);
+}
+
+function resetStoryReaderAudio(message = "") {
+  storyReaderGenerationToken += 1;
+  window.clearInterval(storyReaderProgressTimer);
+  storyReaderProgressTimer = null;
+  const audio = document.querySelector("#storyReaderAudio");
+  if (audio) {
+    audio.pause();
+    audio.removeAttribute("src");
+    audio.load();
+  }
+  if (storyReaderAudioUrl) URL.revokeObjectURL(storyReaderAudioUrl);
+  storyReaderAudioUrl = "";
+  const loading = document.querySelector("#storyReaderLoading");
+  const controls = document.querySelector("#storyReaderControls");
+  const status = document.querySelector("#storyReaderStatus");
+  if (loading) loading.hidden = true;
+  if (controls) controls.hidden = true;
+  if (status) status.textContent = message;
+  setStoryReaderProgress(0);
+}
+
+async function generateStoryReaderAudio(project) {
+  const story = preserveStoryFormatting(project.storyDraft?.story);
+  if (story.length < 200) return;
+  resetStoryReaderAudio();
+  const token = storyReaderGenerationToken;
+  const loading = document.querySelector("#storyReaderLoading");
+  const controls = document.querySelector("#storyReaderControls");
+  const readButton = document.querySelector("#readStoryButton");
+  const status = document.querySelector("#storyReaderStatus");
+  if (loading) loading.hidden = false;
+  if (controls) controls.hidden = true;
+  if (readButton) readButton.disabled = true;
+  if (status) status.textContent = "Generating the complete ElevenLabs narration...";
+  startStoryReaderProgress();
+  try {
+    const response = await fetch("/api/story-read-audio", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text: story,
+        voice: document.querySelector("#storyReaderVoice")?.value || "warm-storyteller",
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Story voice generation failed (${response.status}).`);
+    }
+    const blob = await response.blob();
+    if (token !== storyReaderGenerationToken) return;
+    storyReaderAudioUrl = URL.createObjectURL(blob);
+    const audio = document.querySelector("#storyReaderAudio");
+    if (!audio) return;
+    audio.src = storyReaderAudioUrl;
+    audio.load();
+    window.clearInterval(storyReaderProgressTimer);
+    setStoryReaderProgress(100);
+    window.setTimeout(() => {
+      if (loading) loading.hidden = true;
+      if (controls) controls.hidden = false;
+    }, 350);
+    if (status) status.textContent = "Story voice ready. Press Play when you are ready.";
+  } catch (error) {
+    if (token !== storyReaderGenerationToken) return;
+    resetStoryReaderAudio(error.message || "Story voice generation failed.");
+  } finally {
+    if (readButton) readButton.disabled = false;
+    renderStoryReaderState(project);
+  }
+}
+
+function formatAudioTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+}
+
+function updateStoryReaderTime() {
+  const audio = document.querySelector("#storyReaderAudio");
+  const time = document.querySelector("#storyReaderTime");
+  if (!audio || !time) return;
+  time.textContent = `${formatAudioTime(audio.currentTime)} / ${formatAudioTime(audio.duration)}`;
+}
+
+function clearFullStory(project) {
+  if (!window.confirm("Clear the full story, context, summary, possible outcomes and generated voice? Existing scene cards will stay.")) return;
+  resetStoryReaderAudio();
+  project.storyDraft = {
+    title: project.title || "My OPREALM Story",
+    story: "",
+    context: "",
+    summary: "",
+    possibleOutcomes: [],
+    chapters: [],
+    scenePlan: [],
+    status: "ready",
+    approved: false,
+    sceneCount: 0,
+    updatedAt: new Date().toISOString(),
+  };
+  writeStoryboardProject(project);
+  rerenderStoryboard(project);
+  const status = document.querySelector("#fullStoryStatus");
+  if (status) status.textContent = "Story cleared. Your characters, world and existing scene cards were kept.";
+}
+
+function lowerStoryText(value) {
+  return cleanStoryText(value).toLowerCase();
+}
+
+function isGenericStoryIdea(value) {
+  const text = lowerStoryText(value);
+  if (!text) return true;
+  return [
+    /help me build/,
+    /playable game/,
+    /\bbuild this\b/,
+    /\bmake this\b/,
+    /\bcreate (a|the)?\s*game\b/,
+    /\bturn this .*game\b/,
+    /\bmy awesome story\b/,
+    /\buntitled\b/,
+    /\bnew story\b/,
+  ].some((pattern) => pattern.test(text));
+}
+
+function storyTraitPhrase(traits = []) {
+  const cleanTraits = traits
+    .map((trait) => cleanStoryText(trait).toLowerCase())
+    .filter(Boolean)
+    .slice(0, 4);
+  return compactList(cleanTraits, "brave and curious");
+}
+
+function isNoPet(value) {
+  return /^(none|no\s+pet|no\s+companion|custom\s+pet)$/i.test(cleanStoryText(value));
+}
+
+function isGenericStoryObject(item = {}) {
+  const name = lowerStoryText(item.name);
+  if (!name || /^(none|object)$/i.test(name)) return true;
+  if (/^custom (object|pet)$/i.test(name)) return true;
+  return /^(backpack|bag|goggles|hat|cap|scarf|gloves|boots|jacket|cloak|map|key)$/i.test(name);
+}
+
+function storyObjectName(item = {}) {
+  const name = cleanStoryText(item.name);
+  if (!name || isGenericStoryObject(item)) return "";
+  return name;
+}
+
+function storyWorldPremise(world = {}, project = {}) {
+  const options = [
+    world.description,
+    world.hook,
+    world.prompt,
+    project.originalIdea,
+    project.idea,
+    project.sparkIdea,
+  ].map((value) => cleanStoryText(value)).filter((value) => value && !isGenericStoryIdea(value));
+  const premise = options[0] || "";
+  if (premise) return normalizeWorldPremise(premise);
+  const place = cleanStoryText(world.name || project.title, "the story world");
+  return `a mystery is unfolding across ${place}`;
+}
+
+function normalizeWorldPremise(value) {
+  let premise = cleanStoryText(value).replace(/^["']|["']$/g, "").replace(/[.!?]+$/, "");
+  premise = premise
+    .replace(/^(please\s+)?(create|make|build|generate|design)\s+(me\s+)?(a\s+)?world\s+(where|that|with|about)\s+/i, "")
+    .replace(/^(a\s+)?world\s+(where|that|with|about)\s+/i, "")
+    .replace(/^where\s+/i, "")
+    .trim();
+  return premise || "a mystery is unfolding";
+}
+
+function storyProp(project, world) {
+  const namedObject = activeObjects(project)
+    .filter((item) => !/pet|companion/i.test(cleanStoryText(item.kind)))
+    .map(storyObjectName)
+    .find(Boolean);
+  return namedObject || "";
+}
+
+function storyCompanion(character, objects) {
+  const selectedPet = cleanStoryText(character?.pet);
+  const customPet = cleanStoryText(character?.customPet);
+  if (/^custom pet$/i.test(selectedPet)) {
+    return /^(custom\s+pet|none|no\s+pet)$/i.test(customPet) ? "" : customPet;
+  }
+  if (selectedPet && !isNoPet(selectedPet)) return selectedPet;
+  const companion = (objects || []).find((item) => {
+    const name = cleanStoryText(item.name);
+    return name && !isNoPet(name) && /pet|companion|friend|ally/i.test(name) && !isGenericStoryObject(item);
+  });
+  return cleanStoryText(companion?.name);
+}
+
+function storyNounPhrase(value) {
+  const text = cleanStoryText(value);
+  if (!text) return "a troubling sign";
+  if (/^(a|an|the)\s+/i.test(text)) return text;
+  return `the ${text}`;
+}
+
+function sentenceStart(value) {
+  const text = cleanStoryText(value);
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "";
+}
+
+function storySettings(project = {}) {
+  return {
+    ...STORY_DIRECTION_DEFAULTS,
+    ...(project.storySettings || {}),
+  };
+}
+
+function hashStoryValue(value) {
+  return Array.from(cleanStoryText(value, "oprealm")).reduce((hash, character) => {
+    return ((hash << 5) - hash + character.charCodeAt(0)) | 0;
+  }, 0);
+}
+
+function pickStoryOption(options, seed, offset = 0) {
+  const index = Math.abs(hashStoryValue(`${seed}:${offset}`)) % options.length;
+  return options[index];
+}
+
+function internalStoryDirection(project = {}, settings = storySettings(project)) {
+  const seed = `${project.id || project.title || "story"}:${settings.storyType}:${settings.endingType}:${settings.lessonTheme}`;
+  return {
+    structure: pickStoryOption(STORY_INTERNAL_OPTIONS.structures, seed, 1),
+    tone: pickStoryOption(STORY_INTERNAL_OPTIONS.tones, seed, 2),
+    conflict: pickStoryOption(STORY_INTERNAL_OPTIONS.conflicts, seed, 3),
+  };
+}
+
+function storyTypeLabel(type) {
+  return ({
+    "epic-quest": "an epic quest",
+    mystery: "a mystery adventure",
+    "creature-rescue": "a creature rescue",
+    "funny-adventure": "a funny adventure",
+    "hero-origin": "a hero origin story",
+  })[type] || "an epic quest";
+}
+
+function endingInstruction(type) {
+  return ({
+    happy: "ends with hope, repair and a clear win for the hero",
+    surprise: "ends with a warm twist that makes the earlier clues feel clever",
+    cliffhanger: "solves the main problem but opens one exciting door for the next adventure",
+    bittersweet: "ends with victory, but also a small sacrifice that makes the lesson feel real",
+  })[type] || "ends with hope, repair and a clear win for the hero";
+}
+
+function endingNarrative(seed, details) {
+  return ({
+    happy: `Morning light returns to ${seed.place} as the repaired systems come alive without harming the world below. ${seed.hero} watches former rivals rebuild side by side, while ${details.creature} carries the first supplies across the reopened path.`,
+    surprise: `When the danger finally falls silent, ${details.elder} reveals that the oldest warning was never meant to keep heroes out; it was waiting for someone willing to bring everyone in together. A newly opened passage glows beneath ${details.landmark}, marked with ${seed.hero}'s name.`,
+    cliffhanger: `${seed.place} begins to recover, but a final signal pulses from beyond ${details.finalPlace}. ${seed.hero} looks toward the unexplored horizon as the guardian creature answers with a low call, and somewhere far away another signal answers back.`,
+    bittersweet: `${seed.place} is safe, though ${details.finalPlace} cannot be restored. At sunrise, the people gather stones from its ruins and build a smaller shelter together. ${seed.hero} leaves one broken piece at the entrance, then walks home beside the friends who survived.`,
+  })[seed.settings.endingType] || `Morning light returns to ${seed.place}. ${seed.hero} watches the people begin rebuilding together while the last alarms fade into birdsong.`;
+}
+
+function themeLesson(theme, character = {}) {
+  return ({
+    courage: "courage means doing the right thing even when the path feels frightening",
+    friendship: "friendship grows when people choose trust over fear",
+    teamwork: "teamwork can solve problems no one can solve alone",
+    creativity: "creative thinking can turn impossible problems into new paths",
+    nature: "protecting nature means listening to the living world before trying to control it",
+  })[theme] || storyMoralForCharacter(character);
+}
+
+function conflictPhrase(conflict, details) {
+  return ({
+    "broken-world": `${details.machine} is failing because the world has been forced to hide an old wound`,
+    "ancient-secret": `${details.landmark} is guarding a secret that was buried for the wrong reason`,
+    "rival-pressure": `${details.people} are being pushed toward a fight by someone who profits from fear`,
+    "lost-friend": `${details.ally} is searching for someone taken by the danger spreading through the realm`,
+    "moral-choice": `the quickest way to win would also hurt the very world ${details.people} are trying to save`,
+  })[conflict] || `${details.machine} is failing because the world has been forced to hide an old wound`;
+}
+
+function storyTypeFocus(seed, details) {
+  return ({
+    "epic-quest": `${seed.hero} is stepping into a legendary quest where every choice raises the stakes.`,
+    mystery: `${seed.hero} is entering a mystery of clues, suspects and discoveries, where every answer opens a sharper question.`,
+    "creature-rescue": `The emotional center is rescuing ${details.creature} and learning why the creature matters to the whole world.`,
+    "funny-adventure": `${seed.hero} is caught in a playful adventure where strange mistakes keep revealing serious truths.`,
+    "hero-origin": `${seed.hero} is becoming the kind of hero this world needs, one choice at a time.`,
+  })[seed.settings.storyType] || `${seed.hero} is stepping into a legendary quest where every choice raises the stakes.`;
+}
+
+function firstStoryGoal(seed, details) {
+  return ({
+    "epic-quest": `reach ${details.finalPlace} before ${details.danger} spreads beyond control`,
+    mystery: `discover who woke the danger beneath the canopy and why the clues keep pointing back to ${details.landmark}`,
+    "creature-rescue": `find and protect ${details.creature} before fear turns the world against it`,
+    "funny-adventure": `survive a chain of ridiculous mistakes that accidentally reveal the real danger`,
+    "hero-origin": `prove that ${seed.hero} can protect ${seed.place} without losing the person ${seed.hero} already is`,
+  })[seed.settings.storyType] || `reach ${details.finalPlace} before ${details.danger} spreads beyond control`;
+}
+
+function storyWorldDetails(seed) {
+  const text = lowerStoryText(`${seed.place} ${seed.worldPremise} ${seed.worldPrompt}`);
+  if (/amazon|jungle|warrior|myth|creature|future|tech/.test(text)) {
+    return {
+      people: "the warrior clans",
+      elder: "a scarred guardian queen",
+      ally: "a young sky-hawk rider",
+      creature: "a feathered river serpent",
+      smallCreature: "glowing glass-wing insects",
+      landmark: "the vine-wrapped signal temple",
+      hiddenPlace: "the flooded root-catacombs",
+      machine: "an ancient solar engine",
+      danger: "a swarm of silent drones waking beneath the canopy",
+      treasure: "the heart-core of the jungle",
+      finalPlace: "the storm-lit crown temple",
+    };
+  }
+  if (/robot|drone|machine|future|tech|neon|city/.test(text)) {
+    return {
+      people: "the hidden inventors",
+      elder: "an old engineer with silver hands",
+      ally: "a nervous repair bot",
+      creature: "a huge machine guardian",
+      smallCreature: "sparks of living code",
+      landmark: "the broken signal tower",
+      hiddenPlace: "the engine tunnels below the city",
+      machine: "the central memory core",
+      danger: "machines repeating an ancient command",
+      treasure: "the lost command key",
+      finalPlace: "the highest relay station",
+    };
+  }
+  if (/magic|spell|portal|crystal|dragon|myth/.test(text)) {
+    return {
+      people: "the scattered villagers",
+      elder: "a keeper of old spells",
+      ally: "a brave apprentice",
+      creature: "a wounded moon dragon",
+      smallCreature: "lantern sprites",
+      landmark: "the cracked crystal gate",
+      hiddenPlace: "the library under the hill",
+      machine: "the sleeping portal",
+      danger: "shadows leaking through the old magic",
+      treasure: "the crystal heart",
+      finalPlace: "the tower at the edge of dawn",
+    };
+  }
+  return {
+    people: "the people of the realm",
+    elder: "a watchful guardian",
+    ally: "an unexpected ally",
+    creature: "a strange creature",
+    smallCreature: "tiny lights in the air",
+    landmark: "the oldest landmark",
+    hiddenPlace: "a hidden chamber beneath the path",
+    machine: "the ancient mechanism",
+    danger: "a danger that has been waiting in silence",
+    treasure: "the heart of the mystery",
+    finalPlace: "the place where the whole world holds its breath",
+  };
+}
+
+function possessiveName(name) {
+  const hero = cleanStoryText(name, "the hero");
+  return /s$/i.test(hero) ? `${hero}'` : `${hero}'s`;
+}
+
+function storyWant(seed, details) {
+  return ({
+    "epic-quest": `to prove they can protect ${seed.place}`,
+    mystery: "to find the answer before anyone else gets hurt",
+    "creature-rescue": `to save ${details.creature} without turning the world against it`,
+    "funny-adventure": "to fix the mess before it becomes a disaster",
+    "hero-origin": "to be brave enough for the role they never asked for",
+  })[seed.settings.storyType] || `to protect ${seed.place}`;
+}
+
+function storyEmotionalNeed(seed) {
+  return ({
+    courage: "choosing courage even while scared",
+    friendship: "trusting friendship instead of doing everything alone",
+    teamwork: "letting others help carry the story",
+    creativity: "using imagination when the obvious answer fails",
+    nature: "listening to the living world instead of trying to control it",
+  })[seed.settings.lessonTheme] || seed.moral;
+}
+
+function storyFalseBelief(seed, details) {
+  return ({
+    courage: `${seed.hero} believed bravery meant never hesitating`,
+    friendship: `${seed.hero} believed asking for help would make them less heroic`,
+    teamwork: `${seed.hero} believed the fastest answer was the best answer`,
+    creativity: `${seed.hero} believed the rules of the problem could not be changed`,
+    nature: `${seed.hero} believed ${seed.place} needed rescuing before it needed understanding`,
+  })[seed.settings.lessonTheme] || `${seed.hero} believed winning quickly mattered most`;
+}
+
+function storyPressure(seed, details) {
+  return ({
+    "broken-world": `${seed.place} is breaking because people tried to hide an old mistake instead of healing it`,
+    "ancient-secret": `the truth was buried to keep everyone calm, but silence has made the danger stronger`,
+    "rival-pressure": `${details.people} are being pushed into conflict by fear and half-truths`,
+    "lost-friend": `${details.ally} is searching for someone lost because nobody listened when the warning first came`,
+    "moral-choice": `the easiest victory would protect today while damaging tomorrow`,
+  })[seed.direction.conflict] || `${seed.place} is hurting because fear has been mistaken for wisdom`;
+}
+
+function storyChapterBeat(seed, chapterIndex, middleCount) {
+  const details = storyWorldDetails(seed);
+  const openingProblem = seed.prop
+    ? `${seed.hero} tries to ignore ${storyNounPhrase(seed.prop)}, but it appears again near ${details.landmark}`
+    : `${seed.hero} receives an urgent warning near ${details.landmark}`;
+  const companionText = seed.companion ? ` and ${seed.companion}` : "";
+  const storyWantText = storyWant(seed, details);
+  const pressure = storyPressure(seed, details);
+  const beats = [
+    {
+      title: "The Promise That Pulls",
+      prompt: `${openingProblem}. ${sentenceStart(details.ally)} arrives breathless, carrying news that ${details.danger} will reach the settlements before nightfall. When a distant alarm echoes through ${seed.place}, ${seed.hero} promises to ${storyWantText.replace(/^to\s+/i, "")} and follows the rider toward the forbidden path.`,
+      mood: "Mystery",
+      camera: "Medium Shot",
+    },
+    {
+      title: "The Choice That Costs",
+      prompt: `${seed.hero}${companionText} discovers a shortcut across a collapsing bridge, but cries rise from below where a trapped child clings to the roots. ${seed.hero} abandons the shortcut and climbs down. By the time the child is safe, the bridge has fallen and the dark shapes in the distance are much closer.`,
+      mood: "Action",
+      camera: "Drone Shot",
+    },
+    {
+      title: "The Truth Beneath The Fear",
+      prompt: `Inside ${details.hiddenPlace}, ${seed.hero} finds old damage hidden beneath layers of hurried repairs. A message left by ${details.elder} reveals that ${pressure}. Footsteps approach before ${seed.hero} can read the final line, forcing a choice between hiding the evidence and carrying it into the open.`,
+      mood: "Wonder",
+      camera: "Close Up",
+    },
+    {
+      title: "The Misunderstood Guardian",
+      prompt: `${sentenceStart(details.creature)} bursts from the shadows and blocks the only exit. While everyone prepares to fight, ${seed.hero} notices a wounded young creature trembling behind it. ${seed.hero} lowers their guard and treats the wound. The guardian slowly steps aside, then turns to lead the way deeper underground.`,
+      mood: "Epic",
+      camera: "Low Angle",
+    },
+    {
+      title: "The Almost-Win",
+      prompt: `${seed.hero} reaches ${details.treasure} and activates its ancient controls. Across ${seed.place}, the alarms fall silent and cheering begins. Then cracks race through the chamber floor, revealing roots and waterways withering below. The victory is working by draining the life from everything hidden beneath the city.`,
+      mood: "Mystery",
+      camera: "Wide Shot",
+    },
+    {
+      title: "The Harder Good",
+      prompt: `${seed.hero} cannot hold the failing controls and rescue the people below at the same time. After one painful hesitation, ${seed.hero} gives the controls to ${details.ally} and descends into the breaking chamber. The machine shudders, but the ally keeps it stable long enough for everyone to escape.`,
+      mood: "Emotional",
+      camera: "Medium Shot",
+    },
+    {
+      title: "When Everyone Turns Away",
+      prompt: `Fear spreads through ${seed.place}, and people who should be helping begin blaming one another. ${seed.hero} could keep chasing the goal alone, but instead steps into the argument and tells the truth, even though staying quiet would be easier and safer.`,
+      mood: "Mystery",
+      camera: "Wide Shot",
+    },
+    {
+      title: "The Wound In The Story",
+      prompt: `${seed.hero} brings the hidden evidence before ${details.people}. The chamber falls silent as old rivals recognise their own marks among the failed repairs. Instead of accusing them, ${seed.hero} places the evidence where everyone can see it and asks each group to reveal the part of the truth they kept hidden.`,
+      mood: "Emotional",
+      camera: "Close Up",
+    },
+    {
+      title: "The Chase That Reveals Character",
+      prompt: `${details.danger} breaks through the outer defences and sends the crowd running. ${seed.hero} races toward ${details.finalPlace}, doubling back twice to pull stranded families from collapsing paths. Each rescue costs ground, until the guardian creature arrives and carries the last group to safety.`,
+      mood: "Action",
+      camera: "Drone Shot",
+    },
+    {
+      title: "The Quiet Before The Choice",
+      prompt: `At the foot of ${details.finalPlace}, ${seed.hero} watches the lights of ${seed.place} flicker below. The easy solution is still within reach, but so are the voices of the people who chose to stand together. ${seed.hero} takes one steady breath, turns away from the shortcut and enters the storm.`,
+      mood: "Wonder",
+      camera: "Wide Shot",
+    },
+    {
+      title: "The Answer Was The Lesson",
+      prompt: `The final mechanism has more controls than one person can reach. ${seed.hero} calls to the rider, the rescued families, the former rivals and the guardian creature. They take their places around the chamber. For the first time, every part moves together, and the locked path to the heart of the danger opens.`,
+      mood: "Mystery",
+      camera: "Close Up",
+    },
+  ];
+  if (middleCount <= 2) {
+    return chapterIndex === 0 ? beats[0] : beats[10];
+  }
+  const sourceIndex = Math.min(beats.length - 1, Math.floor((chapterIndex / Math.max(1, middleCount - 1)) * (beats.length - 1)));
+  return beats[sourceIndex];
 }
 
 function storyMoralForCharacter(character = {}) {
@@ -519,60 +1446,73 @@ function storySeed(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   const objects = activeObjects(project);
-  const hero = character.name || "the hero";
-  const place = world.name || project.title || "the story world";
-  const traits = compactList((character.traits || []).slice(0, 4), "brave and curious");
+  const settings = storySettings(project);
+  const direction = internalStoryDirection(project, settings);
+  const hero = cleanStoryText(character.name, "the hero");
+  const place = cleanStoryText(world.name || project.title, "the story world");
+  const traits = storyTraitPhrase(character.traits || []);
   const style = character.masterStyle || project.globalStyle || "cinematic kid-friendly";
-  const prop = objects[0]?.name || "a mysterious clue";
-  const companion = (character.pet && character.pet !== "None") ? character.pet : objects.find((item) => /pet|companion|friend/i.test(item.name || ""))?.name || "";
+  const prop = storyProp(project, world);
+  const companion = storyCompanion(character, objects);
   const worldPrompt = world.description || world.prompt || world.hook || "a vivid, safe world full of discovery";
-  const originalIdea = project.originalIdea || project.idea || project.sparkIdea || project.title || "an original OPREALM adventure";
-  const moral = storyMoralForCharacter(character);
-  return { character, world, hero, place, traits, style, prop, companion, worldPrompt, originalIdea, moral };
+  const worldPremise = storyWorldPremise(world, project);
+  const moral = themeLesson(settings.lessonTheme, character);
+  return { character, world, hero, place, traits, style, prop, companion, worldPrompt, worldPremise, moral, settings, direction };
 }
 
 function storyPlanForCount(project, count) {
   const seed = storySeed(project);
   const labels = storyArcForCount(count);
   const lastChapterIndex = labels.findLastIndex((label) => /^Chapter/i.test(label));
+  const companionText = seed.companion ? ` and ${seed.companion}` : "";
+  const details = storyWorldDetails(seed);
+  const storyWantText = storyWant(seed, details);
+  const emotionalNeed = storyEmotionalNeed(seed);
+  const pressure = storyPressure(seed, details);
+  const middleCount = labels.filter((label) => /^Chapter/i.test(label)).length;
+  let chapterIndex = 0;
   return labels.map((label, index) => {
     const sceneNumber = index + 1;
     const isIntro = index === 0;
     const isClimax = label === "Climax";
     const isEnding = label === "Ending";
     const isLastChapter = index === lastChapterIndex;
-    const previousLabel = labels[index - 1] || "the spark";
-    const nextLabel = labels[index + 1] || "the ending";
     let title = `${label}: ${seed.hero} enters ${seed.place}`;
     let prompt = "";
     let mood = "Wonder";
     let camera = "Wide Shot";
 
     if (isIntro) {
-      title = "Intro: The spark appears";
-      prompt = `${seed.hero} enters ${seed.place}. Establish the world from the idea "${seed.originalIdea}". Show the hero's ${seed.traits} personality, the saved outfit, colors and ${seed.style} art style. Introduce a clear mystery or problem that makes the story worth following.`;
+      title = "Intro: A Promise Begins";
+      const firstHelpMoment = seed.prop
+        ? `${storyNounPhrase(seed.prop)} lies abandoned beside the path`
+        : `${details.ally} stumbles from the trees, exhausted and afraid`;
+      prompt = `${seed.hero} arrives in ${seed.place} as ${details.smallCreature} scatter above the rooftops and a warning siren sounds from ${details.landmark}. ${firstHelpMoment}. Before ${seed.hero} can ask what happened, the ground trembles and ${details.ally} points toward ${details.finalPlace}, where ${details.danger} has begun to wake.`;
       mood = "Wonder";
       camera = "Wide Shot";
     } else if (isClimax) {
-      title = "Climax: The brave choice";
-      prompt = `${seed.hero} reaches the biggest challenge in ${seed.place}. Build directly from ${previousLabel}. The problem should feel exciting but kid-safe. ${seed.hero} must make a brave choice that uses their ${seed.traits} traits instead of just fighting. Show high emotion, clear action and the same consistent character design.`;
+      title = "Climax: The Brave Choice";
+      prompt = `${seed.hero}${companionText} reaches the controls at the heart of ${details.finalPlace}. One lever would stop ${details.danger} instantly, but the warning map shows it would destroy ${details.hiddenPlace} and everyone still inside. ${seed.hero} refuses the lever, opens the sealed control ring and calls every ally to a different station as the chamber begins to collapse.`;
       mood = "Epic";
       camera = "Low Angle";
     } else if (isEnding) {
-      title = "Ending: The world changes";
-      prompt = `${seed.hero} resolves the story after the climax. Show the consequence of the brave choice, give the adventure a satisfying ending, and make the moral clear: ${seed.moral}. Leave the audience feeling proud, hopeful and ready to create the next story. Preserve the same world, outfit, face, colors and ${seed.style} style.`;
+      title = "Ending: What The Hero Carries";
+      prompt = endingNarrative(seed, details);
       mood = "Emotional";
       camera = "Medium Shot";
     } else if (isLastChapter) {
-      title = `${label}: The secret is revealed`;
-      prompt = `${seed.hero} discovers the truth behind the main mystery in ${seed.place}. The discovery should connect ${seed.prop} ${seed.companion ? `and ${seed.companion}` : ""} to the coming climax. Build naturally from ${previousLabel} and set up ${nextLabel}. Keep the story readable, cinematic and safe for ages 6+.`;
+      const beat = storyChapterBeat(seed, Math.max(0, middleCount - 1), middleCount);
+      title = `${label}: ${beat.title}`;
+      prompt = beat.prompt;
       mood = "Mystery";
       camera = "Close Up";
     } else {
-      title = `${label}: The adventure grows`;
-      prompt = `${seed.hero} follows the clue deeper into ${seed.place}. Add a new challenge, surprising ally, funny obstacle or discovery that grows from ${previousLabel}. Use ${seed.prop} as a useful story detail. End the scene with a question or decision that pushes toward ${nextLabel}.`;
-      mood = index % 2 ? "Mystery" : "Action";
-      camera = index % 2 ? "Medium Shot" : "Drone Shot";
+      const beat = storyChapterBeat(seed, chapterIndex, middleCount);
+      title = `${label}: ${beat.title}`;
+      prompt = beat.prompt;
+      mood = beat.mood;
+      camera = beat.camera;
+      chapterIndex += 1;
     }
 
     return {
@@ -580,6 +1520,17 @@ function storyPlanForCount(project, count) {
       arcRole: label,
       title,
       prompt,
+      planInternal: {
+        storyType: seed.settings.storyType,
+        endingType: seed.settings.endingType,
+        lessonTheme: seed.settings.lessonTheme,
+        structure: seed.direction.structure,
+        tone: seed.direction.tone,
+        conflict: seed.direction.conflict,
+        goal: storyWantText,
+        emotionalNeed,
+        pressure,
+      },
       mood,
       camera,
     };
@@ -590,13 +1541,39 @@ function storyPromptForIndex(project, index, previousPrompt = "") {
   const count = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || MIN_STORY_SCENES);
   const plan = storyPlanForCount(project, count)[index] || storyPlanForCount(project, index + 1)[index];
   if (!previousPrompt || !plan?.prompt) return plan?.prompt || "";
-  return `${plan.prompt} Build naturally from the previous scene: ${previousPrompt}`;
+  return `After the previous moment, ${plan.prompt.charAt(0).toLowerCase()}${plan.prompt.slice(1)}`;
 }
 
 function sceneTitleFromPrompt(prompt, fallback) {
   const clean = String(prompt || "").replace(/\s+/g, " ").trim();
   if (!clean) return fallback;
   return clean.split(/[.!?]/)[0].split(" ").slice(0, 7).join(" ");
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildSceneImagePrompt(project, scene, sceneIndex) {
+  const character = activeCharacter(project);
+  const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
+  const storyText = cleanStoryText(scene.prompt, storyPromptForIndex(project, sceneIndex));
+  const hero = cleanStoryText(character.name, "the hero");
+  const place = cleanStoryText(world.name, "the story world");
+  const explicitObjects = (project.objects || [])
+    .filter((item) => (scene.selectedObjectIds || []).includes(item.id))
+    .map(storyObjectName)
+    .filter((name) => name && new RegExp(`\\b${escapeRegExp(name)}\\b`, "i").test(storyText));
+  return [
+    `Create a cinematic visual of this exact story moment: ${storyText}`,
+    `Show ${hero} acting inside ${place}. Express the moment through pose, facial expression, interaction, environment changes and clear visible action.`,
+    `Camera: ${scene.camera || "Wide Shot"}. Mood: ${scene.mood || "Wonder"}.`,
+    explicitObjects.length
+      ? `Include only these story objects because the passage explicitly names them: ${explicitObjects.join(", ")}.`
+      : "Do not add a featured object, held prop, clue, crystal, orb or invented item unless the story passage explicitly names one.",
+    "Do not render narration, chapter labels, lesson text, UI, captions or written words.",
+    "Translate abstract emotions into visible cinematic storytelling without changing the scene events.",
+  ].join("\n");
 }
 
 function ensureSceneList(project) {
@@ -651,17 +1628,18 @@ function nudgeScene(project, sceneId, direction) {
   return project;
 }
 
-function addStoryScene(project, prompt = "") {
+function addStoryScene(project, prompt = "", { autoGeneratePrompt = false } = {}) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   const previousPrompt = (project.scenes || []).at(-1)?.prompt || "";
-  const nextPrompt = prompt || storyPromptForIndex(project, project.scenes?.length || 0, previousPrompt);
+  const nextPrompt = prompt || (autoGeneratePrompt ? storyPromptForIndex(project, project.scenes?.length || 0, previousPrompt) : "");
+  const sceneNumber = (project.scenes || []).length + 1;
   project.scenes = [
     ...(project.scenes || []),
     {
       id: uid("scene"),
-      order: (project.scenes || []).length + 1,
-      title: sceneTitleFromPrompt(nextPrompt, `Scene ${(project.scenes || []).length + 1}`),
+      order: sceneNumber,
+      title: sceneTitleFromPrompt(nextPrompt, `Scene ${sceneNumber}`),
       prompt: nextPrompt,
       selectedCharacterIds: character.id ? [character.id] : [],
       selectedWorldId: world.id || "",
@@ -670,6 +1648,26 @@ function addStoryScene(project, prompt = "") {
     },
   ];
   return project;
+}
+
+function clearStoryboardScenes(project) {
+  const character = activeCharacter(project);
+  const world = activeWorld(project);
+  project.scenes = Array.from({ length: MIN_STORY_SCENES }, (_, index) => ({
+    id: uid("scene"),
+    order: index + 1,
+    title: `Scene ${index + 1}`,
+    prompt: "",
+    selectedCharacterIds: character.id ? [character.id] : [],
+    selectedWorldId: world.id || "",
+    selectedObjectIds: [],
+    status: "draft",
+    imageError: "",
+    completed: false,
+  }));
+  project.storyArc = [];
+  project.moral = "";
+  return normalizeSceneOrders(project);
 }
 
 function storyboardReferenceImages(project, scene) {
@@ -683,13 +1681,502 @@ function storyboardReferenceImages(project, scene) {
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   (scene.selectedCharacterIds || []).forEach((id) => {
     const character = characterById.get(id);
-    addReference(character?.imageUrl, character?.name || "Character");
+    addReference(
+      character?.imageUrl || character?.generatedImageUrl || character?.recipe?.generation?.generatedImageUrl,
+      character?.name || "Character",
+    );
   });
 
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
-  addReference(world?.imageUrl, world?.name || "World");
+  addReference(world?.imageUrl || world?.generatedImageUrl, world?.name || "World");
 
   return references.slice(0, 4);
+}
+
+function buildSceneVideoPrompt(project, scene, sceneIndex) {
+  const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
+  const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
+  const characters = (scene.selectedCharacterIds || []).map((id) => characterById.get(id)).filter(Boolean);
+  const character = characters[0] || activeCharacter(project);
+  const prompt = cleanStoryText(scene.prompt, storyPromptForIndex(project, sceneIndex));
+  const previousScene = project.scenes?.[sceneIndex - 1];
+  const nextScene = project.scenes?.[sceneIndex + 1];
+  const shot = sceneVideoShotRecipe(project, scene, sceneIndex, { character, world, prompt, previousScene, nextScene });
+  return [
+    "Create an 8-second cinematic movie shot from the supplied image for OPRealm.",
+    "Use the supplied image as the exact first frame and visual anchor. Preserve the character identity, world, outfit, colors, art style, and family-friendly tone.",
+    "The result must feel like a polished fantasy/adventure movie moment, not a lightly animated photo.",
+    "",
+    "STORY MOMENT:",
+    `Scene ${sceneIndex + 1}: ${cleanStoryText(scene.title, `Scene ${sceneIndex + 1}`)}`,
+    prompt,
+    previousScene?.prompt ? `Previous scene context: ${cleanStoryText(previousScene.prompt, "")}` : "",
+    nextScene?.prompt ? `Next scene direction: ${cleanStoryText(nextScene.prompt, "")}` : "",
+    "",
+    "CINEMATIC ACTION:",
+    shot.primaryAction,
+    shot.environmentReaction,
+    shot.characterEmotion,
+    "",
+    "SHOT TIMING:",
+    `0-2 seconds: ${shot.openingBeat}`,
+    `2-6 seconds: ${shot.middleBeat}`,
+    `6-8 seconds: ${shot.endingBeat}`,
+    "",
+    "CAMERA AND LIGHTING:",
+    shot.cameraMove,
+    shot.lightingCue,
+    "Use depth, parallax, foreground/background motion, and dramatic reveal. Camera movement supports the action; it must not be the only motion.",
+    "",
+    "MOTION PRIORITIES:",
+    "1. The main character performs a clear physical action.",
+    "2. The world visibly reacts to that action.",
+    "3. Lighting changes or intensifies during the moment.",
+    "4. Secondary motion adds life: hair, cape, fabric, dust, leaves, water, magic, technology, creatures, sparks, or atmospheric particles.",
+    "",
+    "STRICT NEGATIVES:",
+    "Do not make this a still-image zoom, slideshow, Ken Burns effect, simple push-in, simple pan, or only moving rocks/particles.",
+    "Do not repeat a generic action where the character picks up, holds, reaches for, or stares at a glowing crystal, orb, gem, clue, signal, or light unless the scene text explicitly says that exact object is being picked up.",
+    "Do not turn every scene into a discovery of a glowing object. Each clip must animate the actual story beat, emotion, conflict, creature, obstacle, conversation, chase, or choice in this specific scene.",
+    "No text overlays, no UI, no logos, no readable words, no gore, no scary realism, no romance, no unsafe behavior, no copyrighted characters.",
+    "Silent visual clip only: no music, no narration, no dialogue, no singing, no sound effects, no spoken words.",
+    "",
+    "STYLE LOCK:",
+    `Mood: ${cleanStoryText(scene.mood, "Wonder")}`,
+    `Camera selector: ${cleanStoryText(scene.camera, "Wide Shot")}`,
+    `World: ${cleanStoryText(world.name || world.description, "OPRealm story world")}`,
+    `Main character: ${cleanStoryText(character.name, "OPRealm hero")}`,
+  ].join("\n");
+}
+
+function sceneVideoShotRecipe(project, scene, sceneIndex, context) {
+  const { character, world, prompt } = context;
+  const hero = cleanStoryText(character?.name, "the hero");
+  const worldName = cleanStoryText(world?.name || world?.description, "the story world");
+  const mood = cleanStoryText(scene.mood, "Wonder");
+  const camera = cleanStoryText(scene.camera, "Wide Shot");
+  const text = String(prompt || "").toLowerCase();
+  const storyType = storySettings(project).storyType || "epic-quest";
+  const action = sceneVideoActionBeat(text, hero);
+  const reaction = sceneVideoEnvironmentReaction(text, worldName);
+  const emotion = sceneVideoEmotionBeat(text, hero, mood);
+  return {
+    primaryAction: action.primary,
+    environmentReaction: reaction,
+    characterEmotion: emotion,
+    openingBeat: sceneVideoOpeningBeat(text, hero),
+    middleBeat: action.middle,
+    endingBeat: sceneVideoEndingBeat(text, hero, storyType, context.nextScene),
+    cameraMove: sceneVideoCameraMove(camera, text, hero),
+    lightingCue: sceneVideoLightingCue(mood, text),
+  };
+}
+
+function sceneVideoMotionInstruction(prompt, character) {
+  const hero = cleanStoryText(character?.name, "the hero");
+  const text = String(prompt || "").toLowerCase();
+  if (/portal|door|gate|signal|glow|light/.test(text)) {
+    return `${hero} notices the glowing signal, leans or steps toward it, and the portal or light pulses with visible energy.`;
+  }
+  if (/creature|dragon|pet|animal|monster|beast/.test(text)) {
+    return `${hero} reacts to the creature while the creature visibly moves, blinks, breathes, turns, or approaches safely.`;
+  }
+  if (/run|chase|escape|dodge|danger|obstacle|block/.test(text)) {
+    return `${hero} makes a clear movement to dodge, step around, climb past, or escape the obstacle while the environment shifts around them.`;
+  }
+  if (/find|discover|clue|secret|notice|investigate/.test(text)) {
+    return `${hero} investigates through expression, movement, observation, and reaction while the environment reveals the story detail without a repeated glowing pickup.`;
+  }
+  if (/fight|battle|challenge|protect|defend/.test(text)) {
+    return `${hero} takes a brave defensive pose or raises a safe story object while energy and background motion build tension.`;
+  }
+  return `${hero} visibly reacts to the scene with a clear gesture, step, turn, reach, or expression change while the world around them moves.`;
+}
+
+function sceneVideoOpeningBeat(text, hero) {
+  if (/run|chase|escape|dodge|danger|obstacle|block|collapse/.test(text)) {
+    return `${hero} is already in motion, reacting to the immediate danger with a clear dodge, sprint, climb, or turn.`;
+  }
+  if (/creature|dragon|pet|animal|monster|beast|serpent/.test(text)) {
+    return `${hero} notices the living creature and shifts posture emotionally before the creature moves.`;
+  }
+  if (/truth|choice|trust|promise|fear|hope|lesson|harder good|sacrifice/.test(text)) {
+    return `${hero} pauses in a tense emotional moment, then makes a visible decision that changes their posture and direction.`;
+  }
+  return `${hero} begins with a clear performance beat: looking, turning, stepping, reacting, or deciding based on the scene story.`;
+}
+
+function sceneVideoActionBeat(text, hero) {
+  if (/\b(picks up|pick up|grabs|takes|holds|lifts)\b.*\b(crystal|gem|orb|clue|signal|light)\b/.test(text)) {
+    return {
+      primary: `${hero} carefully handles the object because the scene explicitly calls for it, reacting with surprise and purpose.`,
+      middle: `The object responds briefly, but the focus stays on ${hero}'s expression, body language, and the story consequence rather than a generic glowing pickup.`,
+    };
+  }
+  if (/portal|door|gate/.test(text)) {
+    return {
+      primary: `${hero} approaches or backs away from the portal or threshold with a clear emotional choice, without picking up any glowing object.`,
+      middle: `The doorway or air around it shifts, opens, ripples, or casts moving light while ${hero} decides what to do next.`,
+    };
+  }
+  if (/creature|dragon|pet|animal|monster|beast/.test(text)) {
+    return {
+      primary: `${hero} turns toward the creature and makes a clear safe interaction: reaching out, stepping back, shielding, or gesturing.`,
+      middle: `The creature visibly moves, blinks, breathes, shifts its head/body, and causes nearby foliage, dust, or light to react.`,
+    };
+  }
+  if (/run|chase|escape|dodge|danger|obstacle|block/.test(text)) {
+    return {
+      primary: `${hero} actively dodges, climbs, steps around, or pushes past the obstacle instead of standing still.`,
+      middle: `The obstacle and environment move in response: stones shift, dust bursts, light flickers, or the path opens while ${hero} completes the action.`,
+    };
+  }
+  if (/find|discover|clue|secret|notice|investigate/.test(text)) {
+    return {
+      primary: `${hero} investigates through performance rather than picking anything up: scanning the scene, reading expressions, following movement, or noticing a change in the environment.`,
+      middle: `The discovery lands through camera focus, shifting background action, character reaction, and atmosphere instead of a repeated glowing crystal or held object.`,
+    };
+  }
+  if (/truth|choice|trust|promise|fear|hope|lesson|harder good|sacrifice/.test(text)) {
+    return {
+      primary: `${hero} makes a visible emotional choice: lowering their guard, stepping between others, turning back to help, or choosing a harder path.`,
+      middle: `The acting carries the moment: shoulders shift, face changes, allies react, and the world quiets or swells around the decision.`,
+    };
+  }
+  if (/fight|battle|challenge|protect|defend/.test(text)) {
+    return {
+      primary: `${hero} takes a brave defensive pose and raises a safe story object or their arms as the challenge builds.`,
+      middle: `Energy, wind, dust, and background motion surge around ${hero}, making the scene feel dramatic without violence or gore.`,
+    };
+  }
+  return {
+    primary: `${hero} performs a visible story action: steps forward, turns, reaches, gestures, reacts, or interacts with the nearest important object.`,
+    middle: `The world responds to ${hero}'s action with moving light, atmosphere, background depth, and at least one object or creature changing position.`,
+  };
+}
+
+function sceneVideoEnvironmentReaction(text, worldName) {
+  if (/tech|robot|drone|future|signal|hologram|glow/i.test(text)) {
+    return `The environment in ${worldName} reacts with holographic light, pulsing panels, hovering particles, and gentle mechanical movement.`;
+  }
+  if (/jungle|forest|amazon|creature|nature|vine|tree/i.test(text)) {
+    return `The environment in ${worldName} reacts with swaying leaves, drifting mist, moving water, fluttering insects, and shafts of light through the trees.`;
+  }
+  if (/portal|magic|crystal|myth|dragon|spell/i.test(text)) {
+    return `The environment in ${worldName} reacts with magical light, floating motes, shimmering air, pulsing symbols, and a visible energy ripple.`;
+  }
+  return `The environment in ${worldName} reacts visibly with moving atmosphere, light, small background motion, and foreground depth.`;
+}
+
+function sceneVideoEmotionBeat(text, hero, mood) {
+  if (/fear|danger|mystery|secret|strange/i.test(`${text} ${mood}`)) {
+    return `${hero}'s expression and body language shift from cautious curiosity to brave focus.`;
+  }
+  if (/funny|silly|surprise/i.test(`${text} ${mood}`)) {
+    return `${hero}'s expression changes with a playful surprise before they take action.`;
+  }
+  if (/epic|challenge|battle|protect/i.test(`${text} ${mood}`)) {
+    return `${hero}'s expression hardens with courage as they commit to the moment.`;
+  }
+  return `${hero}'s expression changes clearly so the shot has an emotional beat, not only environmental motion.`;
+}
+
+function sceneVideoEndingBeat(text, hero, storyType, nextScene) {
+  if (nextScene?.prompt) {
+    return `${hero} ends the shot facing the next discovery or decision, with the final frame pointing toward the next scene.`;
+  }
+  if (/climax|ending|final|truth|reveal/i.test(text)) {
+    return `${hero} holds a strong final pose as the environment settles into a dramatic reveal frame.`;
+  }
+  if (storyType === "mystery") return `${hero} ends by noticing a new clue, creating a clear hook for the next shot.`;
+  return `${hero} ends in a cinematic decision pose, ready for the next story beat.`;
+}
+
+function sceneVideoCameraMove(camera, text, hero) {
+  if (/close/i.test(camera)) return `Camera starts close on ${hero}'s reaction, then subtly pulls back or arcs to reveal the moving story detail.`;
+  if (/low/i.test(camera)) return `Camera uses a heroic low angle with a gentle arc, making ${hero}'s action feel larger and more cinematic.`;
+  if (/drone|wide/i.test(camera)) return `Camera begins wide to show scale, then glides inward just enough to follow ${hero}'s action and the environment reaction.`;
+  if (/pov/i.test(camera)) return `Camera feels like a safe adventure POV, tracking the action while keeping ${hero} and the story detail readable.`;
+  return `Camera makes a controlled cinematic arc around ${hero}, with parallax in foreground and background.`;
+}
+
+function sceneVideoLightingCue(mood, text) {
+  if (/mystery|secret|strange/i.test(`${mood} ${text}`)) return "Lighting shifts from soft shadow into selective cinematic contrast that reveals emotion, danger, or a hidden story consequence without relying on a glowing held object.";
+  if (/action|epic|challenge|battle/i.test(`${mood} ${text}`)) return "Lighting intensifies during the action, adding rim light, sparks, and dramatic contrast.";
+  if (/funny|wonder|magical|dream/i.test(`${mood} ${text}`)) return "Lighting blooms warmly with colorful highlights and a bright magical finish.";
+  return "Lighting visibly changes during the shot, helping the scene feel directed and cinematic.";
+}
+
+function prepareSceneVideoCanvas(project, sceneId) {
+  const sceneIndex = (project.scenes || []).findIndex((item) => item.id === sceneId);
+  const scene = project.scenes?.[sceneIndex];
+  if (!scene) return;
+  if (!scene.generatedImageUrl) {
+    scene.videoStatus = "video_error";
+    scene.videoError = "Generate the scene image before creating video.";
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    return;
+  }
+  scene.mediaMode = "video";
+  if (scene.generatedVideoUrl) {
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    return;
+  }
+  scene.videoStatus = "video_ready";
+  scene.videoError = "";
+  scene.videoDuration = scene.videoDuration || 5;
+  scene.videoPromptInternal = buildSceneVideoPrompt(project, scene, sceneIndex);
+  scene.videoMessage = "The video canvas is ready. The next step is connecting the image-to-video generator.";
+  writeStoryboardProject(project);
+  rerenderStoryboard(project);
+}
+
+async function generateStoryboardSceneVideo(project, sceneId) {
+  project = ensureSceneList(readStoryboardProject());
+  const sceneIndex = (project.scenes || []).findIndex((item) => item.id === sceneId);
+  const scene = project.scenes?.[sceneIndex];
+  if (!scene) return;
+
+  const statusTarget = document.querySelector(`[data-scene-video-status="${CSS.escape(sceneId)}"]`);
+  const buttonTarget = document.querySelector(`[data-bring-scene-to-life="${CSS.escape(sceneId)}"]`);
+  if (!scene.generatedImageUrl) {
+    scene.videoStatus = "video_error";
+    scene.videoError = "Generate the scene image before creating video.";
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    return;
+  }
+  if (scene.generatedVideoUrl) {
+    const shouldRegenerate = window.confirm("Regenerate this scene video? This will keep the original image, replace the current video when the new one is ready, and use Creator credits.");
+    if (!shouldRegenerate) {
+      scene.mediaMode = "video";
+      scene.videoStatus = "complete";
+      writeStoryboardProject(project);
+      rerenderStoryboard(project);
+      return;
+    }
+    scene.previousVideoUrl = scene.generatedVideoUrl;
+    scene.generatedVideoUrl = "";
+    scene.videoRegenerationNonce = Date.now();
+  }
+
+  scene.mediaMode = "video";
+  scene.videoStatus = "generating";
+  scene.videoError = "";
+  scene.videoDuration = 8;
+  scene.videoPromptInternal = buildSceneVideoPrompt(project, scene, sceneIndex);
+  scene.videoMessage = "Preparing the scene image for video...";
+  writeStoryboardProject(project);
+  rerenderStoryboard(project);
+  if (buttonTarget) {
+    buttonTarget.disabled = true;
+    buttonTarget.textContent = "Creating Video...";
+  }
+  if (statusTarget) statusTarget.textContent = "Preparing scene video...";
+
+  try {
+    const imageDataUrl = await prepareVideoReferenceImage(scene.generatedImageUrl);
+    const response = await fetch("/api/story-scene-video", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-idempotency-key": `scene-video:${scene.id}:${dataUrlSize(scene.generatedImageUrl)}:${scene.videoRegenerationNonce || "first"}:${String(scene.prompt || "").slice(0, 80)}`,
+      },
+      body: JSON.stringify({
+        sceneId: scene.id,
+        sceneTitle: scene.title || `Scene ${sceneIndex + 1}`,
+        prompt: scene.videoPromptInternal,
+        imageDataUrl,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.jobId) {
+      const prefix = response.status === 401
+        ? "Please log in before creating scene video."
+        : response.status === 402
+          ? "Not enough Creator credits for this scene video."
+          : "";
+      throw new Error(prefix || result.error || `Scene video generation failed (${response.status || "network"}).`);
+    }
+
+    const latestProject = ensureSceneList(readStoryboardProject());
+    const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId);
+    if (!latestScene) throw new Error("Scene was removed before the video started.");
+    latestScene.mediaMode = scene.mediaMode === "image" ? "image" : "video";
+    latestScene.videoStatus = "generating";
+    latestScene.videoJobId = result.jobId;
+    latestScene.providerVideoId = result.providerVideoId || "";
+    latestScene.videoRegenerationNonce = scene.videoRegenerationNonce || latestScene.videoRegenerationNonce || "";
+    latestScene.videoMessage = result.status === "queued" ? "Video queued. This can take a few minutes." : "Video rendering...";
+    if (result.videoUrl) {
+      latestScene.generatedVideoUrl = result.videoUrl;
+      latestScene.previousVideoUrl = "";
+      latestScene.videoRegenerationNonce = "";
+      latestScene.videoStatus = "complete";
+      latestScene.videoMessage = "Scene video ready.";
+      writeStoryboardProject(latestProject);
+      rerenderStoryboard(latestProject);
+      return;
+    }
+    writeStoryboardProject(latestProject);
+    rerenderStoryboard(latestProject);
+    pollSceneVideoJob(sceneId, result.jobId, Number(result.pollAfterMs || 10000));
+  } catch (error) {
+    const latestProject = ensureSceneList(readStoryboardProject());
+    const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId) || scene;
+    latestScene.mediaMode = "video";
+    latestScene.videoStatus = "video_error";
+    latestScene.videoError = error.message || "Could not create scene video.";
+    latestScene.videoMessage = "";
+    writeStoryboardProject(latestProject);
+    rerenderStoryboard(latestProject);
+    const errorTarget = document.querySelector(`[data-scene-video-status="${CSS.escape(sceneId)}"]`);
+    if (errorTarget) errorTarget.textContent = latestScene.videoError;
+  }
+}
+
+async function pollSceneVideoJob(sceneId, jobId, initialDelayMs = 10000) {
+  await sleep(Math.max(2000, initialDelayMs));
+  for (let attempt = 0; attempt < 48; attempt += 1) {
+    try {
+      const response = await fetch(`/api/story-scene-video-status?id=${encodeURIComponent(jobId)}`);
+      const result = await response.json().catch(() => ({}));
+      const project = ensureSceneList(readStoryboardProject());
+      const scene = (project.scenes || []).find((item) => item.id === sceneId);
+      if (!scene) return;
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || `Video status failed (${response.status || "network"}).`);
+      }
+      scene.mediaMode = scene.mediaMode === "image" ? "image" : "video";
+      scene.videoJobId = jobId;
+      scene.videoStatus = result.status === "completed" ? "complete" : "generating";
+      scene.videoMessage = result.status === "queued"
+        ? "Video queued. Waiting for the generator..."
+        : result.status === "in_progress"
+          ? `Video rendering${Number(result.progress || 0) ? ` (${Math.round(Number(result.progress))}%)` : "..."}`
+          : "Scene video ready.";
+      if (result.videoUrl) {
+        scene.generatedVideoUrl = result.videoUrl;
+        scene.previousVideoUrl = "";
+        scene.videoRegenerationNonce = "";
+        scene.videoError = "";
+        scene.videoMessage = "Scene video ready.";
+        writeStoryboardProject(project);
+        rerenderStoryboard(project);
+        return;
+      }
+      writeStoryboardProject(project);
+      rerenderStoryboard(project);
+      await sleep(Math.max(8000, Number(result.pollAfterMs || 10000)));
+    } catch (error) {
+      const project = ensureSceneList(readStoryboardProject());
+      const scene = (project.scenes || []).find((item) => item.id === sceneId);
+      if (scene) {
+        scene.mediaMode = "video";
+        scene.videoStatus = "video_error";
+        scene.videoError = error.message || "Video generation failed.";
+        scene.videoMessage = "";
+        if (scene.previousVideoUrl && !scene.generatedVideoUrl) {
+          scene.generatedVideoUrl = scene.previousVideoUrl;
+          scene.videoMessage = "The previous video is still available.";
+        }
+        writeStoryboardProject(project);
+        rerenderStoryboard(project);
+      }
+      return;
+    }
+  }
+
+  const project = ensureSceneList(readStoryboardProject());
+  const scene = (project.scenes || []).find((item) => item.id === sceneId);
+  if (scene) {
+    scene.videoStatus = "video_error";
+    scene.videoError = "Video is taking longer than expected. Try again in a moment.";
+    scene.videoMessage = "";
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+  }
+}
+
+function prepareVideoReferenceImage(dataUrl, targetWidth = 1280, targetHeight = 720, quality = 0.88) {
+  const source = String(dataUrl || "");
+  if (!source.startsWith("data:image/")) return Promise.resolve(source);
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const context = canvas.getContext("2d");
+        const sourceRatio = image.naturalWidth / image.naturalHeight;
+        const targetRatio = targetWidth / targetHeight;
+        let sourceWidth = image.naturalWidth;
+        let sourceHeight = image.naturalHeight;
+        let sourceX = 0;
+        let sourceY = 0;
+        if (sourceRatio > targetRatio) {
+          sourceWidth = Math.round(sourceHeight * targetRatio);
+          sourceX = Math.round((image.naturalWidth - sourceWidth) / 2);
+        } else {
+          sourceHeight = Math.round(sourceWidth / targetRatio);
+          sourceY = Math.round((image.naturalHeight - sourceHeight) / 2);
+        }
+        context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, targetWidth, targetHeight);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      } catch (error) {
+        reject(error);
+      }
+    };
+    image.onerror = () => reject(new Error("Could not prepare the scene image for video."));
+    image.src = source;
+  });
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function resumeStoryboardVideoJobs(project) {
+  const scenes = Array.isArray(project.scenes) ? project.scenes : [];
+  scenes.forEach((scene) => {
+    if (!scene?.videoJobId || scene.generatedVideoUrl) return;
+    if (!["generating", "queued", "processing"].includes(scene.videoStatus || "")) return;
+    scene.videoStatus = "generating";
+    scene.videoMessage = scene.videoMessage || "Checking saved video progress...";
+    pollSceneVideoJob(scene.id, scene.videoJobId, 1000);
+  });
+}
+
+function setSceneImageProgress(sceneId, percent) {
+  const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
+  const progress = document.querySelector(`[data-scene-image-progress="${CSS.escape(sceneId)}"]`);
+  if (!progress) return;
+  progress.style.setProperty("--scene-image-progress", `${safePercent * 3.6}deg`);
+  const label = progress.querySelector("span");
+  if (label) label.textContent = `${safePercent}%`;
+}
+
+function startSceneImageProgress(sceneId, startingPercent = 3) {
+  stopSceneImageProgress(sceneId);
+  let percent = Math.max(3, Number(startingPercent) || 3);
+  setSceneImageProgress(sceneId, percent);
+  const timer = window.setInterval(() => {
+    const remaining = 94 - percent;
+    percent += Math.max(1, Math.ceil(remaining * 0.065));
+    percent = Math.min(94, percent);
+    setSceneImageProgress(sceneId, percent);
+    if (percent >= 94) stopSceneImageProgress(sceneId);
+  }, 700);
+  sceneImageProgressTimers.set(sceneId, timer);
+}
+
+function stopSceneImageProgress(sceneId) {
+  const timer = sceneImageProgressTimers.get(sceneId);
+  if (timer) window.clearInterval(timer);
+  sceneImageProgressTimers.delete(sceneId);
 }
 
 async function generateStoryboardSceneImage(project, sceneId) {
@@ -699,28 +2186,54 @@ async function generateStoryboardSceneImage(project, sceneId) {
   if (!scene) return;
 
   const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
+  const buttonTarget = document.querySelector(`[data-generate-scene-image="${CSS.escape(sceneId)}"]`);
+  if (buttonTarget) {
+    buttonTarget.disabled = true;
+    buttonTarget.textContent = "Generating Image...";
+  }
+  if (statusTarget) statusTarget.textContent = "Starting scene artwork...";
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   const characters = (scene.selectedCharacterIds || []).map((id) => characterById.get(id)).filter(Boolean);
   const character = characters[0] || activeCharacter(project);
   const secondCharacter = characters[1] || {};
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
   const prompt = String(scene.prompt || "").trim() || storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
+  const storyContext = cleanStoryText(scene.storyExcerpt, prompt);
 
   scene.prompt = prompt;
+  scene.visualPrompt = prompt;
+  scene.imagePromptInternal = cleanStoryText(scene.visualPrompt, buildSceneImagePrompt(project, scene, sceneIndex));
   scene.title = scene.title || sceneTitleFromPrompt(prompt, `Scene ${sceneIndex + 1}`);
   scene.status = "generating";
-  writeStoryboardProject(project);
+  scene.imageQueuedAt = "";
+  scene.imageProgress = 3;
+  scene.imageGenerationStartedAt = new Date().toISOString();
+  scene.imageError = "";
+  try {
+    writeStoryboardProject(project);
+  } catch (error) {
+    scene.status = "image_error";
+    scene.imageError = "Browser storage is full. Delete a few generated scene images or refresh and try again.";
+    console.error("Storyboard scene image status save failed", error);
+    rerenderStoryboard(project);
+    return;
+  }
   rerenderStoryboard(project);
+  startSceneImageProgress(sceneId, scene.imageProgress);
 
   const freshStatusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`) || statusTarget;
   if (freshStatusTarget) freshStatusTarget.textContent = "Generating scene artwork...";
 
   try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 210000);
     const response = await fetch("/api/story-scene-images", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
-        prompt,
+        prompt: storyContext,
+        visualPrompt: scene.imagePromptInternal,
         camera: scene.camera || "Wide Shot",
         background: world.description || world.name || "A safe OPREALM story world",
         character: character.name || "Use saved character",
@@ -731,12 +2244,18 @@ async function generateStoryboardSceneImage(project, sceneId) {
         characterType: character.characterType || character.type || "",
         characterPersonality: compactList(character.traits || [], character.personality || ""),
         characterStyle: character.masterStyle || character.style || project.globalStyle || "",
+        characterOutfit: character.customOutfit || character.outfit || character.recipe?.components?.outfit || "",
+        characterAccessories: compactList(character.accessories || character.recipe?.components?.accessories || [], ""),
+        characterPalette: compactList(character.palette || character.recipe?.components?.palette || [], ""),
         characterSafety: character.safety || "Friendly and safe for kids",
         secondCharacterName: secondCharacter.name || "",
         secondCharacterPrompt: secondCharacter.prompt || secondCharacter.description || "",
         secondCharacterType: secondCharacter.characterType || secondCharacter.type || "",
         secondCharacterPersonality: compactList(secondCharacter.traits || [], secondCharacter.personality || ""),
         secondCharacterStyle: secondCharacter.masterStyle || secondCharacter.style || "",
+        secondCharacterOutfit: secondCharacter.customOutfit || secondCharacter.outfit || secondCharacter.recipe?.components?.outfit || "",
+        secondCharacterAccessories: compactList(secondCharacter.accessories || secondCharacter.recipe?.components?.accessories || [], ""),
+        secondCharacterPalette: compactList(secondCharacter.palette || secondCharacter.recipe?.components?.palette || [], ""),
         secondCharacterSafety: secondCharacter.safety || "",
         sceneStyle: character.masterStyle || project.globalStyle || "inherit",
         lockCharacterStyle: true,
@@ -744,34 +2263,105 @@ async function generateStoryboardSceneImage(project, sceneId) {
         continuityBrief: `Scene ${sceneIndex + 1} of ${project.title || "an OPREALM story"}. Preserve the saved character, selected world, outfit colors, accessories, and the previous scene logic.`,
         referenceImages: storyboardReferenceImages(project, scene),
       }),
-    });
+    }).finally(() => window.clearTimeout(timeout));
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.webImageDataUrl) {
-      throw new Error(result.error || "Scene image generation failed.");
+      const prefix = response.status === 401
+        ? "Please log in before generating scene images."
+        : response.status === 402
+          ? "Not enough Creator credits for this scene image."
+          : "";
+      throw new Error(prefix || result.error || `Scene image generation failed (${response.status || "network"}).`);
     }
 
     const latestProject = await compactStoryboardImages(ensureSceneList(readStoryboardProject()));
     const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId);
     if (!latestScene) throw new Error("Scene was removed before the image finished.");
-    latestScene.generatedImageUrl = await compressImageDataUrl(result.webImageDataUrl);
+    latestScene.generatedImageUrl = await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+    stopSceneImageProgress(sceneId);
+    latestScene.imageProgress = 100;
+    latestScene.imageGenerationStartedAt = "";
+    latestScene.imageQueuedAt = "";
+    setSceneImageProgress(sceneId, 100);
+    await sleep(350);
     latestScene.status = "complete";
     latestScene.completed = true;
+    latestScene.imageError = "";
     writeStoryboardProject(latestProject);
     rerenderStoryboard(latestProject);
   } catch (error) {
+    stopSceneImageProgress(sceneId);
     const latestProject = ensureSceneList(readStoryboardProject());
     const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId) || scene;
-    latestScene.status = "ready_to_generate";
-    writeStoryboardProject(latestProject);
+    latestScene.status = "image_error";
+    latestScene.imageProgress = 0;
+    latestScene.imageGenerationStartedAt = "";
+    latestScene.imageQueuedAt = "";
+    if (error.name === "AbortError") {
+      latestScene.imageError = "Image generation took too long. Press Try Again.";
+    } else {
+      latestScene.imageError = error.message || "Could not generate scene image.";
+    }
+    try {
+      writeStoryboardProject(latestProject);
+    } catch (storageError) {
+      latestScene.imageError = "Browser storage is full. Delete a few generated scene images or refresh and try again.";
+      console.error("Storyboard scene image save failed", storageError);
+    }
+    console.error("Storyboard scene image generation failed", error);
     rerenderStoryboard(latestProject);
     const errorTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
-    if (errorTarget) errorTarget.textContent = error.message || "Could not generate scene image.";
+    if (errorTarget) errorTarget.textContent = latestScene.imageError;
   }
+}
+
+function queueStoryboardSceneImage(sceneId) {
+  if (!sceneId || sceneImageGenerationQueue.includes(sceneId)) return;
+  const project = ensureSceneList(readStoryboardProject());
+  const scene = (project.scenes || []).find((item) => item.id === sceneId);
+  if (!scene || scene.status === "generating" || scene.status === "image_queued") return;
+  scene.status = "image_queued";
+  scene.imageQueuedAt = new Date().toISOString();
+  scene.imageError = "";
+  writeStoryboardProject(project);
+  rerenderStoryboard(project);
+  sceneImageGenerationQueue.push(sceneId);
+  processSceneImageQueue();
+}
+
+async function processSceneImageQueue() {
+  if (sceneImageQueueActive) return;
+  const sceneId = sceneImageGenerationQueue.shift();
+  if (!sceneId) return;
+  sceneImageQueueActive = true;
+  try {
+    await generateStoryboardSceneImage(readStoryboardProject(), sceneId);
+  } finally {
+    sceneImageQueueActive = false;
+    processSceneImageQueue();
+  }
+}
+
+function resumeQueuedSceneImages(project) {
+  [...(project.scenes || [])]
+    .filter((scene) => scene.status === "image_queued" && !scene.generatedImageUrl)
+    .sort((a, b) => {
+      const aQueuedAt = Date.parse(a.imageQueuedAt || "");
+      const bQueuedAt = Date.parse(b.imageQueuedAt || "");
+      if (Number.isFinite(aQueuedAt) && Number.isFinite(bQueuedAt) && aQueuedAt !== bQueuedAt) return aQueuedAt - bQueuedAt;
+      if (Number.isFinite(aQueuedAt) !== Number.isFinite(bQueuedAt)) return Number.isFinite(aQueuedAt) ? -1 : 1;
+      return Number(a.order || 0) - Number(b.order || 0);
+    })
+    .forEach((scene) => {
+      if (!sceneImageGenerationQueue.includes(scene.id)) sceneImageGenerationQueue.push(scene.id);
+    });
+  processSceneImageQueue();
 }
 
 function quickPopulateStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
+  project.storySettings = storySettings(project);
   const targetCount = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || 0);
   const plan = storyPlanForCount(project, targetCount);
   const existingScenes = [...(project.scenes || [])].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
@@ -784,6 +2374,8 @@ function quickPopulateStory(project) {
       arcRole: beat.arcRole,
       title: beat.title,
       prompt: beat.prompt,
+      planInternal: beat.planInternal || {},
+      imagePromptInternal: "",
       mood: existing.mood || beat.mood,
       camera: existing.camera || beat.camera,
       selectedCharacterIds: character.id ? [character.id] : [],
@@ -792,17 +2384,756 @@ function quickPopulateStory(project) {
       status: existing.status === "complete" ? "complete" : "draft",
     };
   });
+  project.scenes.forEach((scene, index) => {
+    scene.imagePromptInternal = buildSceneImagePrompt(project, scene, index);
+  });
   project.storyArc = plan.map(({ arcRole, title }) => ({ arcRole, title }));
-  project.moral = storyMoralForCharacter(character);
+  project.moral = themeLesson(project.storySettings.lessonTheme, character);
   return project;
 }
 
+function renderStoryDirectionControls(project) {
+  const settings = storySettings(project);
+  document.querySelectorAll("[data-story-choice]").forEach((button) => {
+    const key = button.dataset.storyChoice;
+    const value = button.dataset.storyValue;
+    const active = settings[key] === value;
+    button.classList.toggle("is-selected", active);
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function bindStoryDirectionControls(project) {
+  document.querySelectorAll("[data-story-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.storyChoice;
+      const value = button.dataset.storyValue;
+      if (!key || !value) return;
+      project.storySettings = {
+        ...storySettings(project),
+        [key]: value,
+      };
+      writeStoryboardProject(project);
+      renderStoryDirectionControls(project);
+    });
+  });
+}
+
+function openClearScenesModal() {
+  const modal = document.querySelector("#clearScenesModal");
+  if (!modal) return;
+  modal.hidden = false;
+  document.querySelector("#cancelClearScenesButton")?.focus();
+}
+
+function closeClearScenesModal() {
+  const modal = document.querySelector("#clearScenesModal");
+  if (modal) modal.hidden = true;
+}
+
+function storyboardMovieScenes(project) {
+  return [...(project.scenes || [])]
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+    .filter((scene) => scene.generatedVideoUrl);
+}
+
+function movieNarrationScript(project, scenes = storyboardMovieScenes(project)) {
+  const seed = storySeed(project);
+  const settings = storySettings(project);
+  const details = storyWorldDetails(seed);
+  const storyText = scenes.map((scene) => cleanStoryText(scene.storyExcerpt || scene.prompt)).filter(Boolean).join(" ");
+  const world = cleanStoryText(seed.place, "a world full of secrets");
+  const hero = cleanStoryText(seed.hero, "one brave hero");
+  const want = storyWant(seed, details);
+  const need = storyEmotionalNeed(seed);
+  const pressure = storyPressure(seed, details);
+  const ending = endingInstruction(settings.endingType);
+  const hook = trailerHookForStory(settings.storyType, hero, world, storyText);
+  const trailerLines = [
+    `In ${world}... ${hook}.`,
+    `${hero} wants ${want}.`,
+    `But this adventure demands something greater... ${need}.`,
+    `As danger closes in, every choice reveals a secret.`,
+    `Every ally could change the ending.`,
+    `And the truth is harder than anyone expected.`,
+    `${sentenceStart(pressure)}.`,
+    `Now ${hero} must make the choice that decides what this world becomes.`,
+    `A ${storyTypeLabel(settings.storyType)} where the final moment ${ending}.`,
+    "This is their realm. This is their choice.",
+  ];
+  return trailerLines
+    .map((line) => cleanTrailerLine(line))
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\bChapter\s+\d+[:.]?/gi, "")
+    .replace(/\bIntro[:.]?/gi, "")
+    .replace(/\bEnding[:.]?/gi, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 1200);
+}
+
+function trailerHookForStory(type, hero, world, storyText) {
+  const text = String(storyText || "").toLowerCase();
+  if (type === "mystery") return `a hidden truth is waking, and ${hero} is the only one following the clues`;
+  if (type === "creature-rescue") return `a misunderstood creature is running out of time, and ${hero} must decide who is worth protecting`;
+  if (type === "funny-adventure") return `one wild mistake begins a chain of chaos that only ${hero} can turn into a victory`;
+  if (type === "hero-origin") return `${hero} is about to discover that heroes are made by the choices they are afraid to make`;
+  if (/robot|drone|machine|signal|future|tech/.test(text)) return `a signal from the future is calling ${hero} toward a choice no one else can make`;
+  if (/magic|portal|crystal|spell|dragon/.test(text)) return `old magic is stirring, and ${hero} is about to learn why it chose them`;
+  return `something impossible is beginning, and ${hero} is pulled into an adventure that could change everything`;
+}
+
+function cleanTrailerLine(value) {
+  return cleanStoryText(value)
+    .replace(/\bscene\s+\d+\b/gi, "")
+    .replace(/\bprompt\b/gi, "story")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function movieSceneSubtitle(scene) {
+  const text = cleanStoryText(scene.storyExcerpt || scene.prompt || scene.title, "The story continues.");
+  const firstSentence = text.split(/(?<=[.!?])\s+/)[0] || text;
+  return firstSentence.slice(0, 180);
+}
+
+function renderStoryboardMoviePanel(project) {
+  const status = document.querySelector("#storyMovieStatus");
+  const createButton = document.querySelector("#createStoryboardMovieButton");
+  const previewButton = document.querySelector("#previewStoryboardMovieButton");
+  const exportButton = document.querySelector("#exportStoryboardMovieButton");
+  const clearButton = document.querySelector("#clearStoryboardMovieButton");
+  const stage = document.querySelector("#storyMovieStage");
+  const scenes = storyboardMovieScenes(project);
+  const totalScenes = (project.scenes || []).length;
+  const readyText = scenes.length
+    ? `${scenes.length} of ${totalScenes} scene videos ready to stitch.`
+    : "Create at least one scene video before making a movie.";
+  if (status && !status.dataset.busy) status.textContent = readyText;
+  [createButton, previewButton, exportButton].forEach((button) => {
+    if (button) button.disabled = scenes.length === 0;
+  });
+  if (clearButton) clearButton.disabled = !project.moviePreviewSavedAt;
+  if (stage) stage.classList.toggle("has-frame", Boolean(project.moviePreviewSavedAt));
+}
+
+function renderStoryOutputChooser(project) {
+  const chooser = document.querySelector("#storyOutputChooser");
+  const storyBookButton = document.querySelector("#createAiStoryBookButton");
+  const movieButton = document.querySelector("#openMovieMakerButton");
+  const movieText = document.querySelector("#movieReadinessText");
+  const movieExport = document.querySelector("#storyMovieExport");
+  const scenes = project.scenes || [];
+  const allImagesReady = scenes.length >= MIN_STORY_SCENES && scenes.every((scene) => Boolean(scene.generatedImageUrl));
+  const completedVideos = scenes.filter((scene) => Boolean(scene.generatedVideoUrl)).length;
+  const allVideosReady = allImagesReady && completedVideos === scenes.length;
+  if (chooser) chooser.hidden = !allImagesReady;
+  if (storyBookButton) storyBookButton.disabled = !allImagesReady;
+  if (movieButton) movieButton.disabled = !allVideosReady;
+  if (movieText) {
+    movieText.textContent = allVideosReady
+      ? "All scene videos are ready. Open Movie Maker."
+      : `${completedVideos} of ${scenes.length} scene videos ready. Generate every video to unlock Movie Maker.`;
+  }
+  if (movieExport && !allVideosReady) movieExport.hidden = true;
+}
+
+function launchAiStoryBook(project) {
+  const scenes = project.scenes || [];
+  if (scenes.length < MIN_STORY_SCENES || scenes.some((scene) => !scene.generatedImageUrl)) return;
+  localStorage.setItem("oprealm_ai_storybook_source", JSON.stringify({
+    projectId: project.id || "",
+    createdAt: new Date().toISOString(),
+  }));
+  window.OPREALMRefreshCreatorSteps?.();
+  window.location.href = "/ai-storybook.html";
+}
+
+function bindStoryboardMovieControls(project) {
+  document.querySelector("#createAiStoryBookButton")?.addEventListener("click", () => {
+    launchAiStoryBook(readStoryboardProject());
+  });
+  document.querySelector("#openMovieMakerButton")?.addEventListener("click", () => {
+    const latestProject = readStoryboardProject();
+    const scenes = latestProject.scenes || [];
+    if (!scenes.length || scenes.some((scene) => !scene.generatedVideoUrl)) return;
+    const movieExport = document.querySelector("#storyMovieExport");
+    if (movieExport) {
+      movieExport.hidden = false;
+      movieExport.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+  document.querySelector("#createStoryboardMovieButton")?.addEventListener("click", () => {
+    const latestProject = readStoryboardProject();
+    renderStoryboardMovie(latestProject, { record: false, speak: false });
+  });
+  document.querySelector("#previewStoryboardMovieButton")?.addEventListener("click", () => {
+    const latestProject = readStoryboardProject();
+    renderStoryboardMovie(latestProject, { record: false, speak: true });
+  });
+  document.querySelector("#exportStoryboardMovieButton")?.addEventListener("click", () => {
+    const latestProject = readStoryboardProject();
+    renderStoryboardMovie(latestProject, { record: true, speak: false });
+  });
+  document.querySelector("#stopStoryboardMovieButton")?.addEventListener("click", () => {
+    stopActiveMoviePlayback("Trailer stopped.");
+  });
+  document.querySelector("#clearStoryboardMovieButton")?.addEventListener("click", async () => {
+    const latestProject = readStoryboardProject();
+    stopActiveMoviePlayback("");
+    await clearSavedStoryboardMovie(latestProject);
+    writeStoryboardProject(latestProject);
+    resetMovieCanvas();
+    renderStoryboardMoviePanel(latestProject);
+  });
+}
+
+function setMovieStatus(message, busy = false) {
+  const status = document.querySelector("#storyMovieStatus");
+  if (!status) return;
+  status.textContent = message;
+  if (busy) status.dataset.busy = "1";
+  else delete status.dataset.busy;
+}
+
+function drawMoviePoster(project, scene) {
+  const canvas = document.querySelector("#storyMovieCanvas");
+  if (!canvas || canvas.dataset.rendering === "1") return;
+  const context = canvas.getContext("2d");
+  const image = new Image();
+  image.onload = () => {
+    drawCoverImage(context, image, canvas.width, canvas.height);
+    drawMovieSubtitle(context, canvas, movieSceneSubtitle(scene), cleanStoryText(project.title, "OPREALM Movie"));
+  };
+  image.src = scene.generatedImageUrl || "";
+}
+
+async function restoreSavedStoryboardMovie(project) {
+  const preview = await loadStoredMoviePreview(project.id || "storyboard-local-project");
+  if (!preview?.blob) return;
+  const downloadLink = document.querySelector("#downloadStoryboardMovieLink");
+  const stage = document.querySelector("#storyMovieStage");
+  const player = document.querySelector("#storyMoviePlayer");
+  const url = URL.createObjectURL(preview.blob);
+  if (downloadLink) {
+    downloadLink.href = url;
+    downloadLink.hidden = false;
+  }
+  if (player) {
+    player.src = url;
+    player.hidden = false;
+  }
+  if (stage) stage.classList.add("has-frame");
+  drawStoredMovieFrame(preview.blob);
+  project.moviePreviewSavedAt = preview.savedAt || project.moviePreviewSavedAt || new Date().toISOString();
+  writeStoryboardProject(project);
+  setMovieStatus("Saved movie preview restored.");
+  renderStoryboardMoviePanel(project);
+}
+
+async function saveStoryboardMoviePreview(project, blob) {
+  const savedAt = new Date().toISOString();
+  await storeMoviePreview(project.id || "storyboard-local-project", blob, savedAt);
+  project.moviePreviewSavedAt = savedAt;
+  writeStoryboardProject(project);
+}
+
+async function clearSavedStoryboardMovie(project) {
+  await deleteStoredMoviePreview(project.id || "storyboard-local-project");
+  project.moviePreviewSavedAt = "";
+  const downloadLink = document.querySelector("#downloadStoryboardMovieLink");
+  const player = document.querySelector("#storyMoviePlayer");
+  if (downloadLink) {
+    if (downloadLink.href?.startsWith("blob:")) URL.revokeObjectURL(downloadLink.href);
+    downloadLink.href = "#";
+    downloadLink.hidden = true;
+  }
+  if (player) {
+    if (player.src?.startsWith("blob:")) URL.revokeObjectURL(player.src);
+    player.pause();
+    player.removeAttribute("src");
+    player.hidden = true;
+    player.load();
+  }
+  setMovieStatus("Movie preview cleared.");
+}
+
+function resetMovieCanvas() {
+  const canvas = document.querySelector("#storyMovieCanvas");
+  const stage = document.querySelector("#storyMovieStage");
+  const player = document.querySelector("#storyMoviePlayer");
+  if (!canvas) return;
+  if (player) player.hidden = true;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  if (stage) stage.classList.remove("has-frame");
+}
+
+function drawStoredMovieFrame(blob) {
+  const canvas = document.querySelector("#storyMovieCanvas");
+  if (!canvas || !blob) return;
+  const context = canvas.getContext("2d");
+  const video = document.createElement("video");
+  const url = URL.createObjectURL(blob);
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+  video.onloadeddata = () => {
+    drawCoverImage(context, video, canvas.width, canvas.height);
+    drawMovieSubtitle(context, canvas, "Saved movie preview ready.", "OPREALM Movie");
+    URL.revokeObjectURL(url);
+  };
+  video.onerror = () => URL.revokeObjectURL(url);
+  video.src = url;
+}
+
+async function renderStoryboardMovie(project, { record = false, speak = false } = {}) {
+  stopActiveMoviePlayback("");
+  const canvas = document.querySelector("#storyMovieCanvas");
+  const stage = document.querySelector("#storyMovieStage");
+  const downloadLink = document.querySelector("#downloadStoryboardMovieLink");
+  const player = document.querySelector("#storyMoviePlayer");
+  if (!canvas) return;
+  const scenes = storyboardMovieScenes(project);
+  if (!scenes.length) {
+    setMovieStatus("Create at least one scene video before making a movie.");
+    return;
+  }
+  if (!window.MediaRecorder && record) {
+    setMovieStatus("This browser cannot export movies yet. Try Chrome or Edge.");
+    return;
+  }
+
+  if (downloadLink) downloadLink.hidden = true;
+  if (player) {
+    player.pause();
+    player.hidden = true;
+  }
+  if (stage) stage.classList.add("has-frame");
+  canvas.dataset.rendering = "1";
+  const context = canvas.getContext("2d");
+  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  await audioContext.resume();
+  activeMoviePlayback = {
+    cancelled: false,
+    audioContext,
+    audioSources: [],
+    videos: [],
+    recorder: null,
+  };
+  const destination = audioContext.createMediaStreamDestination();
+  const totalSeconds = scenes.reduce((sum, scene) => sum + movieSceneSeconds(scene), 0);
+  const narrationScript = movieNarrationScript(project, scenes);
+  const voice = document.querySelector("#movieVoiceSelect")?.value || "young-adventurer";
+  const music = document.querySelector("#movieMusicSelect")?.value || "adventure";
+  let recorder = null;
+  let recordedChunks = [];
+
+  try {
+    setMovieStatus(record ? "Preparing narration, music and movie recorder..." : "Preparing movie preview...", true);
+    if (record) {
+      const stream = canvas.captureStream(30);
+      destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus")
+        ? "video/webm;codecs=vp9,opus"
+        : "video/webm";
+      recorder = new MediaRecorder(stream, { mimeType });
+      activeMoviePlayback.recorder = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) recordedChunks.push(event.data);
+      };
+    }
+
+    const narrationBuffer = await fetchMovieAudioBuffer(audioContext, {
+      type: "narration",
+      text: narrationScript,
+      voice,
+    }).catch((error) => {
+      setMovieStatus(`Movie will render without generated narration: ${error.message}`, true);
+      return null;
+    });
+    const musicBuffer = await fetchMovieAudioBuffer(audioContext, {
+      type: "music",
+      text: narrationScript,
+      mood: music,
+      seconds: Math.min(60, Math.max(12, Math.round(totalSeconds))),
+    }).catch(() => null);
+
+    const audioStart = audioContext.currentTime + 0.25;
+    if (musicBuffer) {
+      trackMovieSource(scheduleAudioBuffer(audioContext, musicBuffer, destination, audioStart, 0.16, true, totalSeconds + 1));
+      trackMovieSource(scheduleAudioBuffer(audioContext, musicBuffer, audioContext.destination, audioStart, record ? 0 : 0.08, true, totalSeconds + 1));
+    } else {
+      scheduleSyntheticMovieMusic(audioContext, destination, audioStart, totalSeconds + 1, music, record ? 0.12 : 0.06).forEach(trackMovieSource);
+      scheduleSyntheticMovieMusic(audioContext, audioContext.destination, audioStart, totalSeconds + 1, music, record ? 0 : 0.05).forEach(trackMovieSource);
+    }
+    if (narrationBuffer) {
+      trackMovieSource(scheduleAudioBuffer(audioContext, narrationBuffer, destination, audioStart + 0.3, 0.9, false));
+      trackMovieSource(scheduleAudioBuffer(audioContext, narrationBuffer, audioContext.destination, audioStart + 0.3, record ? 0 : 0.8, false));
+    } else if (speak) {
+      speakMovieNarration(narrationScript);
+    }
+
+    if (recorder) recorder.start(800);
+    for (let index = 0; index < scenes.length; index += 1) {
+      if (activeMoviePlayback?.cancelled) throw new Error("Trailer stopped.");
+      setMovieStatus(`${record ? "Exporting" : "Previewing"} scene ${index + 1} of ${scenes.length}...`, true);
+      await renderMovieScene(canvas, context, scenes[index], index, scenes.length);
+    }
+    if (recorder) {
+      await stopMovieRecorder(recorder);
+      const blob = new Blob(recordedChunks, { type: recorder.mimeType || "video/webm" });
+      await saveStoryboardMoviePreview(project, blob);
+      const url = URL.createObjectURL(blob);
+      if (downloadLink) {
+        downloadLink.href = url;
+        downloadLink.hidden = false;
+      }
+      if (player) {
+        player.src = url;
+        player.hidden = false;
+        player.load();
+      }
+      renderStoryboardMoviePanel(project);
+      setMovieStatus("Movie exported. Download it from the button below.");
+    } else {
+      setMovieStatus("Movie preview complete.");
+    }
+  } catch (error) {
+    if (error.message !== "Trailer stopped.") setMovieStatus(error.message || "Movie stitching failed.");
+  } finally {
+    delete canvas.dataset.rendering;
+    if (activeMoviePlayback?.audioContext === audioContext) activeMoviePlayback = null;
+    window.setTimeout(() => audioContext.close().catch(() => {}), 800);
+  }
+}
+
+function movieSceneSeconds(scene) {
+  return Math.min(12, Math.max(4, Number(scene.videoDuration || 8)));
+}
+
+function trackMovieSource(source) {
+  if (source && activeMoviePlayback) activeMoviePlayback.audioSources.push(source);
+  return source;
+}
+
+function stopActiveMoviePlayback(message = "Trailer stopped.") {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  const player = document.querySelector("#storyMoviePlayer");
+  if (player) player.pause();
+  if (!activeMoviePlayback) {
+    if (message) setMovieStatus(message);
+    return;
+  }
+  activeMoviePlayback.cancelled = true;
+  activeMoviePlayback.videos.forEach((video) => {
+    try { video.pause(); } catch {}
+  });
+  activeMoviePlayback.audioSources.forEach((source) => {
+    try { source.stop(0); } catch {}
+  });
+  try {
+    if (activeMoviePlayback.recorder?.state === "recording") activeMoviePlayback.recorder.stop();
+  } catch {}
+  activeMoviePlayback.audioContext?.close?.().catch(() => {});
+  if (message) setMovieStatus(message);
+}
+
+async function renderMovieScene(canvas, context, scene, index, total) {
+  const video = document.createElement("video");
+  video.src = scene.generatedVideoUrl;
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "auto";
+  if (activeMoviePlayback) activeMoviePlayback.videos.push(video);
+  await waitForVideoReady(video);
+  const duration = movieSceneSeconds(scene);
+  video.currentTime = 0;
+  await video.play();
+  const start = performance.now();
+  while ((performance.now() - start) / 1000 < duration) {
+    if (activeMoviePlayback?.cancelled) {
+      video.pause();
+      throw new Error("Trailer stopped.");
+    }
+    if (video.ended && video.duration > 0.5) video.currentTime = Math.max(0, video.duration - 0.2);
+    drawCoverImage(context, video, canvas.width, canvas.height);
+    drawMovieSubtitle(context, canvas, movieSceneSubtitle(scene), `${index + 1}/${total} ${cleanStoryText(scene.title, `Scene ${index + 1}`)}`);
+    await nextFrame();
+  }
+  video.pause();
+}
+
+function waitForVideoReady(video) {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("A scene video took too long to load.")), 30000);
+    video.onloadeddata = () => {
+      window.clearTimeout(timer);
+      resolve();
+    };
+    video.onerror = () => {
+      window.clearTimeout(timer);
+      reject(new Error("One scene video could not be loaded for stitching."));
+    };
+    video.load();
+  });
+}
+
+function drawCoverImage(context, source, width, height) {
+  context.fillStyle = "#020716";
+  context.fillRect(0, 0, width, height);
+  const sourceWidth = source.videoWidth || source.naturalWidth || width;
+  const sourceHeight = source.videoHeight || source.naturalHeight || height;
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / height;
+  let drawWidth = width;
+  let drawHeight = height;
+  let drawX = 0;
+  let drawY = 0;
+  if (sourceRatio > targetRatio) {
+    drawHeight = height;
+    drawWidth = height * sourceRatio;
+    drawX = (width - drawWidth) / 2;
+  } else {
+    drawWidth = width;
+    drawHeight = width / sourceRatio;
+    drawY = (height - drawHeight) / 2;
+  }
+  context.drawImage(source, drawX, drawY, drawWidth, drawHeight);
+}
+
+function drawMovieSubtitle(context, canvas, subtitle, label) {
+  const width = canvas.width;
+  const height = canvas.height;
+  const wrapped = wrapCanvasText(context, subtitle, width - 160, 34);
+  const boxHeight = 92 + wrapped.length * 34;
+  const boxY = height - boxHeight - 36;
+  context.save();
+  context.fillStyle = "rgba(3, 7, 20, 0.72)";
+  context.strokeStyle = "rgba(143, 240, 255, 0.28)";
+  context.lineWidth = 2;
+  roundRect(context, 60, boxY, width - 120, boxHeight, 22);
+  context.fill();
+  context.stroke();
+  context.fillStyle = "#8ff0ff";
+  context.font = "800 24px Arial, sans-serif";
+  context.fillText(label, 92, boxY + 38);
+  context.fillStyle = "#ffffff";
+  context.font = "900 32px Arial, sans-serif";
+  wrapped.forEach((line, index) => context.fillText(line, 92, boxY + 82 + index * 36));
+  context.restore();
+}
+
+function wrapCanvasText(context, text, maxWidth, maxLines = 3) {
+  const words = cleanStoryText(text).split(" ");
+  const lines = [];
+  let line = "";
+  context.font = "900 32px Arial, sans-serif";
+  words.forEach((word) => {
+    const test = line ? `${line} ${word}` : word;
+    if (context.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  });
+  if (line) lines.push(line);
+  return lines.slice(0, maxLines);
+}
+
+function roundRect(context, x, y, width, height, radius) {
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.arcTo(x + width, y, x + width, y + height, radius);
+  context.arcTo(x + width, y + height, x, y + height, radius);
+  context.arcTo(x, y + height, x, y, radius);
+  context.arcTo(x, y, x + width, y, radius);
+  context.closePath();
+}
+
+async function fetchMovieAudioBuffer(audioContext, payload) {
+  const response = await fetch("/api/story-movie-audio", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Movie audio failed (${response.status}).`);
+  }
+  return audioContext.decodeAudioData(await response.arrayBuffer());
+}
+
+function scheduleAudioBuffer(audioContext, buffer, destination, startTime, volume, loop = false, duration = 0) {
+  if (!volume) return null;
+  const source = audioContext.createBufferSource();
+  const gain = audioContext.createGain();
+  source.buffer = buffer;
+  source.loop = loop;
+  gain.gain.setValueAtTime(volume, startTime);
+  source.connect(gain);
+  gain.connect(destination);
+  source.start(startTime);
+  if (duration) source.stop(startTime + duration);
+  return source;
+}
+
+function scheduleSyntheticMovieMusic(audioContext, destination, startTime, seconds, mood, volume) {
+  if (!volume) return [];
+  const palettes = {
+    adventure: [196, 247, 294, 392],
+    mystery: [147, 196, 220, 294],
+    wonder: [220, 277, 330, 440],
+    funny: [247, 330, 392, 494],
+  };
+  const notes = palettes[mood] || palettes.adventure;
+  return notes.map((frequency, index) => {
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    oscillator.type = index % 2 ? "triangle" : "sine";
+    oscillator.frequency.setValueAtTime(frequency, startTime);
+    gain.gain.setValueAtTime(0, startTime);
+    for (let beat = 0; beat < seconds; beat += 1.6) {
+      gain.gain.linearRampToValueAtTime(volume / notes.length, startTime + beat + index * 0.08);
+      gain.gain.linearRampToValueAtTime(0.002, startTime + beat + 1.3 + index * 0.08);
+    }
+    oscillator.connect(gain);
+    gain.connect(destination);
+    oscillator.start(startTime);
+    oscillator.stop(startTime + seconds);
+    return oscillator;
+  });
+}
+
+function speakMovieNarration(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text.slice(0, 1800));
+  utterance.rate = 0.92;
+  utterance.pitch = 1.06;
+  window.speechSynthesis.speak(utterance);
+}
+
+function stopMovieRecorder(recorder) {
+  return new Promise((resolve) => {
+    recorder.onstop = resolve;
+    recorder.stop();
+  });
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+function openMoviePreviewDb() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) {
+      reject(new Error("This browser cannot save movie previews locally."));
+      return;
+    }
+    const request = indexedDB.open(STORYBOARD_MOVIE_DB, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(STORYBOARD_MOVIE_STORE, { keyPath: "projectId" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Could not open movie preview storage."));
+  });
+}
+
+async function storeMoviePreview(projectId, blob, savedAt) {
+  const db = await openMoviePreviewDb();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORYBOARD_MOVIE_STORE, "readwrite");
+    transaction.objectStore(STORYBOARD_MOVIE_STORE).put({ projectId, blob, savedAt });
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error || new Error("Could not save movie preview."));
+    };
+  });
+}
+
+async function loadStoredMoviePreview(projectId) {
+  try {
+    const db = await openMoviePreviewDb();
+    return await new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORYBOARD_MOVIE_STORE, "readonly");
+      const request = transaction.objectStore(STORYBOARD_MOVIE_STORE).get(projectId);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Could not load saved movie preview."));
+      transaction.oncomplete = () => db.close();
+      transaction.onerror = () => db.close();
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function deleteStoredMoviePreview(projectId) {
+  try {
+    const db = await openMoviePreviewDb();
+    await new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORYBOARD_MOVIE_STORE, "readwrite");
+      transaction.objectStore(STORYBOARD_MOVIE_STORE).delete(projectId);
+      transaction.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      transaction.onerror = () => {
+        db.close();
+        reject(transaction.error || new Error("Could not clear movie preview."));
+      };
+    });
+  } catch {
+    // Clearing should not block the rest of the UI.
+  }
+}
+
 function rerenderStoryboard(project) {
+  sanitizeStoryboardProject(project);
+  syncStoryboardTitle(project);
+  renderStoryDirectionControls(project);
+  renderStoryApproval(project);
   renderStoryboardCharacters(project);
   renderStoryboardWorlds(project);
   renderStoryboardObjects(project);
   renderStoryboardScenes(project);
+  renderStoryOutputChooser(project);
+  renderStoryboardMoviePanel(project);
   bindStoryboardSceneControls(project);
+}
+
+function storyboardTitle(project) {
+  return cleanStoryText(project.storyDraft?.title || project.title, "My OPREALM Story").slice(0, 100);
+}
+
+function syncStoryboardTitle(project) {
+  const input = document.querySelector("#storyboardProjectTitle");
+  if (!input || document.activeElement === input) return;
+  input.value = storyboardTitle(project);
+}
+
+function bindStoryboardTitle(project) {
+  const input = document.querySelector("#storyboardProjectTitle");
+  if (!input) return;
+  input.value = storyboardTitle(project);
+  input.addEventListener("input", () => {
+    const title = input.value.slice(0, 100);
+    project.title = title;
+    if (project.storyDraft) project.storyDraft.title = title;
+    writeStoryboardProject(project);
+  });
+  input.addEventListener("blur", () => {
+    const title = cleanStoryText(input.value, "My OPREALM Story").slice(0, 100);
+    input.value = title;
+    project.title = title;
+    if (project.storyDraft) project.storyDraft.title = title;
+    writeStoryboardProject(project);
+  });
 }
 
 function bindStoryboardSceneControls(project) {
@@ -872,6 +3203,9 @@ function bindStoryboardSceneControls(project) {
       const scene = (project.scenes || []).find((item) => item.id === input.dataset.scenePrompt);
       if (!scene) return;
       scene.prompt = input.value.slice(0, 900);
+      scene.visualPrompt = scene.prompt;
+      const sceneIndex = (project.scenes || []).findIndex((item) => item.id === scene.id);
+      scene.imagePromptInternal = scene.visualPrompt || buildSceneImagePrompt(project, scene, sceneIndex);
       if (!scene.title || /^Scene \d+$/i.test(scene.title)) {
         scene.title = sceneTitleFromPrompt(scene.prompt, scene.title || "Scene");
       }
@@ -890,6 +3224,16 @@ function bindStoryboardSceneControls(project) {
     });
   });
 
+  document.querySelectorAll("[data-scene-media-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scene = (project.scenes || []).find((item) => item.id === button.dataset.sceneMediaMode);
+      if (!scene || !scene.generatedImageUrl) return;
+      scene.mediaMode = button.dataset.mediaMode === "video" ? "video" : "image";
+      writeStoryboardProject(project);
+      rerenderStoryboard(project);
+    });
+  });
+
   document.querySelectorAll("[data-ai-assist-scene]").forEach((control) => {
     control.addEventListener("click", () => {
       if (control.tagName === "SELECT") return;
@@ -897,6 +3241,7 @@ function bindStoryboardSceneControls(project) {
       const scene = project.scenes?.[sceneIndex];
       if (!scene) return;
       scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
+      scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
       scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       writeStoryboardProject(project);
       rerenderStoryboard(project);
@@ -908,8 +3253,8 @@ function bindStoryboardSceneControls(project) {
       const sceneIndex = (project.scenes || []).findIndex((item) => item.id === select.dataset.aiAssistScene);
       const scene = project.scenes?.[sceneIndex];
       if (!scene || select.value === "AI Assist") return;
-      scene.prompt = `${scene.prompt || storyPromptForIndex(project, sceneIndex)} ${select.value}: add a polished, kid-friendly cinematic beat that keeps the same character and world style.`;
-      scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
+      scene.mood = select.value;
+      scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
       writeStoryboardProject(project);
       rerenderStoryboard(project);
     });
@@ -945,6 +3290,21 @@ function bindStoryboardSceneControls(project) {
     });
   });
 
+  document.querySelectorAll("[data-toggle-scene-expand]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scene = (project.scenes || []).find((item) => item.id === button.dataset.toggleSceneExpand);
+      if (!scene) return;
+      scene.editorExpanded = !scene.editorExpanded;
+      writeStoryboardProject(project);
+      rerenderStoryboard(project);
+      const card = document.querySelector(`[data-scene-id="${CSS.escape(scene.id)}"]`);
+      card?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (scene.editorExpanded) {
+        window.setTimeout(() => card?.querySelector(".scene-prompt-input")?.focus(), 180);
+      }
+    });
+  });
+
   document.querySelectorAll("[data-generate-scene]").forEach((button) => {
     button.addEventListener("click", () => {
       const sceneIndex = (project.scenes || []).findIndex((item) => item.id === button.dataset.generateScene);
@@ -952,6 +3312,7 @@ function bindStoryboardSceneControls(project) {
       if (!scene) return;
       if (!scene.prompt) {
         scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
+        scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
         scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       }
       scene.status = "generating";
@@ -967,16 +3328,27 @@ function bindStoryboardSceneControls(project) {
 
   document.querySelectorAll("[data-generate-scene-image]").forEach((button) => {
     button.addEventListener("click", () => {
-      generateStoryboardSceneImage(project, button.dataset.generateSceneImage);
+      queueStoryboardSceneImage(button.dataset.generateSceneImage);
+    });
+  });
+
+  document.querySelectorAll("[data-bring-scene-to-life]").forEach((button) => {
+    button.addEventListener("click", () => {
+      generateStoryboardSceneVideo(project, button.dataset.bringSceneToLife);
     });
   });
 }
 
-function hydrateStoryboardPage() {
+async function hydrateStoryboardPage() {
   if (!document.querySelector(".storyboard-shell")) return;
-  const project = writeStoryboardProject(ensureSceneList(readStoryboardProject()));
-  document.querySelector("#storyboardProjectTitle").textContent = project.title || "My Awesome Story";
+  const project = writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject())));
+  bindStoryboardTitle(project);
   rerenderStoryboard(project);
+  resumeQueuedSceneImages(project);
+  resumeStoryboardVideoJobs(project);
+  bindStoryDirectionControls(project);
+  bindStoryboardMovieControls(project);
+  restoreSavedStoryboardMovie(project);
 
   document.querySelector("#addWorldButton")?.addEventListener("click", () => {
     window.location.href = "/storyboard-world.html";
@@ -985,14 +3357,76 @@ function hydrateStoryboardPage() {
     window.location.href = "/storyboard-character.html";
   });
   document.querySelector("#quickPopulateStoryButton")?.addEventListener("click", () => {
-    quickPopulateStory(project);
-    writeStoryboardProject(project);
-    rerenderStoryboard(project);
+    requestFullStory(project, "write");
   });
-  document.querySelector("#aiAssistStoryButton")?.addEventListener("click", () => {
-    quickPopulateStory(project);
+  document.querySelector("#regenerateFullStoryButton")?.addEventListener("click", () => {
+    requestFullStory(project, "write");
+  });
+  document.querySelector("#clearFullStoryButton")?.addEventListener("click", () => {
+    clearFullStory(project);
+  });
+  document.querySelector("#fullStoryDraft")?.addEventListener("input", (event) => {
+    resetStoryReaderAudio("Story changed. Press Read Story to Me to create a fresh narration.");
+    project.storyDraft = {
+      ...(project.storyDraft || {}),
+      story: preserveStoryFormatting(event.target.value).slice(0, 16000),
+      chapters: [],
+      status: "ready",
+      approved: false,
+    };
+    writeStoryboardProject(project);
+    renderStoryApproval(project);
+  });
+  document.querySelector("#storyReaderVoice")?.addEventListener("change", () => {
+    if (!storyReaderAudioUrl) return;
+    resetStoryReaderAudio("Voice changed. Press Read Story to Me to create the new narration.");
+    renderStoryReaderState(project);
+  });
+  document.querySelector("#readStoryButton")?.addEventListener("click", () => {
+    generateStoryReaderAudio(project);
+  });
+  document.querySelector("#playStoryAudioButton")?.addEventListener("click", () => {
+    const audio = document.querySelector("#storyReaderAudio");
+    if (!audio?.src) return;
+    audio.play().catch(() => {
+      const status = document.querySelector("#storyReaderStatus");
+      if (status) status.textContent = "Press Play again to start the story voice.";
+    });
+  });
+  document.querySelector("#pauseStoryAudioButton")?.addEventListener("click", () => {
+    document.querySelector("#storyReaderAudio")?.pause();
+  });
+  document.querySelector("#restartStoryAudioButton")?.addEventListener("click", () => {
+    const audio = document.querySelector("#storyReaderAudio");
+    if (!audio?.src) return;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+    updateStoryReaderTime();
+  });
+  const storyReaderAudio = document.querySelector("#storyReaderAudio");
+  storyReaderAudio?.addEventListener("timeupdate", updateStoryReaderTime);
+  storyReaderAudio?.addEventListener("loadedmetadata", updateStoryReaderTime);
+  storyReaderAudio?.addEventListener("ended", updateStoryReaderTime);
+  document.querySelector("#approveFullStoryButton")?.addEventListener("click", () => {
+    requestFullStory(project, "split");
+  });
+  document.querySelector("#clearStoryboardButton")?.addEventListener("click", () => {
+    openClearScenesModal();
+  });
+  document.querySelector("#cancelClearScenesButton")?.addEventListener("click", () => {
+    closeClearScenesModal();
+  });
+  document.querySelector("#clearScenesModal")?.addEventListener("click", (event) => {
+    if (event.target?.id === "clearScenesModal") closeClearScenesModal();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeClearScenesModal();
+  });
+  document.querySelector("#confirmClearScenesButton")?.addEventListener("click", () => {
+    clearStoryboardScenes(project);
     writeStoryboardProject(project);
     rerenderStoryboard(project);
+    closeClearScenesModal();
   });
   document.querySelector("#addSceneButton")?.addEventListener("click", () => {
     addStoryScene(project);
@@ -1003,35 +3437,6 @@ function hydrateStoryboardPage() {
     addStoryScene(project);
     writeStoryboardProject(normalizeSceneOrders(project));
     rerenderStoryboard(project);
-  });
-  document.querySelector("#playStoryButton")?.addEventListener("click", () => {
-    document.querySelector(".scene-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    document.querySelectorAll(".scene-card").forEach((card, index) => {
-      window.setTimeout(() => card.classList.add("is-playing"), index * 260);
-      window.setTimeout(() => card.classList.remove("is-playing"), index * 260 + 900);
-    });
-  });
-
-  document.querySelector("#compileCreatorBibleButton")?.addEventListener("click", () => {
-    const status = document.querySelector("#creatorBibleStatus");
-    if (!window.OPREALMCreatorBible) {
-      if (status) status.textContent = "Creator Bible tools are still loading. Try again in a moment.";
-      return;
-    }
-    const latestProject = readStoryboardProject();
-    const bible = window.OPREALMCreatorBible.compileCreatorBible(latestProject, {
-      selectedOutcome: "realmbeasts"
-    });
-    const safety = window.OPREALMCreatorBible.runSafetyChecks(bible);
-    window.OPREALMCreatorBible.saveBible(bible);
-    window.OPREALMCreatorBible.saveRealmBeastsConfig(
-      window.OPREALMCreatorBible.generateRealmBeastsConfig(bible)
-    );
-    if (status) {
-      status.textContent = safety.allowed
-        ? "Creator Bible compiled. RealmBeasts test draft is ready."
-        : `Creator Bible saved for private review: ${safety.reasons.join(", ")}`;
-    }
   });
 }
 

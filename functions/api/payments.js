@@ -1,14 +1,4 @@
-const TIERS = {
-  explorer: { label: "Explorer Membership", amountCents: 500, credits: 100, trialDays: 2 },
-  creator: { label: "Creator Membership", amountCents: 1900, credits: 500 },
-  pro: { label: "Elite Creator Membership", amountCents: 3900, credits: 1200 },
-};
-
-const CREDIT_BUNDLES = {
-  mini_boost: { label: "Mini Boost", amountCents: 700, credits: 50 },
-  creator_boost: { label: "Creator Boost", amountCents: 1500, credits: 150 },
-  pro_boost: { label: "Pro Boost", amountCents: 2900, credits: 400 },
-};
+import { CREDIT_BUNDLES, MEMBERSHIP_TIERS as TIERS } from "../_lib/creator-pricing.js";
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -53,20 +43,14 @@ export async function onRequestPost({ request, env }) {
 async function createStripeCreditCheckout(env, origin, user, bundleKey, bundle) {
   if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: "Stripe is not configured yet." }, 500);
 
-  const priceId = {
-    mini_boost: env.STRIPE_PRICE_CREDIT_MINI_BOOST,
-    creator_boost: env.STRIPE_PRICE_CREDIT_CREATOR_BOOST,
-    pro_boost: env.STRIPE_PRICE_CREDIT_PRO_BOOST,
-  }[bundleKey];
-  if (!priceId) return json({ ok: false, error: `Missing Stripe price for ${bundle.label}.` }, 500);
-
   const body = new URLSearchParams({
     mode: "payment",
     success_url: `${origin}/billing?credits=success`,
     cancel_url: `${origin}/billing?credits=cancelled`,
-    "line_items[0][price]": priceId,
+    "line_items[0][price_data][currency]": String(env.OPREALM_CURRENCY || "AUD").toLowerCase(),
+    "line_items[0][price_data][unit_amount]": String(bundle.amountCents),
+    "line_items[0][price_data][product_data][name]": bundle.label,
     "line_items[0][quantity]": "1",
-    allow_promotion_codes: "true",
     client_reference_id: user.id,
     customer_email: user.email,
     "metadata[purchase_type]": "credit_topup",
@@ -93,23 +77,20 @@ async function createStripeCreditCheckout(env, origin, user, bundleKey, bundle) 
 async function createStripeCheckout(env, origin, user, tierKey, tier) {
   if (!env.STRIPE_SECRET_KEY) return json({ ok: false, error: "Stripe is not configured yet." }, 500);
 
-  const priceId = {
-    explorer: env.STRIPE_PRICE_EXPLORER,
-    creator: env.STRIPE_PRICE_CREATOR,
-    pro: env.STRIPE_PRICE_PRO,
-  }[tierKey];
-  if (!priceId) return json({ ok: false, error: `Missing Stripe price for ${tier.label}.` }, 500);
-
   const body = new URLSearchParams({
     mode: "subscription",
     success_url: `${origin}/billing?checkout=success`,
     cancel_url: `${origin}/billing?checkout=cancelled`,
-    "line_items[0][price]": priceId,
+    "line_items[0][price_data][currency]": String(env.OPREALM_CURRENCY || "AUD").toLowerCase(),
+    "line_items[0][price_data][unit_amount]": String(tier.amountCents),
+    "line_items[0][price_data][recurring][interval]": "month",
+    "line_items[0][price_data][product_data][name]": tier.label,
     "line_items[0][quantity]": "1",
-    allow_promotion_codes: "true",
     "metadata[tier]": tierKey,
   });
   if (tier.trialDays) body.set("subscription_data[trial_period_days]", String(tier.trialDays));
+  body.set("subscription_data[metadata][tier]", tierKey);
+  body.set("subscription_data[metadata][web_user_id]", user.id);
   if (user?.email) body.set("customer_email", user.email);
   if (user?.id) body.set("client_reference_id", user.id);
 

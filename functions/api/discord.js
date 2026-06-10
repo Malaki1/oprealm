@@ -25,9 +25,9 @@ const ButtonStyle = {
 
 const TIER_CREDITS = {
   explorer: 100,
-  creator: 500,
-  pro: 1200,
-  elite: 1200,
+  creator: 250,
+  pro: 500,
+  elite: 500,
 };
 
 const CREDIT_COSTS = {

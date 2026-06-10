@@ -8,8 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=16" />
-    <script src="/storyboard-character.js?v=7" defer></script>
+    <link rel="stylesheet" href="/creator-flow.css?v=43" />
+    <script src="/storyboard-account.js?v=2" defer></script>
+    <script src="/storyboard-character.js?v=16" defer></script>
   </head>
   <body class="storyboard-body character-builder-body">
     <header class="storyboard-topbar character-builder-topbar">
@@ -23,7 +24,7 @@
         <a href="/storyboard.html">Story Builder</a>
         <a href="/library">My Creations</a>
         <a href="/account.html">Profile</a>
-        <span class="spark-pill">1200</span>
+        <span class="spark-pill" data-credit-pill>...</span>
       </nav>
     </header>
 
@@ -35,6 +36,7 @@
             <h1>Create New Character</h1>
             <p>Bring your character to life. Add details, personality and style.</p>
           </div>
+          <button class="clear-character-button" id="clearCharacterButton" type="button">Clear Character</button>
         </header>
 
         <div class="character-builder-grid">
@@ -112,7 +114,7 @@
                 <span>Add your character details, then generate.</span>
               </div>
               <img id="characterPreviewImage" src="" alt="Generated character concept" hidden />
-              <button class="character-regenerate-button" type="button">Generate Preview</button>
+              <button class="character-regenerate-button" type="button">Generate Preview (18 credits)</button>
               <div class="character-reference-actions" aria-label="Character reference image actions">
                 <button id="enlargeCharacterReferenceButton" type="button" disabled>Enlarge</button>
                 <button id="downloadCharacterReferenceButton" type="button" aria-label="Download character reference image" disabled>Download</button>
@@ -130,7 +132,7 @@
                 <button type="button" data-recipe-choice="masterStyle" data-value="90s Cartoon"><img src="/assets/character-creator/styles/90s-cartoon.png" alt="" /><span>90s Cartoon</span></button>
               </div>
             </div>
-            <button id="generateCharacterRecipeButton" class="generate-character-button" type="button">Generate Character</button>
+            <button id="generateCharacterRecipeButton" class="generate-character-button" type="button">Generate Character (18 credits)</button>
             <p id="characterGenerationStatus" class="recipe-status" aria-live="polite"></p>
           </section>
 
@@ -229,6 +231,7 @@
           <button class="scene-action add-another" id="saveAndAddCharacterButton" type="button">Save & Add Another</button>
           <a class="scene-action primary recipe-next-step" id="proceedToStoryBuilderButton" href="/storyboard.html" hidden>Proceed To Story Builder</a>
         </footer>
+        <p id="characterSaveStatus" class="recipe-status save-confirmation-status" aria-live="polite"></p>
       </section>
     </main>
 

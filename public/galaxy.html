@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Explore OPREALM Galaxy, discover creator planets, rare beasts, resources and story worlds." />
+    <title>OPREALM Galaxy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/galaxy.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/galaxy.js?v=1" defer></script>
+  </head>
+  <body>
+    <main class="galaxy-shell">
+      <aside class="galaxy-sidebar" aria-label="Galaxy navigation">
+        <a class="back-button" href="/studio" aria-label="Back to Studio">‹</a>
+        <a class="galaxy-brand" href="/galaxy.html">
+          <span class="brand-orb" aria-hidden="true"></span>
+          <strong>OPREALM Galaxy</strong>
+          <small>Explore creator worlds</small>
+        </a>
+        <nav>
+          <a class="is-active" href="/galaxy.html"><span>✦</span> Galaxy</a>
+          <a href="#my-planet"><span>⌂</span> My Planet <em>1</em></a>
+          <a href="#realmdex"><span>◈</span> RealmDex</a>
+          <a href="#inventory"><span>▣</span> Inventory</a>
+          <a href="#crafting"><span>⚒</span> Crafting</a>
+          <a href="#quests"><span>?</span> Quests</a>
+          <a href="#friends"><span>●</span> Friends</a>
+          <a href="#settings"><span>⚙</span> Settings</a>
+        </nav>
+        <section class="player-card" aria-label="Player profile">
+          <div class="avatar" aria-hidden="true">EM</div>
+          <div>
+            <strong>ExplorerMax</strong>
+            <span>Level 24</span>
+            <div class="xp-bar"><i style="width: 61%"></i></div>
+            <small>2,450 / 4,000 XP</small>
+          </div>
+        </section>
+      </aside>
+
+      <section class="galaxy-main" aria-labelledby="galaxyTitle">
+        <header class="galaxy-topbar">
+          <div>
+            <p class="eyebrow">Featured Galaxy</p>
+            <h1 id="galaxyTitle">Explore thousands of creator planets.</h1>
+          </div>
+          <div class="currency-row" aria-label="Player currencies">
+            <span><b class="crystal"></b>12,450</span>
+            <span><b class="coin"></b>8,230</span>
+            <span><b class="gem"></b>315</span>
+            <button type="button" aria-label="Add credits">+</button>
+          </div>
+        </header>
+
+        <div class="galaxy-controls">
+          <div class="tab-row" role="tablist" aria-label="Galaxy filters">
+            <button class="is-active" type="button" data-filter="featured">Featured</button>
+            <button type="button" data-filter="trending">Trending</button>
+            <button type="button" data-filter="new">New Worlds</button>
+            <button type="button" data-filter="creators">Best Creators</button>
+            <button type="button" data-filter="beasts">Rare Beasts</button>
+            <button type="button" data-filter="stories">Story Worlds</button>
+          </div>
+          <label class="search-box">
+            <span>Search planets, creators, species, biomes or games</span>
+            <input id="galaxySearch" type="search" placeholder="Try Stormbyte, Crystal, Lumora..." autocomplete="off" />
+          </label>
+        </div>
+
+        <section class="galaxy-map" aria-label="Interactive planet map">
+          <div class="nebula nebula-one" aria-hidden="true"></div>
+          <div class="nebula nebula-two" aria-hidden="true"></div>
+          <div class="star-field" aria-hidden="true"></div>
+          <div class="orbit-ring orbit-one" aria-hidden="true"></div>
+          <div class="orbit-ring orbit-two" aria-hidden="true"></div>
+          <div class="planet-layer" id="planetLayer"></div>
+          <div class="unknown-planet" aria-label="Unknown locked planet">
+            <span>?</span>
+            <strong>?????</strong>
+            <small>Visit to discover</small>
+          </div>
+        </section>
+
+        <footer class="galaxy-bottom">
+          <section class="carousel-panel">
+            <div class="panel-title">
+              <h2>Trending Worlds</h2>
+              <span id="resultCount">0 planets</span>
+            </div>
+            <div class="world-strip" id="worldStrip"></div>
+          </section>
+          <section class="event-panel">
+            <h2>Galaxy Events</h2>
+            <article><span>☄</span><div><strong>Meteor Shower</strong><small>Starts in 24m</small></div></article>
+            <article><span>◈</span><div><strong>Beast Migration</strong><small>Starts in 3h 12m</small></div></article>
+          </section>
+        </footer>
+      </section>
+
+      <aside class="planet-drawer" aria-label="Selected planet details">
+        <button class="drawer-close" type="button" aria-label="Close planet details">×</button>
+        <div class="planet-preview" id="planetPreview"></div>
+        <div class="planet-copy">
+          <p class="rarity-pill" id="planetRarity"></p>
+          <h2 id="planetName"></h2>
+          <p id="planetOwner"></p>
+          <div class="level-row">
+            <span>Planet Level <strong id="planetLevel"></strong></span>
+            <small id="planetXp"></small>
+          </div>
+          <div class="planet-progress"><i id="planetProgress"></i></div>
+        </div>
+        <div class="planet-stats" id="planetStats"></div>
+        <section class="featured-beast">
+          <p>Featured Beast</p>
+          <div>
+            <span id="beastPortrait" aria-hidden="true"></span>
+            <strong id="featuredBeast"></strong>
+            <small id="beastRarity"></small>
+          </div>
+        </section>
+        <section class="resource-panel">
+          <p>Resources</p>
+          <div id="resourceList"></div>
+        </section>
+        <div class="drawer-actions">
+          <a class="visit-button" id="visitPlanetButton" href="/planet-hub.html">Visit Planet</a>
+          <button type="button" id="favoriteButton">Favourite</button>
+          <button type="button" id="followButton">Follow</button>
+        </div>
+        <section class="home-planet-card" id="my-planet">
+          <div class="mini-planet lumora" aria-hidden="true"></div>
+          <div>
+            <strong>Home Sweet Home</strong>
+            <span>Your Planet · Level 42</span>
+            <a href="/galaxy.html?planet=home">Go Home</a>
+          </div>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>

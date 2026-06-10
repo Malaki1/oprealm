@@ -11,10 +11,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/home.css?v=15" />
+    <link rel="stylesheet" href="/home.css?v=17" />
     <script src="/account-nav.js?v=1" defer></script>
     <script src="/realm-spark-core.js?v=1" defer></script>
-    <script src="/home.js?v=2" defer></script>
+    <script src="/home.js?v=4" defer></script>
   </head>
   <body>
     <header class="home-header">
@@ -115,7 +115,7 @@
           </div>
           <form class="describe-prompt" data-home-prompt-form action="/realm-spark-loading.html">
             <label class="sr-only" for="homeIdeaPrompt">Describe your idea</label>
-            <button class="describe-prompt-button describe-voice-button" type="button" data-home-voice aria-label="Start voice prompt">
+            <button class="describe-prompt-button describe-voice-button" type="button" data-home-voice aria-label="Hold to record voice prompt" aria-pressed="false" title="Hold to talk">
               <span class="op-icon op-icon-mic" aria-hidden="true"></span>
             </button>
             <input id="homeIdeaPrompt" name="idea" type="text" autocomplete="off" placeholder="Describe your idea..." aria-label="Describe your idea" />
@@ -128,18 +128,6 @@
             </button>
           </form>
 
-          <p class="describe-tip"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Tip: Try <span>“a futuristic racing game in space”</span></p>
-
-          <div class="describe-chips" aria-label="AI creation shortcuts">
-            <button type="button" data-home-chip="voice"><span class="op-icon op-icon-mic" aria-hidden="true"></span> Voice</button>
-            <button type="button" data-home-chip="draw"><span class="op-icon op-icon-image" aria-hidden="true"></span> Draw</button>
-            <button type="button" data-home-random><span class="op-icon op-icon-options" aria-hidden="true"></span> Random Idea</button>
-            <button type="button" data-home-chip="inspire"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Inspire Me</button>
-            <button type="button" data-home-chip="trending"><span class="op-icon op-icon-time" aria-hidden="true"></span> Trending</button>
-            <button type="button" data-home-chip="remix"><span class="op-icon op-icon-refresh" aria-hidden="true"></span> Remix</button>
-            <button type="button" data-home-chip="build-game"><span class="op-icon op-icon-dashboard" aria-hidden="true"></span> Build Game</button>
-            <button type="button" data-home-chip="make-story"><span class="op-icon op-icon-document" aria-hidden="true"></span> Make Story</button>
-          </div>
         </div>
       </section>
 
@@ -170,7 +158,7 @@
             <p class="eyebrow">Worlds created by kids</p>
             <h2>Real worlds. Real creators.</h2>
           </div>
-          <a class="button primary" href="/library">Explore More Worlds</a>
+          <a class="button primary" href="/galaxy.html">Explore More Worlds</a>
         </div>
         <div class="world-grid">
           <article><div class="image-slot world-image filled world-lava" role="img" aria-label="Lava Escape creator world"></div><h3>Lava Escape</h3><p>BuilderMax11 (Age 10)</p><div><span>12.4K</span><span>2.1K</span></div></article>
@@ -210,44 +198,39 @@
             <p class="eyebrow">One membership. Endless creation.</p>
             <h2>Join the OPREALM Creator Club.</h2>
           </div>
-          <div class="billing-toggle" role="group" aria-label="Choose billing period">
-            <button type="button" class="is-active" data-billing-toggle="monthly" aria-pressed="true">Monthly</button>
-            <button type="button" data-billing-toggle="yearly" aria-pressed="false">Yearly</button>
-            <strong>Save 30%</strong>
-          </div>
         </div>
         <div class="pricing-layout">
-          <aside class="review-credit-promo" aria-label="Review bonus credits">
+          <aside class="review-credit-promo" aria-label="Community review">
             <div class="review-logo" aria-hidden="true">
               <span class="review-stars" aria-label="Five star review"><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span><span class="op-icon op-icon-favorite" aria-hidden="true"></span></span>
               <strong>ProductReview</strong>
             </div>
             <div class="review-copy">
-              <p>Review bonus</p>
-              <h3>Get 100 extra credits</h3>
-              <span>Leave an honest OPREALM review and we will add bonus creator credits after verification.</span>
+              <p>Community review</p>
+              <h3>Help shape OPREALM</h3>
+              <span>Leave an honest review and tell us which creation tools should improve next.</span>
             </div>
             <a class="button dark" href="/account">Claim Later</a>
           </aside>
           <article class="price-card">
             <p>Explorer</p>
-            <h3>$5 <small>/mo</small></h3>
-            <span>2-day free trial. Cancel anytime.</span>
+            <h3>A$9.99 <small>/mo</small></h3>
+            <span>100 credits every month</span>
             <ul><li>100 Creator credits / month</li><li>Basic assets</li><li>Publish to library</li></ul>
-            <a class="button dark" href="/billing">Start 2-Day Trial</a>
+            <a class="button dark" href="/billing">Start Explorer</a>
           </article>
-          <article class="price-card featured" data-plan-card data-monthly-price="$19" data-yearly-price="$160" data-monthly-label="/mo" data-yearly-label="/yr" data-yearly-note="30% off yearly - equivalent to $13.30/month">
+          <article class="price-card featured" data-plan-card data-monthly-price="A$24.99" data-yearly-price="A$299.88" data-monthly-label="/mo" data-yearly-label="/yr" data-yearly-note="250 credits each month">
             <p>Creator+</p>
-            <h3><span data-price-value>$19</span> <small data-price-label>/mo</small></h3>
+            <h3><span data-price-value>A$24.99</span> <small data-price-label>/mo</small></h3>
             <span data-plan-note>Unlimited creativity</span>
-            <ul><li>500 Creator credits</li><li>Premium assets</li><li>Advanced tools</li><li>Priority support</li></ul>
+            <ul><li>250 Creator credits</li><li>Premium assets</li><li>Advanced tools</li><li>Priority support</li></ul>
             <a class="button primary" href="/billing" data-plan-cta>Start Creator</a>
           </article>
-          <article class="price-card" data-plan-card data-monthly-price="$39" data-yearly-price="$328" data-monthly-label="/mo" data-yearly-label="/yr" data-yearly-note="30% off yearly - equivalent to $27.30/month">
+          <article class="price-card" data-plan-card data-monthly-price="A$49.99" data-yearly-price="A$599.88" data-monthly-label="/mo" data-yearly-label="/yr" data-yearly-note="500 credits each month">
             <p>Elite Creator</p>
-            <h3><span data-price-value>$39</span> <small data-price-label>/mo</small></h3>
+            <h3><span data-price-value>A$49.99</span> <small data-price-label>/mo</small></h3>
             <span data-plan-note>For the next generation</span>
-            <ul><li>1,200 Creator credits</li><li>Everything in Creator+</li><li>Exclusive assets</li><li>VIP support</li></ul>
+            <ul><li>500 Creator credits</li><li>Everything in Creator+</li><li>Exclusive assets</li><li>VIP support</li></ul>
             <a class="button dark" href="/billing" data-plan-cta>Start Elite</a>
           </article>
           <div class="mascot-art" role="img" aria-label="Orbit the OPREALM mascot holding a glowing star"></div>

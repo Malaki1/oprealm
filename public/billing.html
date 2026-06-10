@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/studio.css?v=5" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/billing.js?v=1" defer></script>
+    <script src="/billing.js?v=2" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -31,12 +31,12 @@
         <div>
           <p class="eyebrow">Secure checkout</p>
           <h1>Choose the creator power your child needs.</h1>
-          <p>Stripe handles credit card checkout. PayPal checkout is available once live PayPal credentials are connected.</p>
+          <p>Every Creator credit has the same value across memberships and top-ups, so project costs stay predictable.</p>
         </div>
         <aside class="credits-card">
-          <span>Payment options</span>
-          <strong>2</strong>
-          <p>Stripe card checkout and PayPal order checkout are wired through secure server endpoints.</p>
+          <span>Simple credit value</span>
+          <strong>A$0.10</strong>
+          <p>One Creator credit has the same base price across every plan and refill.</p>
         </aside>
       </section>
 
@@ -44,11 +44,11 @@
         <article class="builder-card billing-card" data-tier="explorer">
           <p class="eyebrow">Explorer</p>
           <h3>Explorer Membership</h3>
-          <p class="price-line">$5/mo</p>
-          <p class="promo-note">2-day free trial. Cancel anytime.</p>
-          <p>100 Creator credits per month, basic assets, guided starter tools and reviewed library publishing.</p>
+          <p class="price-line">A$9.99/mo</p>
+          <p class="promo-note">100 Creator credits each month</p>
+          <p>Build characters, worlds and shorter static stories with guided starter tools and reviewed library publishing.</p>
           <div class="payment-actions">
-            <button class="button button-primary" type="button" data-provider="stripe" data-tier="explorer">Start Trial By Card</button>
+            <button class="button button-primary" type="button" data-provider="stripe" data-tier="explorer">Subscribe By Card</button>
             <button class="button button-secondary" type="button" data-provider="paypal" data-tier="explorer">PayPal</button>
           </div>
         </article>
@@ -56,9 +56,9 @@
         <article class="builder-card billing-card" data-tier="creator">
           <p class="eyebrow">Creator</p>
           <h3>Creator Membership</h3>
-          <p class="price-line"><span class="old-price">$29/mo</span> $19/mo</p>
-          <p class="promo-note">Early adopter promo</p>
-          <p>500 Creator credits, one focused creation path, reviewed library submissions and guided AI tools.</p>
+          <p class="price-line">A$24.99/mo</p>
+          <p class="promo-note">250 Creator credits each month</p>
+          <p>Create a complete illustrated story, explore branching outcomes and use all guided AI story tools.</p>
           <div class="payment-actions">
             <button class="button button-primary" type="button" data-provider="stripe" data-tier="creator">Pay By Card</button>
             <button class="button button-secondary" type="button" data-provider="paypal" data-tier="creator">PayPal</button>
@@ -68,9 +68,9 @@
         <article class="builder-card billing-card" data-tier="pro">
           <p class="eyebrow">Elite Creator</p>
           <h3>Elite Creator Membership</h3>
-          <p class="price-line"><span class="old-price">$49/mo</span> $39/mo</p>
-          <p class="promo-note">Early adopter promo</p>
-          <p>1,200 Creator credits, all creation paths, priority AI generation and advanced publishing support.</p>
+          <p class="price-line">A$49.99/mo</p>
+          <p class="promo-note">500 Creator credits each month</p>
+          <p>Build larger illustrated projects, access priority generation and receive advanced publishing support.</p>
           <div class="payment-actions">
             <button class="button button-primary" type="button" data-provider="stripe" data-tier="pro">Pay By Card</button>
             <button class="button button-secondary" type="button" data-provider="paypal" data-tier="pro">PayPal</button>
@@ -88,27 +88,40 @@
         <div class="builder-grid billing-grid">
           <article class="builder-card billing-card credit-card">
             <p class="eyebrow">Mini Boost</p>
-            <h3>50 Credits</h3>
-            <p class="price-line">$7</p>
-            <p>Perfect for a small burst of ideas, quick sound effects, or a few extra experiments.</p>
+            <h3>100 Credits</h3>
+            <p class="price-line">A$10</p>
+            <p>A straightforward refill for images, story branches, narration or smaller experiments.</p>
             <button class="button button-primary" type="button" data-provider="stripe" data-bundle="mini_boost">Buy Mini Boost</button>
           </article>
 
           <article class="builder-card billing-card credit-card">
             <p class="eyebrow">Creator Boost</p>
-            <h3>150 Credits</h3>
-            <p class="price-line">$15</p>
-            <p>A useful refill for active creators building images, sounds, storyboards and trailer prep.</p>
+            <h3>250 Credits</h3>
+            <p class="price-line">A$25</p>
+            <p>A useful refill for active creators building a complete illustrated story.</p>
             <button class="button button-primary" type="button" data-provider="stripe" data-bundle="creator_boost">Buy Creator Boost</button>
           </article>
 
           <article class="builder-card billing-card credit-card">
             <p class="eyebrow">Pro Boost</p>
-            <h3>400 Credits</h3>
-            <p class="price-line">$29</p>
-            <p>Best for bigger project pushes with premium visuals, sprite work, music and launch assets.</p>
+            <h3>500 Credits</h3>
+            <p class="price-line">A$50</p>
+            <p>Best for larger projects, premium visuals and cinematic scene generation.</p>
             <button class="button button-primary" type="button" data-provider="stripe" data-bundle="pro_boost">Buy Pro Boost</button>
           </article>
+        </div>
+      </section>
+
+      <section class="builders-section" aria-labelledby="credit-cost-heading">
+        <div class="section-heading">
+          <p class="eyebrow">Clear project costs</p>
+          <h2 id="credit-cost-heading">What Creator credits cover</h2>
+          <p>Generation costs are shown before use. Video costs more because each scene creates an eight-second cinematic Veo clip.</p>
+        </div>
+        <div class="builder-grid billing-grid">
+          <article class="builder-card billing-card credit-card"><p class="eyebrow">Story assets</p><h3>5-24 Credits</h3><p>Story writing, character and world images, scene images and branching outcomes.</p></article>
+          <article class="builder-card billing-card credit-card"><p class="eyebrow">Narration and music</p><h3>From 3 Credits</h3><p>Audio is charged by narration length or music duration, only when requested.</p></article>
+          <article class="builder-card billing-card credit-card"><p class="eyebrow">Cinematic video</p><h3>325 Credits</h3><p>One eight-second Veo 3.1 Standard scene video, generated from the approved scene image.</p></article>
         </div>
       </section>
 

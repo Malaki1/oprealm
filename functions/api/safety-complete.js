@@ -205,9 +205,9 @@ function normalizeCourse(course) {
 function monthlyCredits(tier) {
   return {
     explorer: 100,
-    creator: 500,
-    pro: 1200,
-    elite: 1200,
+    creator: 250,
+    pro: 500,
+    elite: 500,
   }[tier] || 100;
 }
 

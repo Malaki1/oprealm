@@ -12,9 +12,10 @@ import {
 } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/validate.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
-const CHARACTER_IMAGE_COST = 18;
-const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.068;
+const CHARACTER_IMAGE_COST = CREATOR_CREDIT_COSTS.characterImage;
+const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.133;
 const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
 const CHARACTER_IMAGE_QUALITY = "high";
 const CHARACTER_TOOL = "story_character_image";
@@ -123,6 +124,7 @@ function ageBandFromAge(value) {
 }
 
 const ENVIRONMENT_COMPONENTS = {
+  "Neutral character studio": "restrained neutral character studio with soft depth, no portal, no gateway, no invented fantasy scenery",
   "Warm adventure ruins": "warm golden adventure ruins built around a clear circular stone hero platform in the foreground, broken columns and safe ancient details framing the character, soft depth behind",
   "Magic portal studio": "dark navy OPREALM portal studio with a glowing circular stage platform under the character, purple-cyan portal energy behind, clean particles, futuristic depth and no UI text",
   "Fantasy grove": "bright fantasy grove with a clean magical circular platform in the foreground, flowers and glowing plants around the stage edge, dreamy forest depth and safe adventure atmosphere",
@@ -145,7 +147,9 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: false, error: `You need ${CHARACTER_IMAGE_COST} Creator credits to generate a character image.` }, 402);
     }
 
-    const body = validateCharacterBody(await readJson(request, "Invalid character image request."));
+    const body = validateCharacterBody(
+      await readJson(request, "Invalid character image request.", 14 * 1024 * 1024),
+    );
     const prompt = buildCharacterImagePrompt(body);
     const promptHash = await sha256Text(`${CHARACTER_TOOL}:${CHARACTER_IMAGE_MODEL}:${CHARACTER_IMAGE_QUALITY}:${prompt}`);
     const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
@@ -188,10 +192,10 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-async function processCharacterImageJob(env, { jobId, user, prompt }) {
+async function processCharacterImageJob(env, { jobId, user, prompt, body }) {
   try {
     await markJobProcessing(env, jobId);
-    const result = await generateCharacterImage(env, prompt);
+    const result = await generateCharacterImage(env, prompt, body.world?.imageDataUrl || "");
     const charged = await chargeCredits(env, user.id, CHARACTER_IMAGE_COST);
     if (!charged) throw Object.assign(new Error(`You need ${CHARACTER_IMAGE_COST} Creator credits to finish this character image.`), { status: 402 });
 
@@ -229,7 +233,7 @@ async function chargeCredits(env, userId, credits) {
   return Number(result?.meta?.changes || 0) > 0;
 }
 
-async function generateCharacterImage(env, prompt) {
+async function generateCharacterImage(env, prompt, worldImageDataUrl = "") {
   const attempts = [
     { model: CHARACTER_IMAGE_MODEL, quality: CHARACTER_IMAGE_QUALITY },
     { model: CHARACTER_IMAGE_MODEL, quality: "medium" },
@@ -239,19 +243,9 @@ async function generateCharacterImage(env, prompt) {
   let lastError;
 
   for (const attempt of attempts) {
-    const response = await openAiFetch(env, "/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: attempt.model,
-        prompt,
-        size: "1024x1024",
-        quality: attempt.quality,
-        n: 1,
-      }),
-    }, { seed: `${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
+    const response = worldImageDataUrl
+      ? await requestCharacterWorldEdit(env, prompt, worldImageDataUrl, attempt)
+      : await requestCharacterGeneration(env, prompt, attempt);
 
     const data = await response.json();
     const b64 = data.data?.[0]?.b64_json;
@@ -260,6 +254,40 @@ async function generateCharacterImage(env, prompt) {
   }
 
   throw lastError || new Error("Character image generation failed.");
+}
+
+function requestCharacterGeneration(env, prompt, attempt) {
+  return openAiFetch(env, "/v1/images/generations", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model: attempt.model,
+      prompt,
+      size: "1024x1024",
+      quality: attempt.quality,
+      n: 1,
+    }),
+  }, { seed: `${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
+}
+
+function requestCharacterWorldEdit(env, prompt, worldImageDataUrl, attempt) {
+  const form = new FormData();
+  form.append("model", attempt.model);
+  form.append("prompt", prompt);
+  form.append("size", "1024x1024");
+  form.append("quality", attempt.quality);
+  form.append("image[]", dataUrlToFile(worldImageDataUrl, "saved-story-world.png"));
+  return openAiFetch(env, "/v1/images/edits", {
+    method: "POST",
+    body: form,
+  }, { seed: `${prompt}:${attempt.model}:${attempt.quality}:saved-world`, retries: 1 });
+}
+
+function dataUrlToFile(dataUrl, filename) {
+  const match = String(dataUrl).match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
+  if (!match) throw new Error("Invalid saved world image reference.");
+  const bytes = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0));
+  return new File([bytes], filename, { type: match[1] });
 }
 
 async function logAiUsage(env, user, prompt, imageResult) {
@@ -303,7 +331,7 @@ async function logAiUsage(env, user, prompt, imageResult) {
 }
 
 function buildCharacterImagePrompt(body) {
-  if (body.recipe) return buildCharacterRecipePrompt(body.recipe, body.prompt, body.variation);
+  if (body.recipe) return buildCharacterRecipePrompt(body.recipe, body.prompt, body.variation, body.world);
   return [
     "Create one safe kid-friendly AI story game character image for OPRealm.",
     "Use a clean centered character portrait on a simple transparent-feeling or soft gradient background.",
@@ -362,9 +390,24 @@ function validateCharacterBody(body) {
     variation: Boolean(body.variation),
     idempotencyKey: cleanText(body.idempotencyKey || "", 120),
     recipe,
+    world: normalizeWorldContext(body.world),
   };
-  assertSafePrompt(JSON.stringify(normalized));
+  assertSafePrompt(JSON.stringify({
+    ...normalized,
+    world: normalized.world ? { ...normalized.world, imageDataUrl: "" } : null,
+  }));
   return normalized;
+}
+
+function normalizeWorldContext(world) {
+  if (!world || typeof world !== "object") return null;
+  const imageDataUrl = String(world.imageDataUrl || "");
+  return {
+    id: cleanText(world.id || "", 120),
+    name: cleanText(world.name || "Saved story world", 100),
+    description: cleanText(world.description || "", 1600),
+    imageDataUrl: /^data:image\/(?:png|jpe?g|webp);base64,/i.test(imageDataUrl) ? imageDataUrl : "",
+  };
 }
 
 function normalizeCharacterRecipe(recipe) {
@@ -377,7 +420,7 @@ function normalizeCharacterRecipe(recipe) {
 
   const masterStyle = pickKey(visual.masterStyle || recipe.masterStyle, STYLE_COMPONENTS, "3D Cartoon");
   const outfit = pickKey(components.outfit || recipe.outfit, OUTFIT_COMPONENTS, "Custom");
-  const environment = pickKey(components.environment || recipe.environment, ENVIRONMENT_COMPONENTS, "Magic portal studio");
+  const environment = pickKey(components.environment || recipe.environment, ENVIRONMENT_COMPONENTS, "Neutral character studio");
   const accessories = pickMany(components.accessories || recipe.accessories, ACCESSORY_COMPONENTS, ["Custom Object"]);
   const pet = pickKey(components.pet || recipe.pet, PET_COMPONENTS, "Custom Pet");
   const palette = pickPalette(visual.palette || recipe.palette, ["Orange", "Blue", "Charcoal", "Silver"]);
@@ -432,7 +475,7 @@ function normalizeCharacterRecipe(recipe) {
   };
 }
 
-function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
+function buildCharacterRecipePrompt(recipe, promptNotes, variation, world) {
   const stylePrompt = STYLE_COMPONENTS[recipe.visual.masterStyle];
   const outfitPrompt = recipe.components.outfit === "Custom" && recipe.components.customOutfit
     ? `creator-specified custom outfit: ${recipe.components.customOutfit}`
@@ -446,7 +489,9 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
     : PET_COMPONENTS[recipe.components.pet];
   const colorPrompts = recipe.visual.palette.map((item) => colorPrompt(item)).filter(Boolean);
   const traitPrompts = recipe.identity.traits.map((item) => PERSONALITY_COMPONENTS[item] || `custom trait "${item}" should influence the facial expression, pose, body language, and character energy`).filter(Boolean);
-  const environmentPrompt = ENVIRONMENT_COMPONENTS[recipe.components.environment];
+  const environmentPrompt = world
+    ? `${world.name}. ${world.description || "Use the supplied saved-world reference exactly."}`
+    : ENVIRONMENT_COMPONENTS[recipe.components.environment];
   const agePrompt = AGE_GROUP_COMPONENTS[recipe.identity.ageGroup] || AGE_GROUP_COMPONENTS.Child;
   const genderPrompt = recipe.identity.genderPresentation === "Other" && recipe.identity.customGender
     ? `Other: ${recipe.identity.customGender}`
@@ -473,7 +518,9 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
     `Accessories/objects: ${recipe.components.accessories.join(", ")}. ${accessoryPrompts.join(" ")} ${customObjectPrompt}`,
     `Pet companion: ${recipe.components.pet}. ${petPrompt}`,
     `Outfit/accessory color palette only: ${recipe.visual.palette.join(", ")}. ${colorPrompts.join(" ")}`,
-    `Environment for this preview: ${recipe.components.environment}. ${environmentPrompt}.`,
+    world
+      ? `SAVED WORLD LOCK: The supplied image is the creator's previously selected world, "${world.name}". Keep that world recognisable as the background and add the new character naturally into it. Preserve its architecture, terrain, materials, atmosphere, lighting language and color reference. Do not replace, cover or transform it into a portal studio, glowing gateway, generic stage, fantasy grove or another preset world. ${environmentPrompt}.`
+      : `Environment for this preview: ${recipe.components.environment || "simple neutral character studio"}. ${environmentPrompt || "Use a restrained neutral background without portals or invented world scenery."}.`,
     recipe.generation.consistencyLock
       ? "Consistency lock is ON: preserve the same face, hair, age, body proportions, outfit structure, palette, and selected accessories in future versions."
       : "Consistency lock is OFF for this first exploratory draft, but still keep the recipe coherent.",

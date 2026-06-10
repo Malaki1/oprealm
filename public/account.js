@@ -25,8 +25,8 @@ const nodes = {
 
 const tierCopy = {
   explorer: "Explorer access with 100 monthly credits, safety-first tools and starter creator paths.",
-  creator: "Creator Membership access with 500 credits, premium assets and guided creator engines.",
-  pro: "Elite Creator access with 1,200 credits, priority generation and advanced publishing support.",
+  creator: "Creator Membership access with 250 credits, premium assets and guided creator engines.",
+  pro: "Elite Creator access with 500 credits, priority generation and advanced publishing support.",
   elite: "Elite Creator access with premium credits, priority generation and advanced publishing support.",
 };
 
@@ -109,7 +109,7 @@ function buildProgress(user, credits) {
   const createdDate = user.createdAt ? new Date(user.createdAt) : new Date();
   const accountAgeDays = Math.max(1, Math.ceil((Date.now() - createdDate.getTime()) / 86400000));
   const tierBase = { explorer: 350, creator: 1400, pro: 2300, elite: 2300 }[user.tier || "explorer"] || 350;
-  const creditSignal = Math.max(0, 1200 - credits);
+  const creditSignal = Math.max(0, 500 - credits);
   const totalPoints = Math.max(120, tierBase + Math.floor(creditSignal * 0.55) + Math.min(accountAgeDays, 30) * 18);
   const currentStreak = Math.min(7, Math.max(1, Math.floor(accountAgeDays / 2)));
 

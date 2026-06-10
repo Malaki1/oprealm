@@ -3,8 +3,9 @@ import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText, requireMinText } from "../_lib/validate.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
-const WORLD_IMAGE_COST = 18;
+const WORLD_IMAGE_COST = CREATOR_CREDIT_COSTS.worldImage;
 const WORLD_IMAGE_MODEL = "gpt-image-1.5";
 const WORLD_IMAGE_QUALITY = "high";
 const WORLD_IMAGE_ESTIMATED_COST_USD = 0.2;
@@ -23,6 +24,7 @@ export async function onRequestPost({ request, env }) {
     const body = validateWorldBody(await readJson(request, "Invalid world image request."));
     await assertRateLimit(env, user.id, WORLD_TOOL, { limit: 8, windowSeconds: 60 });
 
+    const startedAt = Date.now();
     const prompt = buildWorldPrompt(body);
     const image = await generateWorldImage(env, prompt);
     await chargeCredits(env, user.id, WORLD_IMAGE_COST);
@@ -34,6 +36,7 @@ export async function onRequestPost({ request, env }) {
       creditsUsed: WORLD_IMAGE_COST,
       model: image.model,
       quality: image.quality,
+      elapsedMs: Date.now() - startedAt,
     });
   } catch (error) {
     return json({ ok: false, error: error.message || "World image generation failed." }, error.status || 500);
@@ -45,7 +48,6 @@ function validateWorldBody(body) {
     name: cleanText(body.name || "Custom Story World", 60),
     prompt: requireMinText(body.prompt, "World prompt", 8, 900),
     moods: normalizeList(body.moods, 10, 32),
-    landmarks: normalizeList(body.landmarks, 8, 50),
   };
   assertSafePrompt(JSON.stringify(normalized));
   return normalized;
@@ -57,24 +59,18 @@ function normalizeList(value, maxItems, maxLength) {
 }
 
 function buildWorldPrompt(body) {
-  const promptMentionsPortal = /\b(portal|gateway|magic gate|wormhole)\b/i.test(body.prompt);
-  const safeLandmarks = body.landmarks.filter((landmark) => {
-    if (/portal|gateway/i.test(landmark)) return promptMentionsPortal;
-    return true;
-  });
   return [
     "Create one original OPREALM story-world environment concept from the creator's prompt.",
     "The creator prompt is the source of truth. Invent the environment from that prompt only.",
     "Do not default to OPREALM preset worlds. Do not add a portal, floating portal temple, fantasy grove, lava planet, candy kingdom, jungle, sky island, underwater realm, or dark kingdom unless the creator explicitly asked for that exact idea.",
     "No characters, no people, no readable text, no labels, no logos, no UI, no watermarks, no real children, no unsafe content.",
-    "If the creator describes a population, culture, army, or group of people, show the world they built through architecture, vehicles, tools, statues, banners without readable text, technology, landmarks, habitats, and environmental storytelling. Do not put people or characters in the frame.",
-    "Composition: portrait story-world concept art with a clear empty circular hero platform in the lower foreground where characters can later stand. The platform must be visible, centered, and surrounded by rich foreground details, midground landmarks, and deep background atmosphere.",
+    "If the creator describes a population, culture, army, or group of people, show the world they built through architecture, vehicles, tools, statues, banners without readable text, habitats, and environmental storytelling. Do not put people or characters in the frame.",
+    "Composition: portrait story-world concept art with a clear empty circular hero platform in the lower foreground where characters can later stand. The platform must be visible, centered, and surrounded by rich foreground details, midground environment, and deep background atmosphere.",
     "Make the world feel cinematic, polished, kid-friendly, safe for ages 6+, and ready to reuse across story scenes.",
-    "Use vivid OPREALM production quality only as polish: readable shapes, layered environment, game-world lighting, and premium depth. Color, materials, technology, weather, landmarks, and culture must come from the creator prompt.",
+    "Use vivid OPREALM production quality only as polish: readable shapes, layered environment, game-world lighting, and premium depth. Color, materials, technology, weather, culture, and special places must come from the creator prompt.",
     `World name: ${body.name}.`,
     `Creator world prompt: ${body.prompt}.`,
     body.moods.length ? `Mood tags to blend naturally: ${body.moods.join(", ")}.` : "",
-    safeLandmarks.length ? `Reusable landmarks to include only if they fit the prompt: ${safeLandmarks.join(", ")}.` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -83,8 +79,6 @@ async function generateWorldImage(env, prompt) {
     { model: WORLD_IMAGE_MODEL, quality: WORLD_IMAGE_QUALITY },
     { model: WORLD_IMAGE_MODEL, quality: "medium" },
     { model: "gpt-image-1", quality: "high" },
-    { model: "gpt-image-1", quality: "medium" },
-    { model: "gpt-image-1-mini", quality: "high" },
   ];
   let lastError;
 
@@ -99,9 +93,15 @@ async function generateWorldImage(env, prompt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${WORLD_TOOL}:${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
+    }, { seed: `${WORLD_TOOL}:${prompt}:${attempt.model}:${attempt.quality}`, retries: 1 });
 
-    const data = await readJsonResponse(response);
+    let data;
+    try {
+      data = await readJsonResponse(response);
+    } catch (error) {
+      lastError = error;
+      continue;
+    }
     const b64 = data.data?.[0]?.b64_json;
     if (response.ok && b64) return { b64, ...attempt };
     lastError = new Error(data.error?.message || `World image generation failed with ${attempt.model}.`);

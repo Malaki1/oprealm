@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=16" />
-    <script src="/creator-bible.js?v=1" defer></script>
-    <script src="/creator-flow.js?v=16" defer></script>
+    <link rel="stylesheet" href="/creator-flow.css?v=43" />
+    <script src="/storyboard-account.js?v=2" defer></script>
+    <script src="/creator-flow.js?v=64" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -24,7 +24,7 @@
         <a href="/storyboard.html" aria-current="page">Story Builder</a>
         <a href="/library">My Creations</a>
         <a href="/account.html">Profile</a>
-        <span class="spark-pill">1200</span>
+        <span class="spark-pill" data-credit-pill>...</span>
       </nav>
     </header>
 
@@ -120,7 +120,9 @@
         <div class="canvas-head">
           <div>
             <p class="spark-eyebrow">Story Builder</p>
-            <h1><span id="storyboardProjectTitle">My Awesome Story</span> <button class="title-edit-button" type="button" aria-label="Edit story title"><span class="op-icon op-icon-options" aria-hidden="true"></span></button></h1>
+            <h1>
+              <input id="storyboardProjectTitle" class="story-title-input" type="text" maxlength="100" value="My Awesome Story" aria-label="Story title" />
+            </h1>
             <p class="autosave-status"><span></span> Auto-saved 2 min ago</p>
           </div>
           <div class="story-builder-actions" aria-label="Story builder actions">
@@ -134,18 +136,112 @@
                 <label><input type="checkbox" /> Lock Color Palette</label>
               </div>
             </details>
-            <button class="play-story-button" id="playStoryButton" type="button"><span class="op-icon op-icon-favorite" aria-hidden="true"></span> Play Story</button>
-            <button class="scene-action" id="quickPopulateStoryButton" type="button">Quick Populate</button>
-            <button class="scene-action" id="aiAssistStoryButton" type="button">AI Assist</button>
+            <button class="scene-action build-story-scenes-button" id="quickPopulateStoryButton" type="button" aria-label="Write a complete story from the selected story direction">Write Full Story</button>
+            <button class="scene-action clear-storyboard-button" id="clearStoryboardButton" type="button" aria-label="Clear all storyboard scenes">Clear All Scenes</button>
           </div>
         </div>
 
-        <div class="storyboard-viewbar">
-          <div class="view-toggle" role="group" aria-label="Storyboard view">
-            <button class="is-active" type="button">Storyboard</button>
-            <button type="button">Timeline View</button>
+        <section class="story-direction-panel" aria-label="Story direction">
+          <div class="story-direction-head">
+            <p class="spark-eyebrow">Story Direction</p>
+            <strong>Pick 3 things. OPREALM mixes the rest.</strong>
           </div>
-          <button class="add-scene-inline" id="addSceneTopButton" type="button">+ Add Scene</button>
+          <div class="story-choice-group" role="group" aria-label="Story type">
+            <span>Story</span>
+            <button type="button" data-story-choice="storyType" data-story-value="epic-quest">Epic Quest</button>
+            <button type="button" data-story-choice="storyType" data-story-value="mystery">Mystery</button>
+            <button type="button" data-story-choice="storyType" data-story-value="creature-rescue">Creature Rescue</button>
+            <button type="button" data-story-choice="storyType" data-story-value="funny-adventure">Funny</button>
+            <button type="button" data-story-choice="storyType" data-story-value="hero-origin">Hero Origin</button>
+          </div>
+          <div class="story-choice-group" role="group" aria-label="Ending type">
+            <span>Ending</span>
+            <button type="button" data-story-choice="endingType" data-story-value="happy">Happy</button>
+            <button type="button" data-story-choice="endingType" data-story-value="surprise">Surprise</button>
+            <button type="button" data-story-choice="endingType" data-story-value="cliffhanger">Cliffhanger</button>
+            <button type="button" data-story-choice="endingType" data-story-value="bittersweet">Bittersweet</button>
+          </div>
+          <div class="story-choice-group" role="group" aria-label="Lesson or theme">
+            <span>Lesson</span>
+            <button type="button" data-story-choice="lessonTheme" data-story-value="courage">Courage</button>
+            <button type="button" data-story-choice="lessonTheme" data-story-value="friendship">Friendship</button>
+            <button type="button" data-story-choice="lessonTheme" data-story-value="teamwork">Teamwork</button>
+            <button type="button" data-story-choice="lessonTheme" data-story-value="creativity">Creativity</button>
+            <button type="button" data-story-choice="lessonTheme" data-story-value="nature">Nature</button>
+          </div>
+        </section>
+
+        <section class="story-approval-panel" id="storyApprovalPanel" aria-labelledby="storyApprovalTitle">
+          <div class="story-approval-head">
+            <div>
+              <p class="spark-eyebrow">Step 1: Story</p>
+              <h2 id="storyApprovalTitle">Write and approve the full story</h2>
+            </div>
+            <span class="story-approval-state" id="storyApprovalState">Not written yet</span>
+          </div>
+          <p class="story-approval-intro">Review or edit the complete story here. After approval, OPREALM will decide how many visual scenes are needed, with a minimum of eight.</p>
+          <div class="story-review-details" id="storyReviewDetails" hidden>
+            <section>
+              <span>Context</span>
+              <p id="storyContext"></p>
+            </section>
+            <section>
+              <span>Summary</span>
+              <p id="storySummary"></p>
+            </section>
+            <section class="story-outcomes">
+              <span>Possible Outcomes</span>
+              <ul id="storyPossibleOutcomes"></ul>
+            </section>
+          </div>
+          <textarea id="fullStoryDraft" class="full-story-draft" placeholder="Your complete story will appear here..." aria-label="Complete story draft"></textarea>
+          <section class="story-reader" id="storyReader" aria-label="Story reader">
+            <div class="story-reader-request">
+              <label for="storyReaderVoice">
+                <span>Reader Voice</span>
+                <select id="storyReaderVoice">
+                  <option value="warm-storyteller">Warm Storyteller</option>
+                  <option value="young-adventurer">Young Adventurer</option>
+                  <option value="epic-guide">Epic Guide</option>
+                </select>
+              </label>
+              <button class="scene-action story-read-button" id="readStoryButton" type="button" disabled>Read Story to Me</button>
+            </div>
+            <div class="story-reader-loading" id="storyReaderLoading" hidden>
+              <div class="story-reader-progress" id="storyReaderProgress" style="--story-reader-progress: 0deg;">
+                <span id="storyReaderPercent">0%</span>
+              </div>
+              <div>
+                <strong>Creating your story voice...</strong>
+                <p>ElevenLabs is preparing the complete narration.</p>
+              </div>
+            </div>
+            <div class="story-reader-controls" id="storyReaderControls" hidden>
+              <button class="scene-action" id="playStoryAudioButton" type="button">Play</button>
+              <button class="scene-action" id="pauseStoryAudioButton" type="button">Pause</button>
+              <button class="scene-action" id="restartStoryAudioButton" type="button">Restart</button>
+              <span id="storyReaderTime">0:00 / 0:00</span>
+            </div>
+            <audio id="storyReaderAudio" preload="metadata"></audio>
+            <p class="recipe-status" id="storyReaderStatus" aria-live="polite"></p>
+          </section>
+          <div class="story-approval-actions">
+            <button class="scene-action clear-story-button" id="clearFullStoryButton" type="button">Clear Story</button>
+            <button class="scene-action" id="regenerateFullStoryButton" type="button">Regenerate Story</button>
+            <button class="scene-action primary" id="approveFullStoryButton" type="button" disabled>Approve Story &amp; Build Scenes</button>
+          </div>
+          <p class="recipe-status" id="fullStoryStatus" aria-live="polite"></p>
+        </section>
+
+        <div class="story-scenes-step-head" id="storyScenesStepHead">
+          <div>
+            <p class="spark-eyebrow">Step 2: Scenes</p>
+            <h2>Visual scene plan</h2>
+          </div>
+          <div class="story-scenes-step-actions">
+            <p>Each scene prompt describes what the image or video should show. The approved story remains intact above.</p>
+            <button class="add-scene-inline" id="addSceneTopButton" type="button">+ Add Scene</button>
+          </div>
         </div>
 
         <div class="scene-list" id="scenes">
@@ -189,70 +285,98 @@
             <span>Drag and drop to reorder scenes</span>
           </button>
 
-          <section class="creator-bible-export" aria-label="Creator Bible export">
+          <section class="story-output-chooser" id="storyOutputChooser" hidden aria-label="Choose a finished story format">
             <div>
-              <p class="spark-eyebrow">Creator Bible Ready</p>
-              <h2>Turn this story into a playable game mode.</h2>
+              <p class="spark-eyebrow">All scene images ready</p>
+              <h2>What would you like to create?</h2>
+              <p>Turn the finished scenes into a playable branching storybook, or complete every scene video and make a movie.</p>
+            </div>
+            <div class="story-output-options">
+              <button class="story-output-option" id="createAiStoryBookButton" type="button">
+                <strong>Create AI Story Book</strong>
+                <span>Playable chapters, image pages, choices and new AI outcomes.</span>
+              </button>
+              <button class="story-output-option" id="openMovieMakerButton" type="button" disabled>
+                <strong>Create Movie</strong>
+                <span id="movieReadinessText">Generate every scene video to unlock Movie Maker.</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="story-movie-export" id="storyMovieExport" hidden aria-label="Movie export">
+            <div class="story-movie-copy">
+              <p class="spark-eyebrow">Movie Maker</p>
+              <h2>Stitch these scenes into one movie.</h2>
               <p>
-                OPREALM can compile your world, character, pets, props and scenes into one reusable Creator Bible,
-                then test it inside safe game templates.
+                OPREALM uses the scene videos in order, mutes their original audio, then adds narration, music and subtitles from the approved story text.
               </p>
             </div>
-            <div class="creator-bible-actions">
-              <button class="primary-action" id="compileCreatorBibleButton" type="button">Compile Creator Bible</button>
-              <a class="secondary-action" href="/realmbeasts.html">Test RealmBeasts</a>
+            <div class="story-movie-controls">
+              <label>
+                <span>Voice</span>
+                <select id="movieVoiceSelect">
+                  <option value="young-adventurer">Young Adventurer</option>
+                  <option value="warm-storyteller">Warm Storyteller</option>
+                  <option value="epic-guide">Epic Guide</option>
+                </select>
+              </label>
+              <label>
+                <span>Music</span>
+                <select id="movieMusicSelect">
+                  <option value="adventure">Adventure</option>
+                  <option value="mystery">Mystery</option>
+                  <option value="wonder">Wonder</option>
+                  <option value="funny">Funny</option>
+                </select>
+              </label>
+              <button class="primary-action" id="createStoryboardMovieButton" type="button">Create Movie</button>
             </div>
-            <p class="creator-bible-status" id="creatorBibleStatus">Not compiled yet.</p>
+            <div class="story-movie-stage" id="storyMovieStage">
+              <canvas id="storyMovieCanvas" width="1280" height="720" aria-label="Movie preview canvas"></canvas>
+              <video id="storyMoviePlayer" class="story-movie-player" controls playsinline preload="metadata" hidden aria-label="Playable trailer preview"></video>
+              <div class="story-movie-empty" id="storyMovieEmpty">Create scene videos first, then stitch them into one movie.</div>
+            </div>
+            <div class="story-movie-actions">
+              <button class="scene-action" id="previewStoryboardMovieButton" type="button">Preview With Narration</button>
+              <button class="scene-action" id="stopStoryboardMovieButton" type="button">Stop Trailer</button>
+              <button class="scene-action primary" id="exportStoryboardMovieButton" type="button">Export Movie</button>
+              <button class="scene-action" id="clearStoryboardMovieButton" type="button">Clear Movie Preview</button>
+              <a class="secondary-action" id="downloadStoryboardMovieLink" href="#" download="oprealm-story-movie.webm" hidden>Download Movie</a>
+            </div>
+            <p class="creator-bible-status" id="storyMovieStatus">Waiting for scene videos.</p>
           </section>
         </div>
       </section>
 
-      <aside class="storyboard-director" aria-label="AI Director">
-        <section class="director-hero">
-          <img src="/assets/homepage/mascot/orbit.png" alt="" />
-          <div class="director-message">Great progress! Your story is full of adventure. Need ideas for the next scene?</div>
-        </section>
-
-        <div class="director-tabs" role="tablist" aria-label="AI tools">
-          <button class="is-active" type="button">Style</button>
-          <button type="button">Music</button>
-          <button type="button">Effects</button>
-          <button type="button">AI Helper</button>
-        </div>
-
-        <section class="style-transform">
-          <p class="spark-eyebrow">Style Transform</p>
-          <div class="style-grid">
-            <button class="style-card" type="button"><img src="/assets/homepage/cards/story-games.png" alt="" /><span>Anime</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/fantasy-story.png" alt="" /><span>Pixar</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/cards/roblox-worlds.png" alt="" /><span>Roblox</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/cards/art-studio.png" alt="" /><span>Cinematic</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/cards/art-studio.png" alt="" /><span>Comic</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/neon-beat.png" alt="" /><span>Cyberpunk</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/space-adventure.png" alt="" /><span>Dreamy</span></button>
-            <button class="style-card" type="button"><img src="/assets/homepage/thumbnails/lava-escape.png" alt="" /><span>Pixel Art</span></button>
-          </div>
-        </section>
-
-        <button class="generate-all" type="button">Apply Style To All Scenes</button>
-
-        <section class="transition-card" aria-label="Scene transitions">
-          <p class="spark-eyebrow">Scene Transitions</p>
-          <label>
-            <span>Transition</span>
-            <select>
-              <option>Swipe</option>
-              <option>Fade</option>
-              <option>Portal Warp</option>
-              <option>Glitch</option>
-              <option>Comic Flip</option>
-              <option>Cinematic Blur</option>
-            </select>
-          </label>
-          <div class="transition-preview"><span></span></div>
-        </section>
-      </aside>
     </main>
+
+    <div class="clear-scenes-modal" id="clearScenesModal" hidden>
+      <div class="clear-scenes-dialog" role="dialog" aria-modal="true" aria-labelledby="clearScenesTitle" aria-describedby="clearScenesDescription">
+        <p class="spark-eyebrow">Clear Storyboard</p>
+        <h2 id="clearScenesTitle">Clear all scenes?</h2>
+        <p id="clearScenesDescription">
+          This will delete every scene card, scene prompt, generated scene image, scene order and scene status from this storyboard.
+          Your saved character, world, objects and Story Direction choices will stay.
+        </p>
+        <div class="clear-scenes-actions">
+          <button class="scene-action" id="cancelClearScenesButton" type="button">Keep Scenes</button>
+          <button class="scene-action clear-storyboard-button" id="confirmClearScenesButton" type="button">Clear All Scenes</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="story-setup-loading" id="storySetupLoading" hidden aria-live="polite" aria-busy="true">
+      <div class="story-setup-loading-stage">
+        <span class="image-loader-dotfield"></span>
+        <span class="image-loader-dotfield is-second"></span>
+        <span class="image-loader-wave"></span>
+        <img src="/assets/homepage/mascot/orbit.png" alt="" />
+        <p class="spark-eyebrow">Story approved</p>
+        <h2>Building your scenes...</h2>
+        <p id="storySetupLoadingMessage">Orbit is reading the story, finding the best scene breaks and preparing cinematic visual prompts.</p>
+        <div class="story-setup-progress" aria-hidden="true"><span></span></div>
+      </div>
+    </div>
 
   </body>
 </html>

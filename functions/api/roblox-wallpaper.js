@@ -10,9 +10,10 @@ import {
 } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText, enumValue } from "../_lib/validate.js";
+import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
 const TOOL = "roblox_wallpaper";
-const WALLPAPER_COST = 8;
+const WALLPAPER_COST = CREATOR_CREDIT_COSTS.robloxWallpaper;
 const WALLPAPER_ESTIMATED_COST_USD = 0.034;
 const WALLPAPER_MODEL = "gpt-image-1.5";
 const WALLPAPER_QUALITY = "medium";
