@@ -418,7 +418,7 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation) {
     `Outfit/accessory color palette only: ${recipe.visual.palette.join(", ")}. ${colorPrompts.join(" ")}`,
     `Environment for this preview: ${recipe.components.environment}. ${environmentPrompt}.`,
     recipe.generation.consistencyLock
-      ? "Consistency lock is ON: preserve the same face, hair, age, body proportions, outfit structure, palette, and selected accessories in future versions."
+      ? "Consistency lock is ON: establish a fixed production design and preserve the same face, hair, age, body proportions, outfit structure, exact local color placement, pocket and patch shapes, seams, trim, panel boundaries, left/right asymmetry, and selected accessories in all future versions. Do not mirror, relocate, simplify, add, remove or recolor minor clothing details."
       : "Consistency lock is OFF for this first exploratory draft, but still keep the recipe coherent.",
     changedComponent
       ? `Only the changed component should update: ${changedComponent}. Keep all other identity and component details unchanged.`

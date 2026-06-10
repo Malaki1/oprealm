@@ -175,7 +175,7 @@ const boardTitles = {
 };
 
 const boardPanels = {
-  character: "Panels: 01 HERO DESIGN, 02 FIVE VIEWS front 3/4 side back 3/4, 03 EXPRESSIONS neutral smile focused worried excited, 04 OUTFIT AND DETAILS, 05 LIGHTING MOODS, 06 COLOR PALETTE with six swatches.",
+  character: "Panels: 01 HERO DESIGN, 02 FIVE VIEWS front 3/4 side back 3/4, 03 EXPRESSIONS neutral smile focused worried excited, 04 EXACT OUTFIT GARMENT MAP with enlarged callouts for pockets, colored patches, seams, zippers, trim, panels, straps, accessories and left/right placement, 05 LIGHTING MOODS that preserve local garment colors, 06 COLOR PALETTE with six labeled swatches. Treat all visible clothing details and asymmetry as immutable production specifications.",
   location: "Panels: 01 HERO LOCATION, 02 WIDE MID TIGHT ALT OVERHEAD, 03 TIME OF DAY dawn noon dusk night, 04 DETAILS AND SET DRESSING, 05 WEATHER MOODS, 06 COLOR PALETTE with six swatches.",
   object: "Panels: 01 HERO OBJECT, 02 SIX VIEWS front 3/4 side back top detail, 03 MATERIAL MACROS, 04 LIGHTING MOODS, 05 USE IN STORY, 06 COLOR PALETTE with six swatches.",
   creature: "Panels: 01 HERO CREATURE, 02 FIVE VIEWS front 3/4 side back 3/4, 03 EXPRESSIONS calm curious alert roaring tired, 04 ANATOMY DETAILS, 05 SCALE AND BEHAVIOR POSES, 06 COLOR PALETTE with six swatches.",
