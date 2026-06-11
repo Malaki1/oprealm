@@ -8,10 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=44" />
+    <link rel="stylesheet" href="/creator-flow.css?v=45" />
     <script src="/storyboard-account.js?v=2" defer></script>
     <script src="/scene-visual-prompt.js?v=2" defer></script>
-    <script src="/creator-flow.js?v=68" defer></script>
+    <script src="/creator-flow.js?v=69" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -389,6 +389,16 @@
         <p id="storySetupLoadingMessage">Orbit is reading the story, finding the best scene breaks and preparing cinematic visual prompts.</p>
         <div class="story-setup-progress" aria-hidden="true"><span></span></div>
       </div>
+    </div>
+
+    <div class="scene-image-lightbox" id="sceneImageLightbox" hidden>
+      <figure class="scene-image-lightbox-stage" role="dialog" aria-modal="true" aria-labelledby="sceneImageLightboxTitle">
+        <img id="sceneImageLightboxImage" src="" alt="" />
+        <figcaption id="sceneImageLightboxTitle">Scene image</figcaption>
+        <button class="scene-image-expand-button is-minimize" id="minimizeSceneImageButton" type="button" aria-label="Minimize scene image" title="Minimize image">
+          <span aria-hidden="true">&#x26F6;</span>
+        </button>
+      </figure>
     </div>
 
   </body>

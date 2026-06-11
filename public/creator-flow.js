@@ -623,6 +623,11 @@ function renderStoryboardScenes(project) {
                     <strong>Blank scene canvas</strong>
                     <small>Add or approve the prompt, then generate the image.</small>
                   </div>`}
+            ${hasImage && mediaMode === "image" && status !== "generating"
+              ? `<button class="scene-image-expand-button" data-expand-scene-image="${escapeHtml(scene.id)}" type="button" aria-label="Enlarge scene ${index + 1} image" title="Enlarge image">
+                  <span aria-hidden="true">&#x26F6;</span>
+                </button>`
+              : ""}
             <span class="scene-ratio-chip">16:9</span>
           </div>
           <div class="scene-card-body">
@@ -3408,6 +3413,13 @@ function bindStoryboardSceneControls(project) {
     });
   });
 
+  document.querySelectorAll("[data-expand-scene-image]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const scene = (project.scenes || []).find((item) => item.id === button.dataset.expandSceneImage);
+      if (scene?.generatedImageUrl) openSceneImageLightbox(scene);
+    });
+  });
+
   document.querySelectorAll("[data-ai-assist-scene]").forEach((control) => {
     control.addEventListener("click", () => {
       if (control.tagName === "SELECT") return;
@@ -3513,6 +3525,31 @@ function bindStoryboardSceneControls(project) {
   });
 }
 
+function openSceneImageLightbox(scene) {
+  const lightbox = document.querySelector("#sceneImageLightbox");
+  const image = document.querySelector("#sceneImageLightboxImage");
+  const title = document.querySelector("#sceneImageLightboxTitle");
+  if (!lightbox || !image || !scene?.generatedImageUrl) return;
+  image.src = scene.generatedImageUrl;
+  image.alt = `${scene.title || "Scene"} enlarged image`;
+  if (title) title.textContent = scene.title || "Scene image";
+  lightbox.hidden = false;
+  document.body.classList.add("is-scene-image-expanded");
+  document.querySelector("#minimizeSceneImageButton")?.focus();
+}
+
+function closeSceneImageLightbox() {
+  const lightbox = document.querySelector("#sceneImageLightbox");
+  const image = document.querySelector("#sceneImageLightboxImage");
+  if (!lightbox) return;
+  lightbox.hidden = true;
+  document.body.classList.remove("is-scene-image-expanded");
+  if (image) {
+    image.src = "";
+    image.alt = "";
+  }
+}
+
 async function hydrateStoryboardPage() {
   if (!document.querySelector(".storyboard-shell")) return;
   const project = writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject())));
@@ -3523,6 +3560,10 @@ async function hydrateStoryboardPage() {
   bindStoryDirectionControls(project);
   bindStoryboardMovieControls(project);
   restoreSavedStoryboardMovie(project);
+  document.querySelector("#minimizeSceneImageButton")?.addEventListener("click", closeSceneImageLightbox);
+  document.querySelector("#sceneImageLightbox")?.addEventListener("click", (event) => {
+    if (event.target.id === "sceneImageLightbox") closeSceneImageLightbox();
+  });
 
   document.querySelector("#addWorldButton")?.addEventListener("click", () => {
     window.location.href = "/storyboard-world.html";
@@ -3594,7 +3635,10 @@ async function hydrateStoryboardPage() {
     if (event.target?.id === "clearScenesModal") closeClearScenesModal();
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeClearScenesModal();
+    if (event.key === "Escape") {
+      closeClearScenesModal();
+      closeSceneImageLightbox();
+    }
   });
   document.querySelector("#confirmClearScenesButton")?.addEventListener("click", () => {
     clearStoryboardScenes(project);
