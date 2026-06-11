@@ -39,21 +39,24 @@ function creatorStepState() {
   return {
     world: Boolean(activeWorld && (activeWorld.generatedImageUrl || activeWorld.imageUrl)),
     character: Boolean(activeCharacter && (activeCharacter.imageUrl || activeCharacter.imageDataUrl || activeCharacter.recipe?.generation?.generatedImageUrl)),
-    story: Boolean(project.storyDraft?.approved && allSceneImagesSaved),
+    storyBuilder: Boolean(project.storyDraft?.approved),
+    storyScenes: Boolean(project.storyDraft?.approved && scenes.length >= 8),
     aiStory: Boolean(aiStorySource.createdAt && allSceneImagesSaved),
   };
 }
 
 function ensureAiStoryNavLink(nav) {
-  let link = nav.querySelector('[data-creator-step="aiStory"]');
+  let link = nav.querySelector('[data-creator-step="aiStory"], a[href="/ai-storybook.html"]');
   if (link) return link;
+  const storyScenesLink = nav.querySelector('a[href="/storyboard-scenes.html"]');
   const storyLink = nav.querySelector('a[href="/storyboard.html"]');
-  if (!storyLink) return null;
+  const anchor = storyScenesLink || storyLink;
+  if (!anchor) return null;
   link = document.createElement("a");
   link.href = "/ai-storybook.html";
   link.dataset.creatorStep = "aiStory";
   link.textContent = "AI Story";
-  storyLink.insertAdjacentElement("afterend", link);
+  anchor.insertAdjacentElement("afterend", link);
   return link;
 }
 
@@ -64,7 +67,7 @@ function markCreatorStep(link, complete) {
     tick = document.createElement("span");
     tick.className = "creator-step-tick";
     tick.setAttribute("aria-hidden", "true");
-    tick.textContent = "✓";
+    tick.textContent = "\u2713";
     link.appendChild(tick);
   }
   link.classList.toggle("is-step-complete", complete);
@@ -78,8 +81,9 @@ function refreshCreatorStepTicks() {
     ensureAiStoryNavLink(nav);
     markCreatorStep(nav.querySelector('a[href="/storyboard-world.html"]'), state.world);
     markCreatorStep(nav.querySelector('a[href="/storyboard-character.html"]'), state.character);
-    markCreatorStep(nav.querySelector('a[href="/storyboard.html"]'), state.story);
-    markCreatorStep(nav.querySelector('[data-creator-step="aiStory"]'), state.aiStory);
+    markCreatorStep(nav.querySelector('a[href="/storyboard.html"]'), state.storyBuilder);
+    markCreatorStep(nav.querySelector('a[href="/storyboard-scenes.html"], a[href="/storyboard-scenes"]'), state.storyScenes);
+    markCreatorStep(nav.querySelector('[data-creator-step="aiStory"], a[href="/ai-storybook.html"]'), state.aiStory);
   });
 
   if (document.body.classList.contains("storyboard-body")) return;
@@ -87,17 +91,19 @@ function refreshCreatorStepTicks() {
   if (!game) return;
   let trail = game.querySelector(".creator-step-trail");
   if (!trail) {
-    trail = document.createElement("div");
+    trail = document.createElement("nav");
     trail.className = "creator-step-trail";
     trail.setAttribute("aria-label", "Story creation progress");
     game.appendChild(trail);
   }
   trail.innerHTML = [
-    ["World", state.world],
-    ["Character", state.character],
-    ["Scenes", state.story],
-    ["AI Story", state.aiStory],
-  ].map(([label, complete]) => `<span class="${complete ? "is-complete" : ""}">${label}${complete ? " ✓" : ""}</span>`).join("");
+    ["Story Builder", "/storyboard.html", state.storyBuilder],
+    ["Story Scenes", "/storyboard-scenes.html", state.storyScenes],
+    ["AI Story", "/ai-storybook.html", state.aiStory],
+  ].map(([label, href, complete], index) => {
+    const current = window.location.pathname.startsWith(href.replace(".html", ""));
+    return `${index ? '<span aria-hidden="true">&gt;</span>' : ""}<a href="${href}" class="${complete ? "is-complete" : ""}" ${current ? 'aria-current="page"' : ""}>${label}${complete ? " \u2713" : ""}</a>`;
+  }).join("");
 }
 
 window.OPREALMRefreshCreatorSteps = refreshCreatorStepTicks;
