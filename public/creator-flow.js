@@ -670,21 +670,22 @@ function renderStoryApproval(project) {
   const state = document.querySelector("#storyApprovalState");
   const approveButton = document.querySelector("#approveFullStoryButton");
   const reviewDetails = document.querySelector("#storyReviewDetails");
-  const contextNode = document.querySelector("#storyContext");
-  const summaryNode = document.querySelector("#storySummary");
-  const outcomesNode = document.querySelector("#storyPossibleOutcomes");
+  const chapterSummaryNode = document.querySelector("#storyChapterSummary");
   const sceneList = document.querySelector("#scenes");
   const sceneHead = document.querySelector("#storyScenesStepHead");
   const hasStory = cleanStoryText(draft.story).length >= 200;
-  const outcomes = Array.isArray(draft.possibleOutcomes) ? draft.possibleOutcomes.filter(Boolean) : [];
-  const hasReviewDetails = Boolean(draft.context || draft.summary || outcomes.length);
+  const chapterOverview = buildChapterOverview(draft);
+  const hasReviewDetails = chapterOverview.length > 0;
   const hasExistingScenes = (project.scenes || []).some((scene) => cleanStoryText(scene.prompt) || scene.generatedImageUrl);
   if (textarea && document.activeElement !== textarea) textarea.value = draft.story || "";
   if (reviewDetails) reviewDetails.hidden = !hasReviewDetails;
-  if (contextNode) contextNode.textContent = draft.context || "The story context will appear after generation.";
-  if (summaryNode) summaryNode.textContent = draft.summary || "The story summary will appear after generation.";
-  if (outcomesNode) {
-    outcomesNode.innerHTML = outcomes.map((outcome) => `<li>${escapeHtml(outcome)}</li>`).join("");
+  if (chapterSummaryNode) {
+    chapterSummaryNode.innerHTML = chapterOverview.map((chapter, index) => `
+      <li>
+        <strong>Chapter ${index + 1}: ${escapeHtml(chapter.title)}</strong>
+        <p>${escapeHtml(chapter.description)}</p>
+      </li>
+    `).join("");
   }
   if (approveButton) approveButton.disabled = !hasStory || ["generating", "splitting"].includes(draft.status);
   if (state) {
@@ -707,6 +708,27 @@ function renderStoryApproval(project) {
   if (sceneList) sceneList.hidden = !showScenes;
   if (sceneHead) sceneHead.hidden = !showScenes;
   renderStoryReaderState(project);
+}
+
+function buildChapterOverview(draft) {
+  const chapters = Array.isArray(draft.chapters) ? draft.chapters : [];
+  return chapters.map((chapter, index) => {
+    const paragraphs = Array.isArray(chapter.paragraphs) ? chapter.paragraphs : [];
+    const source = cleanStoryText(chapter.description || paragraphs[0] || "");
+    return {
+      title: cleanStoryText(chapter.title, "The Adventure Continues")
+        .replace(/^chapter\s+(?:\d+|one|two|three|four|five|six|seven|eight)\s*[:.-]?\s*/i, "")
+        .trim() || "The Adventure Continues",
+      description: chapterSummarySentence(source, index),
+    };
+  });
+}
+
+function chapterSummarySentence(value, index) {
+  const text = cleanStoryText(value);
+  if (!text) return `The next part of the adventure unfolds in Chapter ${index + 1}.`;
+  const sentence = text.match(/^[\s\S]*?[.!?](?:\s|$)/)?.[0]?.trim() || text;
+  return sentence.length > 240 ? `${sentence.slice(0, 237).trim()}...` : sentence;
 }
 
 function setStorySetupLoading(isLoading, message = "") {
@@ -824,9 +846,7 @@ async function requestFullStory(project, mode = "write") {
     }
     project.storyDraft = {
       title: result.draft.title,
-      context: result.draft.context || previousDraft.context || "",
       summary: result.draft.summary || previousDraft.summary || "",
-      possibleOutcomes: result.draft.possibleOutcomes || previousDraft.possibleOutcomes || [],
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],
@@ -1172,14 +1192,12 @@ function updateStoryReaderTime() {
 }
 
 function clearFullStory(project) {
-  if (!window.confirm("Clear the full story, context, summary, possible outcomes and generated voice? Existing scene cards will stay.")) return;
+  if (!window.confirm("Clear the full story, chapter summary and generated voice? Existing scene cards will stay.")) return;
   resetStoryReaderAudio();
   project.storyDraft = {
     title: project.title || "My OPREALM Story",
     story: "",
-    context: "",
     summary: "",
-    possibleOutcomes: [],
     chapters: [],
     scenePlan: [],
     status: "ready",

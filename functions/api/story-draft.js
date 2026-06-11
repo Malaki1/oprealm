@@ -16,17 +16,10 @@ const SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV
 const storyDraftSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "context", "summary", "possibleOutcomes", "chapters", "scenes"],
+  required: ["title", "summary", "chapters", "scenes"],
   properties: {
     title: { type: "string" },
-    context: { type: "string" },
     summary: { type: "string" },
-    possibleOutcomes: {
-      type: "array",
-      minItems: 3,
-      maxItems: 5,
-      items: { type: "string" },
-    },
     chapters: {
       type: "array",
       minItems: 3,
@@ -34,9 +27,10 @@ const storyDraftSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "paragraphs"],
+        required: ["title", "description", "paragraphs"],
         properties: {
           title: { type: "string" },
+          description: { type: "string" },
           paragraphs: {
             type: "array",
             minItems: 2,
@@ -104,7 +98,8 @@ export async function onRequestPost({ request, env }) {
       "Do not rewrite, summarize or add events to the approved story.",
       "Choose scene boundaries at meaningful changes in location, action, discovery, emotion or consequence.",
       "Identify the existing chapters and paragraphs. If the edited story has no chapter headings, divide it into naturally titled chapters without changing its events.",
-      "Provide a concise context paragraph, a spoiler-light summary and 3 to 5 logical possible outcomes that could grow from the story's choices.",
+      "For every chapter, provide one clear sentence describing what happens in that chapter without revealing later chapters.",
+      "Provide a concise spoiler-light summary of the complete approved story.",
       "Each passage must quote or closely preserve only the matching events from the approved story.",
       "For each scene, choices must be an empty array unless the story reaches a genuine decision that changes what happens next. At a genuine decision, provide only 2 or 3 short, specific actions the player can choose.",
       "Never add generic choices merely to make a scene interactive. Never attach consequence hints, lessons or emotional labels to a choice.",
@@ -126,7 +121,9 @@ export async function onRequestPost({ request, env }) {
       "Prioritize concrete events, goals, obstacles, discoveries, plans and consequences. Use symbolism sparingly and never let poetic imagery replace what actually happens.",
       "Include regular spoken exchanges. Let the hero state plans, ask direct questions and make decisions aloud; let supporting characters answer, disagree, warn, joke, reveal information and change the course of events.",
       "Avoid vague phrases such as 'as if to say' when a character can simply speak. Do not invent unexplained hybrid creatures, symbolic messengers or magical objects merely to decorate the prose.",
-      "Also provide context explaining the starting situation and important background, a concise spoiler-light summary, and 3 to 5 plausible outcomes created by the characters' major choices.",
+      "For every chapter, provide one clear sentence describing its main events, goal or discovery without revealing later chapters.",
+      "Also provide a concise spoiler-light summary of the complete story.",
+      "Do not generate possible outcomes here. Branching outcomes are created later when the AI Story Book is prepared.",
       "The visible story must contain only narrative prose: concrete action, atmosphere, character reactions, discoveries, dialogue and consequences.",
       "Within the narrative paragraphs, never discuss story structure, plot twists, themes, lessons, arcs, scenes, the reader, prompts, image generation or what the story is trying to teach.",
       "Do not summarize future events before they happen. Let mysteries and twists unfold naturally.",
@@ -194,6 +191,7 @@ function extractOutputText(data) {
 function normalizeDraft(value) {
   const chapters = (value.chapters || []).slice(0, 8).map((chapter, index) => ({
     title: cleanText(chapter.title, 100) || `Chapter ${index + 1}`,
+    description: cleanText(chapter.description, 420) || chapterDescriptionFromParagraphs(chapter.paragraphs, index),
     paragraphs: (chapter.paragraphs || [])
       .slice(0, 8)
       .map((paragraph) => cleanProse(paragraph, 2400))
@@ -202,9 +200,7 @@ function normalizeDraft(value) {
   const formattedStory = formatChapters(chapters);
   return {
     title: cleanText(value.title, 100) || "My OPREALM Story",
-    context: cleanProse(value.context, 1800),
     summary: cleanProse(value.summary, 1800),
-    possibleOutcomes: (value.possibleOutcomes || []).slice(0, 5).map((outcome) => cleanText(outcome, 500)).filter(Boolean),
     chapters,
     story: formattedStory,
     scenes: (value.scenes || []).slice(0, MAX_SCENE_COUNT).map((scene, index) => ({
@@ -219,6 +215,12 @@ function normalizeDraft(value) {
         .slice(0, 3),
     })),
   };
+}
+
+function chapterDescriptionFromParagraphs(paragraphs, index) {
+  const text = cleanProse(Array.isArray(paragraphs) ? paragraphs[0] : "", 420);
+  const sentence = text.match(/^[\s\S]*?[.!?](?:\s|$)/)?.[0]?.trim() || text;
+  return sentence || `The next part of the adventure unfolds in Chapter ${index + 1}.`;
 }
 
 function enumSceneValue(value, allowed, fallback) {

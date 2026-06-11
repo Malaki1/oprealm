@@ -3901,7 +3901,7 @@ button {
 }
 
 .story-review-details p,
-.story-review-details ul {
+.story-review-details ol {
   margin: 0;
   color: rgba(226, 234, 250, 0.9);
   font-size: 0.84rem;
@@ -3909,14 +3909,33 @@ button {
   font-weight: 700;
 }
 
-.story-review-details .story-outcomes {
+.story-review-details .story-chapter-summary {
   grid-column: 1 / -1;
 }
 
-.story-review-details ul {
+.story-review-details ol {
   display: grid;
-  gap: 5px;
-  padding-left: 20px;
+  gap: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.story-review-details ol li {
+  padding: 11px 12px;
+  border-left: 3px solid rgba(66, 216, 255, 0.62);
+  background: rgba(7, 19, 48, 0.58);
+}
+
+.story-review-details ol strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #fff;
+  font-size: 0.88rem;
+}
+
+.story-review-details ol p {
+  color: rgba(213, 225, 246, 0.78);
+  font-weight: 650;
 }
 
 .full-story-draft {
@@ -4078,7 +4097,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .story-review-details .story-outcomes {
+  .story-review-details .story-chapter-summary {
     grid-column: auto;
   }
 }

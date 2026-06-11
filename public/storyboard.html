@@ -8,10 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=45" />
+    <link rel="stylesheet" href="/creator-flow.css?v=46" />
     <script src="/storyboard-account.js?v=2" defer></script>
     <script src="/scene-visual-prompt.js?v=2" defer></script>
-    <script src="/creator-flow.js?v=69" defer></script>
+    <script src="/creator-flow.js?v=70" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -194,17 +194,9 @@
             </div>
           </div>
           <div class="story-review-details" id="storyReviewDetails" hidden>
-            <section>
-              <span>Context</span>
-              <p id="storyContext"></p>
-            </section>
-            <section>
-              <span>Summary</span>
-              <p id="storySummary"></p>
-            </section>
-            <section class="story-outcomes">
-              <span>Possible Outcomes</span>
-              <ul id="storyPossibleOutcomes"></ul>
+            <section class="story-chapter-summary">
+              <span>Chapter Summary</span>
+              <ol id="storyChapterSummary"></ol>
             </section>
           </div>
           <textarea id="fullStoryDraft" class="full-story-draft" placeholder="Your complete story will appear here..." aria-label="Complete story draft"></textarea>
