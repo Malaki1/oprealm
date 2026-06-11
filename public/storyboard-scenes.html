@@ -20,10 +20,9 @@
         <span>OPREALM Story Studio</span>
       </a>
       <nav class="storyboard-nav" aria-label="Storyboard navigation">
-        <a href="/storyboard-world.html">World</a>
-        <a href="/storyboard-character.html">Character</a>
         <a href="/storyboard.html">Story Builder</a>
         <a href="/storyboard-scenes.html" aria-current="page">Story Scenes</a>
+        <a href="/ai-storybook.html">AI Story</a>
         <a href="/library">My Creations</a>
         <a href="/account.html">Profile</a>
         <span class="spark-pill" data-credit-pill>...</span>
@@ -121,7 +120,7 @@
       <section class="storyboard-canvas" aria-label="Storyboard canvas">
         <div class="canvas-head">
           <div>
-            <p class="spark-eyebrow">Story Builder &gt; Story Scenes</p>
+            <p class="spark-eyebrow">Story Builder &gt; Story Scenes &gt; AI Story</p>
             <h1>
               <input id="storyboardProjectTitle" class="story-title-input" type="text" maxlength="100" value="My Awesome Story" aria-label="Story title" />
             </h1>
@@ -138,106 +137,9 @@
                 <label><input type="checkbox" /> Lock Color Palette</label>
               </div>
             </details>
-            <button class="scene-action build-story-scenes-button" id="quickPopulateStoryButton" type="button" aria-label="Write a complete story from the selected story direction">Write Full Story</button>
             <button class="scene-action clear-storyboard-button" id="clearStoryboardButton" type="button" aria-label="Clear all storyboard scenes">Clear All Scenes</button>
           </div>
         </div>
-
-        <section class="story-direction-panel" aria-label="Story direction">
-          <div class="story-direction-head">
-            <p class="spark-eyebrow">Story Direction</p>
-            <strong>Pick 3 things. OPREALM mixes the rest.</strong>
-          </div>
-          <div class="story-choice-group" role="group" aria-label="Story type">
-            <span>Story</span>
-            <button type="button" data-story-choice="storyType" data-story-value="epic-quest">Epic Quest</button>
-            <button type="button" data-story-choice="storyType" data-story-value="mystery">Mystery</button>
-            <button type="button" data-story-choice="storyType" data-story-value="creature-rescue">Creature Rescue</button>
-            <button type="button" data-story-choice="storyType" data-story-value="funny-adventure">Funny</button>
-            <button type="button" data-story-choice="storyType" data-story-value="hero-origin">Hero Origin</button>
-          </div>
-          <div class="story-choice-group" role="group" aria-label="Ending type">
-            <span>Ending</span>
-            <button type="button" data-story-choice="endingType" data-story-value="happy">Happy</button>
-            <button type="button" data-story-choice="endingType" data-story-value="surprise">Surprise</button>
-            <button type="button" data-story-choice="endingType" data-story-value="cliffhanger">Cliffhanger</button>
-            <button type="button" data-story-choice="endingType" data-story-value="bittersweet">Bittersweet</button>
-          </div>
-          <div class="story-choice-group" role="group" aria-label="Lesson or theme">
-            <span>Lesson</span>
-            <button type="button" data-story-choice="lessonTheme" data-story-value="courage">Courage</button>
-            <button type="button" data-story-choice="lessonTheme" data-story-value="friendship">Friendship</button>
-            <button type="button" data-story-choice="lessonTheme" data-story-value="teamwork">Teamwork</button>
-            <button type="button" data-story-choice="lessonTheme" data-story-value="creativity">Creativity</button>
-            <button type="button" data-story-choice="lessonTheme" data-story-value="nature">Nature</button>
-          </div>
-        </section>
-
-        <section class="story-approval-panel" id="storyApprovalPanel" aria-labelledby="storyApprovalTitle">
-          <div class="story-approval-head">
-            <div>
-              <p class="spark-eyebrow">Step 1: Story</p>
-              <h2 id="storyApprovalTitle">Write and approve the full story</h2>
-            </div>
-            <span class="story-approval-state" id="storyApprovalState">Not written yet</span>
-          </div>
-          <p class="story-approval-intro">Review or edit the complete story here. After approval, OPREALM will create a detailed visual plan with at least sixteen scenes.</p>
-          <div class="story-writing-loader" id="storyWritingLoader" hidden aria-live="polite" aria-busy="true">
-            <span class="image-loader-dotfield"></span>
-            <span class="image-loader-dotfield is-second"></span>
-            <span class="image-loader-wave"></span>
-            <div class="scene-image-progress" id="storyWritingProgress" style="--scene-image-progress: 0deg;">
-              <span id="storyWritingPercent">0%</span>
-            </div>
-            <div class="story-writing-loader-copy">
-              <strong>Writing your story...</strong>
-              <p id="storyWritingMessage">Creating the chapters, dialogue, twists and ending.</p>
-            </div>
-          </div>
-          <div class="story-review-details" id="storyReviewDetails" hidden>
-            <section class="story-chapter-summary">
-              <span>Chapter Summary</span>
-              <ol id="storyChapterSummary"></ol>
-            </section>
-          </div>
-          <textarea id="fullStoryDraft" class="full-story-draft" placeholder="Your complete story will appear here..." aria-label="Complete story draft"></textarea>
-          <section class="story-reader" id="storyReader" aria-label="Story reader">
-            <div class="story-reader-request">
-              <label for="storyReaderVoice">
-                <span>Reader Voice</span>
-                <select id="storyReaderVoice">
-                  <option value="warm-storyteller">Warm Storyteller</option>
-                  <option value="young-adventurer">Young Adventurer</option>
-                  <option value="epic-guide">Epic Guide</option>
-                </select>
-              </label>
-              <button class="scene-action story-read-button" id="readStoryButton" type="button" disabled>Read Story to Me</button>
-            </div>
-            <div class="story-reader-loading" id="storyReaderLoading" hidden>
-              <div class="story-reader-progress" id="storyReaderProgress" style="--story-reader-progress: 0deg;">
-                <span id="storyReaderPercent">0%</span>
-              </div>
-              <div>
-                <strong>Creating your story voice...</strong>
-                <p>ElevenLabs is preparing the complete narration.</p>
-              </div>
-            </div>
-            <div class="story-reader-controls" id="storyReaderControls" hidden>
-              <button class="scene-action" id="playStoryAudioButton" type="button">Play</button>
-              <button class="scene-action" id="pauseStoryAudioButton" type="button">Pause</button>
-              <button class="scene-action" id="restartStoryAudioButton" type="button">Restart</button>
-              <span id="storyReaderTime">0:00 / 0:00</span>
-            </div>
-            <audio id="storyReaderAudio" preload="metadata"></audio>
-            <p class="recipe-status" id="storyReaderStatus" aria-live="polite"></p>
-          </section>
-          <div class="story-approval-actions">
-            <button class="scene-action clear-story-button" id="clearFullStoryButton" type="button">Clear Story</button>
-            <button class="scene-action" id="regenerateFullStoryButton" type="button">Regenerate Story</button>
-            <button class="scene-action primary" id="approveFullStoryButton" type="button" disabled>Approve Story &amp; Build Scenes</button>
-          </div>
-          <p class="recipe-status" id="fullStoryStatus" aria-live="polite"></p>
-        </section>
 
         <div class="story-scenes-step-head" id="storyScenesStepHead">
           <div>

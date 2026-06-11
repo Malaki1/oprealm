@@ -925,9 +925,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
   display: flex;
   gap: 5px;
   transform: translateX(-50%);
-  pointer-events: none;
+  align-items: center;
+  pointer-events: auto;
 }
 
+.creator-step-trail a,
 .creator-step-trail span {
   padding: 4px 7px;
   border: 1px solid rgba(154, 202, 255, 0.18);
@@ -937,6 +939,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-size: 0.58rem;
   font-weight: 900;
   backdrop-filter: blur(10px);
+}
+
+.creator-step-trail a {
+  color: rgba(225, 235, 250, 0.72);
+  text-decoration: none;
+}
+
+.creator-step-trail a:hover,
+.creator-step-trail a[aria-current="page"] {
+  border-color: rgba(78, 216, 255, 0.62);
+  color: #fff;
+}
+
+.creator-step-trail > span {
+  padding-inline: 1px;
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .creator-step-trail span.is-complete {
