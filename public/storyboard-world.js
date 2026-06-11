@@ -513,6 +513,24 @@ function applyWorldToForm(world) {
 }
 
 function resetWorldCreator() {
+  const clearedWorldId = editingWorldId || storyboardProject.activeWorldId || "";
+  if (clearedWorldId) {
+    storyboardProject = saveStoryboardProject({
+      ...storyboardProject,
+      activeWorldId: storyboardProject.activeWorldId === clearedWorldId ? "" : storyboardProject.activeWorldId,
+      worlds: (storyboardProject.worlds || []).filter((world) => world.id !== clearedWorldId),
+      scenes: (storyboardProject.scenes || []).map((scene) => ({
+        ...scene,
+        selectedWorldId: scene.selectedWorldId === clearedWorldId ? "" : scene.selectedWorldId,
+      })),
+    });
+  } else if (storyboardProject.activeWorldId) {
+    storyboardProject = saveStoryboardProject({
+      ...storyboardProject,
+      activeWorldId: "",
+    });
+  }
+
   editingWorldId = "";
   worldState.identity.name = "";
   worldState.visual.sourceMode = "AI Generate";
@@ -576,8 +594,12 @@ document.querySelectorAll("[data-world-multi]").forEach((button) => {
 generateWorldPreviewButton?.addEventListener("click", generateWorldPreview);
 document.addEventListener("click", (event) => {
   if (!event.target.closest("#clearWorldButton")) return;
+  const savedWorld = storyboardProject.worlds.find((world) => world.id === editingWorldId)
+    || storyboardProject.worlds.find((world) => world.id === storyboardProject.activeWorldId);
   const shouldClear = window.confirm(
-    "Clear this world creator? This removes the current world name, prompt, preview image and unsaved world settings from this screen. Saved characters and scenes will stay as they are.",
+    savedWorld
+      ? `Clear "${savedWorld.name || "this world"}"? This deletes the saved world, its prompt and preview image, and removes it from existing scenes. Your saved characters and scene text will remain.`
+      : "Clear this world creator? This removes the current world name, prompt, preview image and unsaved settings.",
   );
   if (shouldClear) resetWorldCreator();
 });
@@ -672,10 +694,13 @@ function applyRealmSparkToWorldCreator() {
 }
 
 const sparkedWorld = applyRealmSparkToWorldCreator();
-const activeSavedWorld = storyboardProject.worlds.find((world) => world.id === storyboardProject.activeWorldId) || storyboardProject.worlds[0] || null;
+const activeSavedWorld = storyboardProject.worlds.find((world) => world.id === storyboardProject.activeWorldId) || null;
 const params = new URLSearchParams(window.location.search);
-const shouldResumeSavedWorld = params.get("resume") === "1" || isCustomSavedWorld(activeSavedWorld);
-const worldToEdit = sparkedWorld || (editingWorldId ? storyboardProject.worlds.find((world) => world.id === editingWorldId) : shouldResumeSavedWorld ? activeSavedWorld : null);
+const requestedWorld = editingWorldId
+  ? storyboardProject.worlds.find((world) => world.id === editingWorldId)
+  : null;
+const shouldResumeSavedWorld = params.get("resume") === "1" || Boolean(activeSavedWorld && isCustomSavedWorld(activeSavedWorld));
+const worldToEdit = sparkedWorld || requestedWorld || (shouldResumeSavedWorld ? activeSavedWorld : null);
 if (worldToEdit) {
   editingWorldId = worldToEdit.id;
   applyWorldToForm(worldToEdit);

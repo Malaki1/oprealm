@@ -851,8 +851,11 @@ function resetCharacterFormForAnother() {
 }
 
 function clearCharacterForm() {
+  const savedCharacter = storyboardProject.characters.find((character) => character.id === editingCharacterId)
+    || storyboardProject.characters.find((character) => character.id === storyboardProject.activeCharacterId);
   const hasWork = Boolean(
-    editingCharacterId
+    savedCharacter
+    || editingCharacterId
     || recipeState.generation.generatedImageUrl
     || cleanText(nameInput?.value)
     || cleanText(taglineInput?.value)
@@ -860,8 +863,37 @@ function clearCharacterForm() {
     || cleanText(customObjectInput?.value)
     || cleanText(customPetInput?.value)
   );
-  if (hasWork && !window.confirm("Clear this character from the editor? Saved characters will not be deleted.")) {
+  const confirmation = savedCharacter
+    ? `Clear "${savedCharacter.name || "this character"}"? This deletes the saved character and removes it from existing scenes. Scene text, worlds and other saved characters will remain.`
+    : "Clear this character editor? This removes the current unsaved character details and preview image.";
+  if (hasWork && !window.confirm(confirmation)) {
     return;
+  }
+
+  const clearedCharacterId = savedCharacter?.id || editingCharacterId || "";
+  if (clearedCharacterId) {
+    const objects = (storyboardProject.objects || []).reduce((kept, object) => {
+      const sourceCharacterIds = (object.sourceCharacterIds || []).filter((id) => id !== clearedCharacterId);
+      if (object.sourceCharacterIds?.length && !sourceCharacterIds.length) return kept;
+      kept.push({ ...object, sourceCharacterIds });
+      return kept;
+    }, []);
+    storyboardProject = saveStoryboardProject({
+      ...storyboardProject,
+      activeCharacterId: storyboardProject.activeCharacterId === clearedCharacterId ? "" : storyboardProject.activeCharacterId,
+      characters: (storyboardProject.characters || []).filter((character) => character.id !== clearedCharacterId),
+      objects,
+      scenes: (storyboardProject.scenes || []).map((scene) => ({
+        ...scene,
+        selectedCharacterIds: (scene.selectedCharacterIds || []).filter((id) => id !== clearedCharacterId),
+        selectedObjectIds: (scene.selectedObjectIds || []).filter((id) => objects.some((object) => object.id === id)),
+      })),
+    });
+  } else if (storyboardProject.activeCharacterId) {
+    storyboardProject = saveStoryboardProject({
+      ...storyboardProject,
+      activeCharacterId: "",
+    });
   }
 
   editingCharacterId = "";
@@ -915,7 +947,9 @@ function clearCharacterForm() {
   updateCounts();
   if (proceedToStoryBuilderButton) proceedToStoryBuilderButton.hidden = true;
   if (characterSaveStatus) {
-    characterSaveStatus.textContent = "Character editor cleared. Saved characters remain in your project.";
+    characterSaveStatus.textContent = savedCharacter
+      ? `${savedCharacter.name || "Character"} cleared from this project.`
+      : "Character editor cleared.";
     characterSaveStatus.classList.remove("is-saved");
   }
   if (statusNode) statusNode.textContent = "Add character details, then generate a new image.";
@@ -1148,7 +1182,7 @@ document.addEventListener("keydown", (event) => {
 });
 const characterToEdit = editingCharacterId
   ? storyboardProject.characters.find((character) => character.id === editingCharacterId)
-  : storyboardProject.characters.find((character) => character.id === storyboardProject.activeCharacterId) || storyboardProject.characters[0] || null;
+  : storyboardProject.characters.find((character) => character.id === storyboardProject.activeCharacterId) || null;
 if (characterToEdit) {
   editingCharacterId = characterToEdit.id;
   applyRecipeToForm(characterToEdit);
