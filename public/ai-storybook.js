@@ -347,6 +347,15 @@ function advance() {
   stopNarration();
   const page = currentPage();
   const beats = page.beats?.length ? page.beats : splitIntoBeats(page.storyExcerpt || page.passage || "");
+  if (pageIndex >= pages.length - 1 && beatIndex >= beats.length - 1 && !branchPage) {
+    localStorage.setItem("oprealm_story_completion", JSON.stringify({
+      projectId: project.id || "",
+      storybookId: storybookId(),
+      completedAt: new Date().toISOString(),
+    }));
+    window.location.href = "/publishing-studio.html";
+    return;
+  }
   if (beatIndex < beats.length - 1) {
     beatIndex += 1;
     renderPlayer();

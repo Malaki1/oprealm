@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Prepare and publish an OPRealm children's story into the RealmVerse Library." />
+    <title>Publishing Studio | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/publishing-studio.css?v=1" />
+    <script src="/storyboard-account.js?v=5" defer></script>
+    <script src="/publishing-studio.js?v=1" defer></script>
+  </head>
+  <body>
+    <header class="publish-topbar">
+      <a class="publish-brand" href="/"><span></span><strong>OPREALM</strong></a>
+      <a class="back-link" href="/ai-storybook.html">&lsaquo; Back to AI Story</a>
+      <div class="publish-title">
+        <p>REALMVERSE BOOKMAKER</p>
+        <h1>Publishing Studio</h1>
+        <span>Prepare your children's story for its RealmVerse debut.</span>
+      </div>
+      <span class="credit-pill" data-credit-pill>...</span>
+      <a class="account-link" href="/account.html">My Account</a>
+    </header>
+
+    <nav class="creator-flow-nav" aria-label="Creator workflow">
+      <a href="/storyboard-world.html">World</a><span>&gt;</span>
+      <a href="/storyboard-character.html">Character</a><span>&gt;</span>
+      <a href="/storyboard.html">Story Builder</a><span>&gt;</span>
+      <a href="/storyboard-scenes.html">Story Board (Scenes)</a><span>&gt;</span>
+      <a href="/ai-storybook.html">AI Story Generator</a><span>&gt;</span>
+      <a href="/publishing-studio.html" aria-current="page">Publish</a><span>&gt;</span>
+      <a href="/account.html">My Account</a>
+    </nav>
+
+    <main class="publishing-shell">
+      <aside class="book-summary">
+        <p class="eyebrow">Your Creation</p>
+        <div class="mini-book">
+          <img id="summaryCover" alt="" />
+          <div><h2 id="summaryTitle">Your Story</h2><span id="summaryChapters">0 scenes</span></div>
+        </div>
+        <ul>
+          <li><span>Story</span><b>Complete</b></li>
+          <li><span>Scenes</span><b id="sceneCountStatus">Ready</b></li>
+          <li><span>Illustrations</span><b id="illustrationStatus">Ready</b></li>
+          <li><span>Narration</span><b id="narrationStatus">Available</b></li>
+          <li><span>Quality Check</span><b id="qualityStatus">Checking</b></li>
+        </ul>
+        <section class="quality-ring">
+          <div><strong id="qualityScore">0%</strong><span>Book Ready</span></div>
+          <p>Story structure</p><p>Illustrations</p><p>Readability</p><p>Character consistency</p>
+        </section>
+        <section class="orbit-tip">
+          <img src="/assets/studio/orbit/orbit-celebrate.png" alt="" />
+          <strong>Publishing is a big deal.</strong>
+          <p>Review every detail, then send your book to the RealmVerse review team.</p>
+        </section>
+      </aside>
+
+      <section class="publishing-workspace">
+        <ol class="publish-progress" id="publishProgress">
+          <li data-progress-step="celebrate"><b>1</b><span>Celebrate<small>Ready</small></span></li>
+          <li data-progress-step="cover"><b>2</b><span>Cover<small>Pending</small></span></li>
+          <li data-progress-step="edit"><b>3</b><span>Edit<small>Pending</small></span></li>
+          <li data-progress-step="scenes"><b>4</b><span>Scenes<small>Pending</small></span></li>
+          <li data-progress-step="details"><b>5</b><span>Details<small>Pending</small></span></li>
+          <li data-progress-step="preview"><b>6</b><span>Preview<small>Pending</small></span></li>
+          <li data-progress-step="publish"><b>7</b><span>Publish<small>Pending</small></span></li>
+        </ol>
+
+        <section class="studio-step celebration-step is-active" data-studio-step="celebrate">
+          <div class="celebration-copy">
+            <p class="eyebrow">Story Complete</p>
+            <h2>You made a whole storybook!</h2>
+            <p>Your characters travelled through a complete adventure, your scenes are illustrated, and your choices are ready to be played. Now it is time to turn your creation into a real RealmVerse book.</p>
+            <div class="achievement-row">
+              <span>Original Story</span><span id="celebrationSceneCount">Illustrated Scenes</span><span>Playable Choices</span>
+            </div>
+            <button class="primary-button" data-next-step="cover" type="button">Create 3 Cover Concepts (72 credits)</button>
+          </div>
+          <img src="/assets/studio/orbit/orbit-celebrate.png" alt="" />
+        </section>
+
+        <section class="studio-step" data-studio-step="cover">
+          <div class="step-heading">
+            <div><p class="eyebrow">Step 2</p><h2>AI Cover Generator</h2><p>Three professional cover directions created from your story, hero, world and theme.</p></div>
+            <button class="secondary-button" id="generateCoversButton" type="button">Generate New Set (72 credits)</button>
+          </div>
+          <div class="cover-loading" id="coverLoading" hidden>
+            <div class="loading-ring" id="coverLoadingRing"><span id="coverLoadingPercent">0%</span></div>
+            <div><strong id="coverLoadingTitle">Designing your covers...</strong><p id="coverLoadingMessage">Reading the story and finding its strongest visual promise.</p></div>
+          </div>
+          <div class="cover-grid" id="coverGrid"></div>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="celebrate" type="button">Back</button><button class="primary-button" data-next-step="edit" type="button">Customize Selected Cover</button></div>
+        </section>
+
+        <section class="studio-step" data-studio-step="edit">
+          <div class="step-heading"><div><p class="eyebrow">Step 3</p><h2>Cover Editor</h2><p>Make the book unmistakably yours.</p></div></div>
+          <div class="cover-editor">
+            <div class="cover-canvas" id="coverCanvas">
+              <img id="coverEditorImage" alt="" />
+              <div class="cover-text cover-position-bottom" id="coverTextLayer">
+                <h3 id="coverPreviewTitle">Story Title</h3>
+                <p id="coverPreviewSubtitle"></p>
+                <span id="coverPreviewAuthor">By OPRealm Creator</span>
+              </div>
+            </div>
+            <div class="cover-controls">
+              <label>Title<input id="coverTitleInput" maxlength="80" /></label>
+              <label>Subtitle<input id="coverSubtitleInput" maxlength="90" placeholder="Optional" /></label>
+              <label>Author<input id="coverAuthorInput" maxlength="50" /></label>
+              <label>Title Font<select id="coverFontSelect"><option value="storybook">Storybook</option><option value="cinematic">Cinematic</option><option value="playful">Playful</option></select></label>
+              <fieldset><legend>Text Colour</legend><button class="swatch is-selected" data-cover-colour="#fff4d6" style="--swatch:#fff4d6" type="button"></button><button class="swatch" data-cover-colour="#ffd34e" style="--swatch:#ffd34e" type="button"></button><button class="swatch" data-cover-colour="#85edff" style="--swatch:#85edff" type="button"></button><button class="swatch" data-cover-colour="#ffffff" style="--swatch:#ffffff" type="button"></button></fieldset>
+              <fieldset><legend>Effect</legend><button class="option-button is-selected" data-cover-effect="glow" type="button">Glow</button><button class="option-button" data-cover-effect="shadow" type="button">Shadow</button><button class="option-button" data-cover-effect="none" type="button">None</button></fieldset>
+              <fieldset><legend>Position</legend><button class="option-button" data-cover-position="top" type="button">Top</button><button class="option-button is-selected" data-cover-position="bottom" type="button">Bottom</button></fieldset>
+            </div>
+          </div>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="cover" type="button">Back</button><button class="primary-button" data-next-step="scenes" type="button">Save Cover &amp; Review Scenes</button></div>
+        </section>
+
+        <section class="studio-step" data-studio-step="scenes">
+          <div class="step-heading"><div><p class="eyebrow">Step 4</p><h2>Review Your Story Scenes</h2><p>Select a scene to expand it for editing. Your original story remains intact.</p></div></div>
+          <div class="publish-scene-grid" id="publishSceneGrid"></div>
+          <div class="scene-editor-panel" id="sceneEditorPanel" hidden>
+            <img id="sceneEditorImage" alt="" />
+            <div><label>Scene title<input id="sceneEditorTitle" maxlength="100" /></label><label>Story text<textarea id="sceneEditorText" rows="8"></textarea></label><button class="primary-button" id="saveSceneEditButton" type="button">Save Scene Changes</button></div>
+          </div>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="edit" type="button">Back</button><button class="primary-button" data-next-step="details" type="button">Scenes Look Great</button></div>
+        </section>
+
+        <section class="studio-step" data-studio-step="details">
+          <div class="step-heading"><div><p class="eyebrow">Step 5</p><h2>Story Metadata</h2><p>Help readers and families understand what your book is about.</p></div></div>
+          <div class="metadata-form">
+            <label>Book title<input id="metadataTitle" maxlength="80" /></label>
+            <label>Genre<select id="metadataGenre"><option>Fantasy Adventure</option><option>Mystery</option><option>Comedy</option><option>Science Fiction</option><option>Animal Adventure</option><option>Magical Quest</option></select></label>
+            <label>Age group<select id="metadataAge"><option value="6-8">6-8 Years</option><option value="8-10" selected>8-10 Years</option><option value="10-12">10-12 Years</option><option value="13+">13+ Years</option></select></label>
+            <label class="wide">Description<textarea id="metadataDescription" rows="5" maxlength="600"></textarea><small><span id="descriptionCount">0</span>/600</small></label>
+            <label class="wide">Tags<input id="metadataTags" maxlength="120" placeholder="adventure, friendship, magic" /></label>
+          </div>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="scenes" type="button">Back</button><button class="primary-button" data-next-step="preview" type="button">Preview Reader Card</button></div>
+        </section>
+
+        <section class="studio-step" data-studio-step="preview">
+          <div class="step-heading"><div><p class="eyebrow">Step 6</p><h2>RealmVerse Card Preview</h2><p>This is how families and readers will discover your book.</p></div></div>
+          <div class="reader-card-preview">
+            <div class="reader-card-cover"><img id="cardPreviewImage" alt="" /><span>New Story</span></div>
+            <div><p class="eyebrow" id="cardPreviewGenre">Fantasy Adventure</p><h2 id="cardPreviewTitle">Story Title</h2><p id="cardPreviewDescription"></p><div class="card-meta"><span id="cardPreviewAuthor"></span><span id="cardPreviewAge"></span><span id="cardPreviewScenes"></span></div><button type="button">Play Story</button></div>
+          </div>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="details" type="button">Edit Details</button><button class="primary-button" data-next-step="publish" type="button">Continue to Publishing</button></div>
+        </section>
+
+        <section class="studio-step final-publish-step" data-studio-step="publish">
+          <div class="launch-emblem">&#10022;</div>
+          <p class="eyebrow">Final Step</p>
+          <h2>Your story is ready for RealmVerse.</h2>
+          <p>Publishing submits your book to OPRealm's child-safe review queue. It will appear in RealmVerse Library after approval.</p>
+          <label class="publish-check"><input id="publishPermission" type="checkbox" /><span>I have reviewed my story and want to submit it for RealmVerse review.</span></label>
+          <button class="launch-button" id="publishStoryButton" type="button" disabled>Publish to RealmVerse</button>
+          <p class="publish-status" id="publishStatus" aria-live="polite"></p>
+          <div class="step-actions"><button class="secondary-button" data-previous-step="preview" type="button">Back to Preview</button></div>
+        </section>
+
+        <section class="launch-success" id="launchSuccess" hidden>
+          <img src="/assets/studio/orbit/orbit-celebrate.png" alt="" />
+          <p class="eyebrow">Achievement Unlocked</p>
+          <h2>Your book has entered the RealmVerse review queue!</h2>
+          <p>That is a real publishing milestone. Your project is saved in My Account while the OPRealm team reviews it.</p>
+          <div><a class="primary-button" href="/library">Enter RealmVerse Library</a><a class="secondary-button" href="/account.html">View My Account</a></div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

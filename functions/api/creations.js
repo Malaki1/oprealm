@@ -81,6 +81,8 @@ export async function onRequestPost({ request, env }) {
     "web_game",
   );
   const description = cleanText(body.description || "", 600);
+  const tags = cleanText(body.tags || "", 200);
+  const ageBand = cleanText(body.ageBand || body.age_band || "", 24);
   const mediaUrl = cleanUrl(body.mediaUrl || body.media_url || "");
   const thumbnailUrl = cleanUrl(body.thumbnailUrl || body.thumbnail_url || "");
   const projectSnapshot = JSON.stringify(body.projectSnapshot || body.project_snapshot || []).slice(0, 8000);
@@ -105,16 +107,18 @@ export async function onRequestPost({ request, env }) {
         description,
         media_url,
         thumbnail_url,
+        tags,
+        age_band,
         project_snapshot_json,
         visibility,
         review_status,
         created_at,
         submitted_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', 'pending', datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_review', 'pending', datetime('now'), datetime('now'))
     `,
   )
-    .bind(id, `web:${user.id}`, title, type, description, mediaUrl, thumbnailUrl, projectSnapshot)
+    .bind(id, `web:${user.id}`, title, type, description, mediaUrl, thumbnailUrl, tags, ageBand, projectSnapshot)
     .run();
 
   return json({ ok: true, id, reviewStatus: "pending" }, 201);

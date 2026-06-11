@@ -136,6 +136,17 @@ function renderRecentProject() {
 
 function mostRecentLocalProject() {
   const projects = [];
+  const publication = readLocalProject("oprealm_recent_publication");
+  if (publication?.title) {
+    projects.push({
+      title: publication.title,
+      type: publication.reviewStatus === "pending" ? "Publishing review pending" : "Published Story",
+      progress: 100,
+      image: publication.image || "/assets/homepage/cards/story-games.png",
+      href: publication.href || "/publishing-studio.html",
+      updatedAt: publication.publishedAt || "",
+    });
+  }
   const storyboard = readLocalProject("oprealm_storyboard_project_v1");
   if (storyboard && (storyboard.title || storyboard.worlds?.length || storyboard.characters?.length || storyboard.scenes?.length)) {
     const sceneCount = storyboard.scenes?.length || 0;
@@ -201,7 +212,7 @@ function buildProgress(user, credits) {
     worldsCreated: accountAgeDays > 1 ? 1 : 0,
     charactersCreated: accountAgeDays > 0 ? 1 : 0,
     scenesCreated: accountAgeDays > 2 ? 1 : 0,
-    publishedCreations: 0,
+    publishedCreations: readLocalProject("oprealm_recent_publication")?.publishedAt ? 1 : 0,
     safetyQuestComplete: Boolean(user.safetyCompleted),
   };
 }

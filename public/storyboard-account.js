@@ -1,5 +1,6 @@
 const CREATOR_PROJECT_KEY = "oprealm_storyboard_project_v1";
 const AI_STORY_SOURCE_KEY = "oprealm_ai_storybook_source";
+const PUBLISHING_KEY = "oprealm_publishing_studio_v1";
 
 async function hydrateStoryboardAccountStatus() {
   const creditPills = document.querySelectorAll("[data-credit-pill]");
@@ -36,12 +37,14 @@ function creatorStepState() {
   const scenes = project.scenes || [];
   const allSceneImagesSaved = scenes.length >= 8 && scenes.every((scene) => Boolean(scene.generatedImageUrl || scene.imageDataUrl));
   const aiStorySource = readCreatorStorage(AI_STORY_SOURCE_KEY);
+  const publishing = readCreatorStorage(PUBLISHING_KEY);
   return {
     world: Boolean(activeWorld && (activeWorld.generatedImageUrl || activeWorld.imageUrl)),
     character: Boolean(activeCharacter && (activeCharacter.imageUrl || activeCharacter.imageDataUrl || activeCharacter.recipe?.generation?.generatedImageUrl)),
     storyBuilder: Boolean(project.storyDraft?.approved),
     storyScenes: Boolean(project.storyDraft?.approved && scenes.length >= 8),
     aiStory: Boolean(aiStorySource.createdAt && allSceneImagesSaved),
+    publish: Boolean(publishing.publishedAt),
   };
 }
 
@@ -84,6 +87,7 @@ function refreshCreatorStepTicks() {
     markCreatorStep(nav.querySelector('a[href="/storyboard.html"]'), state.storyBuilder);
     markCreatorStep(nav.querySelector('a[href="/storyboard-scenes.html"], a[href="/storyboard-scenes"]'), state.storyScenes);
     markCreatorStep(nav.querySelector('[data-creator-step="aiStory"], a[href="/ai-storybook.html"]'), state.aiStory);
+    markCreatorStep(nav.querySelector('a[href="/publishing-studio.html"]'), state.publish);
   });
 
   if (document.body.classList.contains("storyboard-body")) return;
@@ -102,6 +106,7 @@ function refreshCreatorStepTicks() {
     ["Story Builder", "/storyboard.html", state.storyBuilder],
     ["Story Board (Scenes)", "/storyboard-scenes.html", state.storyScenes],
     ["AI Story Generator", "/ai-storybook.html", state.aiStory],
+    ["Publish", "/publishing-studio.html", state.publish],
     ["My Account", "/account.html", false],
   ].map(([label, href, complete], index) => {
     const current = window.location.pathname.startsWith(href.replace(".html", ""));
