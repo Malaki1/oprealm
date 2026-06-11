@@ -635,12 +635,16 @@ async function loadNarrationManifest() {
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) return;
     (data.beats || []).forEach((beat) => narrationManifest.set(beat.beatId, beat));
-    const readyCount = [...narrationManifest.values()].filter((beat) => beat.status === "ready" && beat.audioUrl).length;
+    const readyCount = [...narrationManifest.values()]
+      .filter((beat) => beat.status === "ready" && beat.audioUrl && Number(beat.generationVersion || 1) >= 2)
+      .length;
+    const expectedCount = pages.reduce((total, page) => total + (page.beats || []).length, 0);
     if (readyCount) {
       narrationEnabled = true;
-      readStoryButton.textContent = "Narration Ready";
+      readStoryButton.textContent = readyCount >= expectedCount ? "Narration Ready" : "Updating Narration";
       narrationStatus.textContent = `${readyCount} narrated beats ready`;
       renderPlayer();
+      if (readyCount < expectedCount) window.setTimeout(() => generateStorybookNarration(), 250);
     } else if ([...narrationManifest.values()].some((beat) => beat.status === "failed")) {
       readStoryButton.textContent = "Retry Narration";
       narrationStatus.textContent = "Narration unavailable";
@@ -656,7 +660,7 @@ async function loadNarrationManifest() {
 
 async function ensureBeatAudio(beat, sceneIndex, beatPosition) {
   const cached = narrationManifest.get(beat.id);
-  if (cached?.audioUrl) return cached;
+  if (cached?.audioUrl && Number(cached.generationVersion || 1) >= 2) return cached;
   if (DEMO_MODE) throw new Error("Narration unavailable in demo mode.");
   const response = await fetch("/api/storybook-narration", {
     method: "POST",
@@ -684,7 +688,7 @@ async function ensureBeatAudio(beat, sceneIndex, beatPosition) {
 
 function attachAudioToBeat(beat) {
   const audioBeat = narrationManifest.get(beat.id);
-  if (!audioBeat) return beat;
+  if (!audioBeat || Number(audioBeat.generationVersion || 1) < 2) return beat;
   beat.audioUrl = audioBeat.audioUrl;
   beat.durationMs = audioBeat.durationMs;
   const pageBeat = currentPage()?.beats?.find((item) => item.id === beat.id);

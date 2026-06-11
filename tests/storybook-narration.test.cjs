@@ -57,6 +57,24 @@ test("audio generation hashes are stable and include voice direction", async () 
   assert.notEqual(first, different);
 });
 
+test("delivery directions remain metadata rather than story dialogue", () => {
+  const profiles = narration.assignVoiceProfiles(characters, "7-10", "adventure");
+  const beats = narration.applyVoiceProfiles([
+    {
+      id: "scene-1-beat-1",
+      sceneId: "scene-1",
+      order: 1,
+      type: "dialogue",
+      speaker: "Shark Girl",
+      text: "Stay behind me. I know a safe path.",
+      emotion: "urgent",
+    },
+  ], profiles);
+  assert.match(beats[0].deliveryDirection, /brave/i);
+  assert.equal(beats[0].text, "Stay behind me. I know a safe path.");
+  assert.doesNotMatch(beats[0].text, /brave, calm, and protective/i);
+});
+
 test("failed generation preserves text-only mode", () => {
   const fallback = narration.narrationFallback(new Error("Provider unavailable"));
   assert.equal(fallback.status, "failed");

@@ -41,7 +41,9 @@ export async function generateSpeech(
         "xi-api-key": env.ELEVENLABS_API_KEY,
       },
       body: JSON.stringify({
-        text: options.deliveryDirection ? `[${options.deliveryDirection}] ${text}` : text,
+        // Keep delivery direction out of the spoken text. Some models interpret
+        // bracketed directions literally and read them to the listener.
+        text,
         model_id: options.modelId || env.ELEVENLABS_STORYBOOK_TTS_MODEL || "eleven_v3",
         voice_settings: {
           stability: options.stability ?? 0.56,

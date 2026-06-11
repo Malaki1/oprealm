@@ -58,9 +58,6 @@ export function estimateNarrationCost(characterCount) {
 }
 
 function requestSpeech(env, voiceId, text, deliveryDirection, modelId) {
-  const directedText = deliveryDirection && modelId === "eleven_v3"
-    ? `[${String(deliveryDirection).replace(/[\[\]]/g, "").slice(0, 260)}] ${text}`
-    : text;
   return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: {
@@ -68,7 +65,9 @@ function requestSpeech(env, voiceId, text, deliveryDirection, modelId) {
       "xi-api-key": env.ELEVENLABS_API_KEY,
     },
     body: JSON.stringify({
-      text: directedText,
+      // Delivery direction is retained in the manifest and cache key. Sending it
+      // as text can make some ElevenLabs voices read the instruction aloud.
+      text,
       model_id: modelId,
       voice_settings: {
         stability: 0.56,

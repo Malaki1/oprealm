@@ -12,6 +12,7 @@ import {
 import { checkPromptSafety } from "../_lib/validate.js";
 
 const TOOL = "storybook_narration";
+const GENERATION_VERSION = 2;
 
 export async function onRequestGet({ request, env }) {
   try {
@@ -20,7 +21,8 @@ export async function onRequestGet({ request, env }) {
     if (!storybookId) return json({ ok: false, error: "A storybook is required." }, 400);
     const result = await env.OPREALM_DB.prepare(`
       SELECT id, storybook_id, scene_id, beat_id, scene_number, beat_number, speaker,
-             voice_id, delivery_direction, audio_hash, duration_ms, status, generated_at
+             voice_id, delivery_direction, audio_hash, duration_ms, status, generated_at,
+             generation_version
       FROM storybook_audio_beats
       WHERE web_user_id = ? AND storybook_id = ?
       ORDER BY scene_number, beat_number
@@ -53,7 +55,7 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: false, error: "Narration unavailable until this story text passes the child-safety check." }, 400);
     }
 
-    const audioHash = await sha256Text(`${input.text}\n${input.voiceId}\n${input.deliveryDirection}`);
+    const audioHash = await sha256Text(`v${GENERATION_VERSION}\n${input.text}\n${input.voiceId}\n${input.deliveryDirection}`);
     const cached = await findCachedAudio(env, user.id, input.storybookId, audioHash);
     if (cached && await env.OPREALM_ASSETS.head(cached.r2_key)) {
       await attachCachedBeat(env, cached, user.id, input);
@@ -113,9 +115,9 @@ export async function onRequestPost({ request, env }) {
       INSERT INTO storybook_audio_beats (
         id, web_user_id, storybook_id, scene_id, beat_id, scene_number, beat_number,
         speaker, voice_id, delivery_direction, audio_hash, r2_key, duration_ms,
-        status, generated_at, created_at, updated_at
+        status, generated_at, generation_version, created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', datetime('now'), datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', datetime('now'), ?, datetime('now'), datetime('now'))
       ON CONFLICT(web_user_id, storybook_id, beat_id) DO UPDATE SET
         scene_id = excluded.scene_id,
         scene_number = excluded.scene_number,
@@ -128,6 +130,7 @@ export async function onRequestPost({ request, env }) {
         duration_ms = excluded.duration_ms,
         status = 'ready',
         generated_at = datetime('now'),
+        generation_version = excluded.generation_version,
         updated_at = datetime('now')
     `).bind(
       recordId,
@@ -143,6 +146,7 @@ export async function onRequestPost({ request, env }) {
       audioHash,
       r2Key,
       durationMs,
+      GENERATION_VERSION,
     ).run();
     const saved = await findBeat(env, user.id, input.storybookId, input.beatId);
     await markJobCompleted(env, jobId, {
@@ -155,7 +159,7 @@ export async function onRequestPost({ request, env }) {
   } catch (error) {
     if (jobId) await markJobFailed(env, jobId, error).catch(() => {});
     if (input && userId) {
-      const audioHash = await sha256Text(`${input.text}\n${input.voiceId}\n${input.deliveryDirection}`).catch(() => "");
+      const audioHash = await sha256Text(`v${GENERATION_VERSION}\n${input.text}\n${input.voiceId}\n${input.deliveryDirection}`).catch(() => "");
       await saveBeatStatus(env, userId, input, audioHash, "failed").catch(() => {});
     }
     return json({ ok: false, error: error.message || "Narration unavailable." }, error.status || 500);
@@ -167,15 +171,16 @@ async function saveBeatStatus(env, userId, input, audioHash, status) {
     INSERT INTO storybook_audio_beats (
       id, web_user_id, storybook_id, scene_id, beat_id, scene_number, beat_number,
       speaker, voice_id, delivery_direction, audio_hash, r2_key, duration_ms,
-      status, created_at, updated_at
+      status, generation_version, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, ?, datetime('now'), datetime('now'))
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 0, ?, ?, datetime('now'), datetime('now'))
     ON CONFLICT(web_user_id, storybook_id, beat_id) DO UPDATE SET
       speaker = excluded.speaker,
       voice_id = excluded.voice_id,
       delivery_direction = excluded.delivery_direction,
       audio_hash = excluded.audio_hash,
       status = excluded.status,
+      generation_version = excluded.generation_version,
       updated_at = datetime('now')
   `).bind(
     crypto.randomUUID(),
@@ -190,6 +195,7 @@ async function saveBeatStatus(env, userId, input, audioHash, status) {
     input.deliveryDirection,
     audioHash,
     status,
+    GENERATION_VERSION,
   ).run();
 }
 
@@ -197,8 +203,9 @@ async function findCachedAudio(env, userId, storybookId, audioHash) {
   return env.OPREALM_DB.prepare(`
     SELECT * FROM storybook_audio_beats
     WHERE web_user_id = ? AND storybook_id = ? AND audio_hash = ? AND status = 'ready'
+      AND generation_version = ?
     ORDER BY generated_at DESC LIMIT 1
-  `).bind(userId, storybookId, audioHash).first();
+  `).bind(userId, storybookId, audioHash, GENERATION_VERSION).first();
 }
 
 async function findBeat(env, userId, storybookId, beatId) {
@@ -214,9 +221,9 @@ async function attachCachedBeat(env, cached, userId, input) {
     INSERT INTO storybook_audio_beats (
       id, web_user_id, storybook_id, scene_id, beat_id, scene_number, beat_number,
       speaker, voice_id, delivery_direction, audio_hash, r2_key, duration_ms,
-      status, generated_at, created_at, updated_at
+      status, generated_at, generation_version, created_at, updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, datetime('now'), datetime('now'))
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, datetime('now'), datetime('now'))
     ON CONFLICT(web_user_id, storybook_id, beat_id) DO UPDATE SET
       voice_id = excluded.voice_id,
       delivery_direction = excluded.delivery_direction,
@@ -225,6 +232,7 @@ async function attachCachedBeat(env, cached, userId, input) {
       duration_ms = excluded.duration_ms,
       status = 'ready',
       generated_at = excluded.generated_at,
+      generation_version = excluded.generation_version,
       updated_at = datetime('now')
   `).bind(
     crypto.randomUUID(),
@@ -241,6 +249,7 @@ async function attachCachedBeat(env, cached, userId, input) {
     cached.r2_key,
     cached.duration_ms,
     cached.generated_at,
+    GENERATION_VERSION,
   ).run();
 }
 
@@ -267,6 +276,7 @@ function publicBeat(row) {
     durationMs: Number(row.duration_ms || 0),
     status: row.status,
     generatedAt: row.generated_at,
+    generationVersion: Number(row.generation_version || 1),
   };
 }
 
