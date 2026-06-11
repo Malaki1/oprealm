@@ -8,8 +8,8 @@ import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 const STORY_DRAFT_COST = CREATOR_CREDIT_COSTS.storyDraft;
 const STORY_DRAFT_MODEL = "gpt-5-mini";
 const STORY_DRAFT_TOOL = "story_draft";
-const MIN_SCENE_COUNT = 8;
-const MAX_SCENE_COUNT = 16;
+const MIN_SCENE_COUNT = 16;
+const MAX_SCENE_COUNT = 32;
 const SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
@@ -47,10 +47,25 @@ const storyDraftSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "passage", "mood", "camera", "visualDirection", "choices"],
+        required: ["title", "passage", "script", "mood", "camera", "visualDirection", "choices"],
         properties: {
           title: { type: "string" },
           passage: { type: "string" },
+          script: {
+            type: "array",
+            minItems: 1,
+            maxItems: 8,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["speaker", "speakerRole", "text"],
+              properties: {
+                speaker: { type: "string" },
+                speakerRole: { type: "string", enum: ["narrator", "hero", "supporting"] },
+                text: { type: "string" },
+              },
+            },
+          },
           mood: { type: "string", enum: SCENE_MOODS },
           camera: { type: "string", enum: SCENE_CAMERAS },
           visualDirection: { type: "string" },
@@ -77,6 +92,7 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: false, error: `You need ${STORY_DRAFT_COST} Creator credits to write this story.` }, 402);
     }
     const character = cleanText(body.character, 1200);
+    const cast = cleanText(body.cast, 2400);
     const world = cleanText(body.world, 1600);
     const storyType = cleanText(body.storyType, 80) || "Epic Quest";
     const endingType = cleanText(body.endingType, 80) || "Happy";
@@ -84,7 +100,7 @@ export async function onRequestPost({ request, env }) {
     const objects = Array.isArray(body.objects)
       ? body.objects.map((item) => cleanText(item, 120)).filter((item) => item && !/^custom (pet|object)$/i.test(item)).slice(0, 6)
       : [];
-    assertSafePrompt([character, world, storyType, endingType, lessonTheme, ...objects].join(" "));
+    assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
     await assertRateLimit(env, user.id, STORY_DRAFT_TOOL, { limit: 4, windowSeconds: 60 });
 
     const approvedStory = cleanProse(body.approvedStory, 16000);
@@ -94,6 +110,7 @@ export async function onRequestPost({ request, env }) {
     const input = mode === "split" ? [
       `Approved story title: ${cleanText(body.title, 100) || "My OPREALM Story"}`,
       `Approved story text: ${approvedStory}`,
+      `Exact speaking cast and roles: ${cast || "Use only names present in the approved story."}`,
       `Divide this exact approved story into between ${MIN_SCENE_COUNT} and ${MAX_SCENE_COUNT} visual scenes. Never use fewer than ${MIN_SCENE_COUNT}.`,
       "Do not rewrite, summarize or add events to the approved story.",
       "Choose scene boundaries at meaningful changes in location, action, discovery, emotion or consequence.",
@@ -101,6 +118,8 @@ export async function onRequestPost({ request, env }) {
       "For every chapter, provide one clear sentence describing what happens in that chapter without revealing later chapters.",
       "Provide a concise spoiler-light summary of the complete approved story.",
       "Each passage must quote or closely preserve only the matching events from the approved story.",
+      "For every scene, return a play-style script of 1 to 8 short beats in the exact order they occur. Label narration as speaker 'Narrator' with speakerRole 'narrator'. Label hero dialogue with the hero's exact saved name and speakerRole 'hero'. Label every other character with their exact cast name and speakerRole 'supporting'.",
+      "Never assign dialogue to Narrator when a named character speaks it. Never assign a supporting character's line to the hero. Preserve the actual spoken words rather than paraphrasing them as narration.",
       "For each scene, choices must be an empty array unless the story reaches a genuine decision that changes what happens next. At a genuine decision, provide only 2 or 3 short, specific actions the player can choose.",
       "Never add generic choices merely to make a scene interactive. Never attach consequence hints, lessons or emotional labels to a choice.",
       "Each visualDirection is a 1-2 sentence concrete visual seed for the scene card. Name the actual character, location, visible action and important object from the approved passage.",
@@ -111,6 +130,7 @@ export async function onRequestPost({ request, env }) {
       "Do not include plot explanations, lessons, future events, prompt instructions or story structure in visualDirection.",
     ].join("\n") : [
       `Hero: ${character || "An original child-safe hero."}`,
+      `Exact speaking cast and roles: ${cast || "Only the hero is currently available."}`,
       `World: ${world || "An original child-safe adventure world."}`,
       `Story type: ${storyType}.`,
       `Ending type: ${endingType}.`,
@@ -131,6 +151,8 @@ export async function onRequestPost({ request, env }) {
       `After writing the full story, decide how many visual scenes are needed to tell it properly. Use between ${MIN_SCENE_COUNT} and ${MAX_SCENE_COUNT} scenes; never use fewer than ${MIN_SCENE_COUNT}.`,
       "Choose scene boundaries at meaningful changes in location, action, discovery, emotion or consequence. Do not force equal-length chunks.",
       "Each passage must quote or closely preserve the corresponding story events for internal continuity, narration and subtitles.",
+      "For every scene, return a play-style script of 1 to 8 short beats in story order. Every spoken line must use the exact saved character name. Use speakerRole 'hero' only for the selected hero, 'supporting' for every other named character, and 'narrator' only for visible action or description.",
+      "Never turn a named character's dialogue into Narrator speech. Never give a supporting character's dialogue to the hero. Keep quoted dialogue as dialogue in the script.",
       "For each scene, choices must be an empty array unless the story reaches a genuine decision that changes the next event. At a genuine decision, provide only 2 or 3 concise, concrete actions the player can take.",
       "Do not create generic, decorative or repetitive choices. Do not include consequence hints, themes or lessons in the choice labels.",
       "Each visualDirection is a 1-2 sentence concrete visual seed. Name the actual character, location, visible physical action and important object for that exact moment.",
@@ -206,6 +228,7 @@ function normalizeDraft(value) {
     scenes: (value.scenes || []).slice(0, MAX_SCENE_COUNT).map((scene, index) => ({
       title: cleanText(scene.title, 100) || `Scene ${index + 1}`,
       passage: cleanText(scene.passage, 1800),
+      script: normalizeSceneScript(scene.script),
       mood: enumSceneValue(scene.mood, SCENE_MOODS, "Wonder"),
       camera: enumSceneValue(scene.camera, SCENE_CAMERAS, "Wide Shot"),
       visualDirection: cleanText(scene.visualDirection, 1800),
@@ -215,6 +238,22 @@ function normalizeDraft(value) {
         .slice(0, 3),
     })),
   };
+}
+
+function normalizeSceneScript(script) {
+  return (Array.isArray(script) ? script : [])
+    .map((beat) => {
+      const role = ["narrator", "hero", "supporting"].includes(beat?.speakerRole)
+        ? beat.speakerRole
+        : /^narrator$/i.test(String(beat?.speaker || "")) ? "narrator" : "supporting";
+      return {
+        speaker: role === "narrator" ? "Narrator" : cleanText(beat?.speaker, 100),
+        speakerRole: role,
+        text: cleanText(beat?.text, 700),
+      };
+    })
+    .filter((beat) => beat.speaker && beat.text)
+    .slice(0, 8);
 }
 
 function chapterDescriptionFromParagraphs(paragraphs, index) {

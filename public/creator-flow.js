@@ -236,7 +236,8 @@ if (creatorFlowParams.get("voice") === "1") {
 const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
 const STORYBOARD_MOVIE_DB = "oprealm_storyboard_movie_v1";
 const STORYBOARD_MOVIE_STORE = "movie_previews";
-const MIN_STORY_SCENES = 8;
+const MIN_STORY_SCENES = 16;
+const STORY_SCENES_PAGE = /\/storyboard-scenes(?:\.html)?$/i.test(window.location.pathname);
 const STORY_DIRECTION_DEFAULTS = {
   storyType: "epic-quest",
   endingType: "happy",
@@ -798,6 +799,24 @@ function storyDraftPayload(project, mode = "write") {
       traits: character.traits || [],
       description: character.prompt || character.description || "",
     }),
+    cast: JSON.stringify([
+      ...(project.characters || []).map((item) => ({
+        name: item.name,
+        role: item.id === project.activeCharacterId ? "hero" : "supporting",
+        type: item.characterType || item.type || "character",
+        gender: item.gender || item.recipe?.identity?.gender || "unspecified",
+        age: item.age || item.recipe?.identity?.age || "",
+      })),
+      ...activeObjects(project)
+        .filter((item) => item.kind === "pet" || item.kind === "companion")
+        .map((item) => ({
+          name: storyObjectName(item),
+          role: "supporting",
+          type: item.type || item.kind || "companion",
+          gender: item.gender || "neutral",
+          age: item.age || "",
+        })),
+    ].filter((item) => item.name)),
     world: JSON.stringify({
       name: world.name || "the story world",
       description: world.description || world.prompt || world.hook || "",
@@ -867,6 +886,10 @@ async function requestFullStory(project, mode = "write") {
     if (currentStatus) currentStatus.textContent = mode === "split"
       ? `Story approved and divided into ${project.storyDraft.sceneCount} visual scenes.`
       : `Story written using ${result.creditsUsed || 0} Creator credits. Review and edit it before approval.`;
+    if (mode === "split") {
+      window.location.href = "/storyboard-scenes.html";
+      return;
+    }
   } catch (error) {
     setStorySetupLoading(false);
     setStoryWritingLoading(false);
@@ -905,6 +928,7 @@ function buildScenesFromApprovedStory(project) {
       order: index + 1,
       title: beat.title || `Scene ${index + 1}`,
       storyExcerpt: beat.passage || "",
+      script: normalizeSceneScriptForProject(beat.script, character, project),
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
       mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
       camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
@@ -921,6 +945,33 @@ function buildScenesFromApprovedStory(project) {
   project.storyDraft.sceneCount = project.scenes.length;
   project.storyDraft.approved = true;
   project.storyDraft.cinematicSettingsVersion = 2;
+}
+
+function normalizeSceneScriptForProject(script, hero, project) {
+  const cast = projectCharactersForScript(hero, project);
+  return (Array.isArray(script) ? script : [])
+    .map((beat) => {
+      const role = ["narrator", "hero", "supporting"].includes(beat?.speakerRole)
+        ? beat.speakerRole
+        : /^narrator$/i.test(String(beat?.speaker || "")) ? "narrator" : "supporting";
+      if (role === "narrator") return { speaker: "Narrator", speakerRole: "narrator", text: cleanStoryText(beat.text) };
+      const requested = cleanStoryText(beat?.speaker);
+      const exact = cast.find((name) => name.toLowerCase() === requested.toLowerCase());
+      const speaker = role === "hero" ? hero.name : exact;
+      return { speaker: speaker || "Narrator", speakerRole: speaker ? role : "narrator", text: cleanStoryText(beat.text) };
+    })
+    .filter((beat) => beat.text)
+    .slice(0, 8);
+}
+
+function projectCharactersForScript(hero, project) {
+  return [
+    hero?.name,
+    ...(project.characters || []).map((item) => item.name),
+    ...activeObjects(project)
+      .filter((item) => item.kind === "pet" || item.kind === "companion")
+      .map(storyObjectName),
+  ].filter(Boolean);
 }
 
 function normalizeSceneMood(value, sceneText = "", index = 0) {
@@ -953,7 +1004,7 @@ function normalizeSceneCamera(value, sceneText = "", index = 0) {
 
 function applySceneCinematicSettings(project) {
   const scenes = project.scenes || [];
-  if (!project.storyDraft?.approved || scenes.length < 8 || Number(project.storyDraft.cinematicSettingsVersion || 0) >= 2) return;
+  if (!project.storyDraft?.approved || scenes.length < MIN_STORY_SCENES || Number(project.storyDraft.cinematicSettingsVersion || 0) >= 2) return;
   const moods = new Set(scenes.map((scene) => String(scene.mood || "").trim().toLowerCase()).filter(Boolean));
   const cameras = new Set(scenes.map((scene) => String(scene.camera || "").trim().toLowerCase()).filter(Boolean));
   const repeatedMood = moods.size <= 1;
@@ -3576,7 +3627,12 @@ function closeSceneImageLightbox() {
 
 async function hydrateStoryboardPage() {
   if (!document.querySelector(".storyboard-shell")) return;
+  configureStoryPage();
   const project = writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject())));
+  if (STORY_SCENES_PAGE && !project.storyDraft?.approved) {
+    window.location.replace("/storyboard.html");
+    return;
+  }
   bindStoryboardTitle(project);
   rerenderStoryboard(project);
   resumeQueuedSceneImages(project);
@@ -3680,6 +3736,13 @@ async function hydrateStoryboardPage() {
     writeStoryboardProject(normalizeSceneOrders(project));
     rerenderStoryboard(project);
   });
+}
+
+function configureStoryPage() {
+  const selectors = STORY_SCENES_PAGE
+    ? [".story-direction-panel", "#storyApprovalPanel", "#quickPopulateStoryButton"]
+    : ["#storyScenesStepHead", "#scenes", "#clearStoryboardButton"];
+  selectors.forEach((selector) => document.querySelector(selector)?.remove());
 }
 
 hydrateStoryboardPage();

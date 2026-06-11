@@ -785,7 +785,7 @@ async function generateStorybookNarration() {
 
 async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = null) {
   const cached = narrationManifest.get(beat.id);
-  if (cached?.audioUrl && Number(cached.generationVersion || 1) >= 2) return cached;
+  if (cached?.audioUrl && Number(cached.generationVersion || 1) >= 3) return cached;
   if (DEMO_MODE) throw new Error("Narration unavailable in demo mode.");
   const sceneNumber = Number(sceneOverride?.sceneNumber || sceneIndex + 1);
   const sceneId = sceneOverride?.sceneId || beat.sceneId || pages[sceneIndex]?.id || `scene-${sceneNumber}`;
@@ -841,7 +841,7 @@ function formatRetryTime(seconds) {
 
 function attachAudioToBeat(beat) {
   const audioBeat = narrationManifest.get(beat.id);
-  if (!audioBeat || Number(audioBeat.generationVersion || 1) < 2) return beat;
+  if (!audioBeat || Number(audioBeat.generationVersion || 1) < 3) return beat;
   beat.audioUrl = audioBeat.audioUrl;
   beat.durationMs = audioBeat.durationMs;
   const pageBeat = currentPage()?.beats?.find((item) => item.id === beat.id);

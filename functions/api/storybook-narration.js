@@ -12,7 +12,7 @@ import {
 import { checkPromptSafety } from "../_lib/validate.js";
 
 const TOOL = "storybook_narration";
-const GENERATION_VERSION = 2;
+const GENERATION_VERSION = 3;
 
 export async function onRequestGet({ request, env }) {
   try {

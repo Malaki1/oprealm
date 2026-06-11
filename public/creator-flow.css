@@ -3822,6 +3822,18 @@ button {
   font-weight: 750;
 }
 
+.storyboard-body:not(.storyboard-scenes-body) .story-scenes-step-head,
+.storyboard-body:not(.storyboard-scenes-body) .scene-list,
+.storyboard-body:not(.storyboard-scenes-body) #clearStoryboardButton {
+  display: none !important;
+}
+
+.storyboard-scenes-body .story-direction-panel,
+.storyboard-scenes-body .story-approval-panel,
+.storyboard-scenes-body #quickPopulateStoryButton {
+  display: none !important;
+}
+
 .story-writing-loader {
   position: relative;
   min-height: 138px;

@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function createStorybookNarration() {
   const NARRATOR = "Narrator";
   const MAX_BEAT_CHARS = 260;
-  const SPEECH_VERBS = "said|asked|replied|answered|whispered|shouted|called|cried|murmured|warned|added|told|promised";
+  const SPEECH_VERBS = "said|asked|replied|answered|whispered|shouted|called|cried|murmured|warned|added|told|promised|yelled|exclaimed|demanded|ordered|breathed|snapped|insisted";
 
   /**
    * @typedef {Object} NarrationBeat
@@ -58,8 +58,8 @@
     while ((quoteMatch = quotePattern.exec(text))) {
       const narration = cleanNarrationSegment(text.slice(cursor, quoteMatch.index), cast);
       if (narration) segments.push({ type: "narration", speaker: NARRATOR, text: narration });
-      const contextBefore = text.slice(Math.max(0, quoteMatch.index - 100), quoteMatch.index);
-      const contextAfter = text.slice(quotePattern.lastIndex, quotePattern.lastIndex + 100);
+      const contextBefore = text.slice(Math.max(0, quoteMatch.index - 180), quoteMatch.index);
+      const contextAfter = text.slice(quotePattern.lastIndex, quotePattern.lastIndex + 140);
       const speaker = detectSpeaker(contextBefore, contextAfter, cast, activeSpeaker);
       if (speaker && speaker !== NARRATOR) activeSpeaker = speaker;
       segments.push({
@@ -104,7 +104,6 @@
       deliveryDirection: narratorDirection(ageBand, storyTone),
       role: "narrator",
     }];
-    const fallbackVoices = ["21m00Tcm4TlvDq8ikWAM", "ErXwobaYiN019PkySvjV"];
     cast.forEach((character, index) => {
       const description = [
         character.characterType,
@@ -113,12 +112,14 @@
         ...(Array.isArray(character.traits) ? character.traits : []),
       ].filter(Boolean).join(" ").toLowerCase();
       const direction = character.voiceDirection
-        || `Read this line as ${character.name}, ${characterDelivery(description, index)}.`;
+        || `Read this line as ${character.name}, ${characterVoiceDescription(character, description, index)}.`;
       profiles.push({
         speaker: character.name,
-        voiceId: character.voiceId || fallbackVoices[Math.min(index, fallbackVoices.length - 1)] || profiles[0].voiceId,
+        voiceId: character.voiceId || voiceIdForCharacter(character, index, profiles[0].voiceId),
         deliveryDirection: direction,
         role: index === 0 ? "hero" : "supporting",
+        characterType: character.characterType || character.type || "character",
+        gender: normalizedGender(character.gender || character.recipe?.identity?.gender),
       });
     });
     return profiles;
@@ -144,6 +145,11 @@
       const afterNameFirst = new RegExp(`^\\s*[,;:-]?\\s*(?:${escaped})\\s+(?:${SPEECH_VERBS})\\b`, "i");
       if (beforePattern.test(before) || afterPattern.test(after) || afterNameFirst.test(after)) return name;
     }
+    const nearest = names
+      .map((name) => ({ name, index: before.toLowerCase().lastIndexOf(name.toLowerCase()) }))
+      .filter((item) => item.index >= 0)
+      .sort((a, b) => b.index - a.index)[0];
+    if (nearest && nearest.index >= Math.max(0, before.length - 120)) return nearest.name;
     return fallback || NARRATOR;
   }
 
@@ -200,6 +206,44 @@
     if (/calm|kind|gentle/.test(description)) return "calm, kind, and reassuring";
     if (/villain|rival|dark/.test(description)) return "controlled, mysterious, and dramatic";
     return index === 0 ? "brave, lively, and easy for children to understand" : "distinct, expressive, and story-focused";
+  }
+
+  function characterVoiceDescription(character, description, index) {
+    const gender = normalizedGender(character.gender || character.recipe?.identity?.gender);
+    const age = String(character.age || character.recipe?.identity?.age || "").trim();
+    const type = String(character.characterType || character.type || "character").trim();
+    return [
+      gender === "unspecified" ? "" : `${gender} voice`,
+      age ? `age ${age}` : "",
+      `${type.toLowerCase()} character`,
+      characterDelivery(description, index),
+    ].filter(Boolean).join(", ");
+  }
+
+  function voiceIdForCharacter(character, index, narratorVoice) {
+    const gender = normalizedGender(character.gender || character.recipe?.identity?.gender);
+    const age = Number(character.age || character.recipe?.identity?.age || 0);
+    const young = age > 0 && age <= 17;
+    const voiceSets = {
+      female: young
+        ? ["21m00Tcm4TlvDq8ikWAM", "EXAVITQu4vr4xnSDxMaL"]
+        : ["EXAVITQu4vr4xnSDxMaL", "MF3mGyEYCl7XYWbV9V6O"],
+      male: young
+        ? ["IKne3meq5aSn9XLyUdCD", "TX3LPaxmHKxFdv7VOQHJ"]
+        : ["ErXwobaYiN019PkySvjV", "VR6AewLTigWG4xSOukaG"],
+      neutral: ["XB0fDUnXU5powFXDhCwa", "pNInz6obpgDQGcFmaJgB"],
+      unspecified: ["XB0fDUnXU5powFXDhCwa", "pNInz6obpgDQGcFmaJgB"],
+    };
+    const voices = voiceSets[gender] || voiceSets.unspecified;
+    return voices[index % voices.length] || narratorVoice;
+  }
+
+  function normalizedGender(value) {
+    const gender = String(value || "").trim().toLowerCase();
+    if (/^(girl|woman|female|she|her)$/.test(gender)) return "female";
+    if (/^(boy|man|male|he|him)$/.test(gender)) return "male";
+    if (/^(nonbinary|non-binary|neutral|other|they|them)$/.test(gender)) return "neutral";
+    return "unspecified";
   }
 
   function deliveryForEmotion(emotion) {

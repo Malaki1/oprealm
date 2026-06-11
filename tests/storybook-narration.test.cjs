@@ -67,6 +67,32 @@ test("a named supporting speaker never receives the hero voice", () => {
   assert.equal(beats[0].speaker, "Kora");
 });
 
+test("voice selection respects saved character gender, age and type", () => {
+  const profiles = narration.assignVoiceProfiles([
+    { name: "Daenarys", gender: "Girl", age: 16, characterType: "Dragon Warrior" },
+    { name: "Jorren", gender: "Boy", age: 17, characterType: "Dragon Keeper" },
+    { name: "Ember", gender: "Other", characterType: "Dragon Companion" },
+  ], "7-10", "epic");
+  const daenarys = profiles.find((profile) => profile.speaker === "Daenarys");
+  const jorren = profiles.find((profile) => profile.speaker === "Jorren");
+  const ember = profiles.find((profile) => profile.speaker === "Ember");
+  assert.equal(daenarys.gender, "female");
+  assert.equal(jorren.gender, "male");
+  assert.equal(ember.gender, "neutral");
+  assert.notEqual(daenarys.voiceId, jorren.voiceId);
+  assert.match(daenarys.deliveryDirection, /dragon warrior/i);
+  assert.match(jorren.deliveryDirection, /dragon keeper/i);
+});
+
+test("nearest named cast member owns an unattributed quote in existing prose", () => {
+  const beats = narration.parseStorySceneIntoNarrationBeats(
+    'Daenarys stepped between the hatchling and the fire. "Stay behind me. I know how to calm it."',
+    [{ name: "Daenarys" }, { name: "Jorren" }],
+    "legacy-scene",
+  );
+  assert.equal(beats.find((beat) => beat.type === "dialogue").speaker, "Daenarys");
+});
+
 test("audio generation hashes are stable and include voice direction", async () => {
   const first = await narration.audioGenerationHash("Hello there.", "voice-1", "warm");
   const second = await narration.audioGenerationHash("Hello there.", "voice-1", "warm");

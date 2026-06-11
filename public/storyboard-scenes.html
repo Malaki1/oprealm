@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="OPREALM Storyboard Creator turns a Realm Spark idea into characters, worlds, objects and scene cards." />
-    <title>Storyboard Creator | OPREALM</title>
+    <meta name="description" content="Turn an approved OPRealm story into visual scenes, images, video and playable story formats." />
+    <title>Story Scenes | OPREALM</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -13,7 +13,7 @@
     <script src="/scene-visual-prompt.js?v=2" defer></script>
     <script src="/creator-flow.js?v=71" defer></script>
   </head>
-  <body class="storyboard-body">
+  <body class="storyboard-body storyboard-scenes-body">
     <header class="storyboard-topbar">
       <a class="spark-brand" href="/">
         <span class="spark-mark" aria-hidden="true"></span>
@@ -22,8 +22,8 @@
       <nav class="storyboard-nav" aria-label="Storyboard navigation">
         <a href="/storyboard-world.html">World</a>
         <a href="/storyboard-character.html">Character</a>
-        <a href="/storyboard.html" aria-current="page">Story Builder</a>
-        <a href="/storyboard-scenes.html">Story Scenes</a>
+        <a href="/storyboard.html">Story Builder</a>
+        <a href="/storyboard-scenes.html" aria-current="page">Story Scenes</a>
         <a href="/library">My Creations</a>
         <a href="/account.html">Profile</a>
         <span class="spark-pill" data-credit-pill>...</span>
@@ -121,7 +121,7 @@
       <section class="storyboard-canvas" aria-label="Storyboard canvas">
         <div class="canvas-head">
           <div>
-            <p class="spark-eyebrow">Story Builder</p>
+            <p class="spark-eyebrow">Story Builder &gt; Story Scenes</p>
             <h1>
               <input id="storyboardProjectTitle" class="story-title-input" type="text" maxlength="100" value="My Awesome Story" aria-label="Story title" />
             </h1>
