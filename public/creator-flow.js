@@ -293,6 +293,17 @@ function isPlaceholderProjectObject(item = {}) {
 }
 
 function sanitizeStoryboardProject(project = {}) {
+  const storyGenerationStartedAt = Date.parse(project.storyDraft?.generationStartedAt || "");
+  const storyGenerationIsStale = ["generating", "splitting"].includes(project.storyDraft?.status)
+    && (!Number.isFinite(storyGenerationStartedAt) || Date.now() - storyGenerationStartedAt > 4 * 60 * 1000);
+  if (storyGenerationIsStale) {
+    project.storyDraft = {
+      ...(project.storyDraft || {}),
+      status: "error",
+      generationStartedAt: "",
+      generationError: "Story generation was interrupted. Press Regenerate Story to try again.",
+    };
+  }
   const placeholderIds = new Set((project.objects || []).filter(isPlaceholderProjectObject).map((item) => item.id).filter(Boolean));
   project.objects = (project.objects || []).filter((item) => !isPlaceholderProjectObject(item));
   project.characters = (project.characters || []).map((character) => {
@@ -683,6 +694,10 @@ function renderStoryApproval(project) {
             : "Not written yet";
     state.classList.toggle("is-approved", Boolean(draft.approved));
   }
+  const status = document.querySelector("#fullStoryStatus");
+  if (status && draft.status === "error" && draft.generationError && !status.textContent) {
+    status.textContent = draft.generationError;
+  }
   const showScenes = Boolean(draft.approved || hasExistingScenes);
   if (sceneList) sceneList.hidden = !showScenes;
   if (sceneHead) sceneHead.hidden = !showScenes;
@@ -772,7 +787,13 @@ async function requestFullStory(project, mode = "write") {
   const status = document.querySelector("#fullStoryStatus");
   const previousDraft = project.storyDraft || {};
   if (mode === "write") resetStoryReaderAudio();
-  project.storyDraft = { ...previousDraft, status: mode === "split" ? "splitting" : "generating", approved: false };
+  project.storyDraft = {
+    ...previousDraft,
+    status: mode === "split" ? "splitting" : "generating",
+    approved: false,
+    generationStartedAt: new Date().toISOString(),
+    generationError: "",
+  };
   writeStoryboardProject(project);
   renderStoryApproval(project);
   if (status) status.textContent = mode === "split"
@@ -784,11 +805,14 @@ async function requestFullStory(project, mode = "write") {
     setStoryWritingLoading(true);
   }
   try {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 4 * 60 * 1000);
     const response = await fetch("/api/story-draft", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify(storyDraftPayload(project, mode)),
-    });
+    }).finally(() => window.clearTimeout(timeoutId));
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.draft?.story) {
       throw new Error(result.error || "Story writing failed.");
@@ -804,6 +828,8 @@ async function requestFullStory(project, mode = "write") {
       status: "ready",
       approved: mode === "split",
       sceneCount: result.draft.scenes?.length || 0,
+      generationStartedAt: "",
+      generationError: "",
       updatedAt: new Date().toISOString(),
     };
     project.title = result.draft.title || project.title || "My OPREALM Story";
@@ -819,11 +845,20 @@ async function requestFullStory(project, mode = "write") {
   } catch (error) {
     setStorySetupLoading(false);
     setStoryWritingLoading(false);
-    project.storyDraft = { ...previousDraft, status: "error", approved: false };
+    const message = error.name === "AbortError"
+      ? "Story writing took too long and was stopped. Please press Regenerate Story to try again."
+      : error.message || "Story writing failed.";
+    project.storyDraft = {
+      ...previousDraft,
+      status: "error",
+      approved: false,
+      generationStartedAt: "",
+      generationError: message,
+    };
     writeStoryboardProject(project);
     renderStoryApproval(project);
     const currentStatus = document.querySelector("#fullStoryStatus") || status;
-    if (currentStatus) currentStatus.textContent = error.message || "Story writing failed.";
+    if (currentStatus) currentStatus.textContent = message;
   }
 }
 
