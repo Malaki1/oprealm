@@ -97,9 +97,12 @@ function refreshCreatorStepTicks() {
     game.appendChild(trail);
   }
   trail.innerHTML = [
+    ["World", "/storyboard-world.html", state.world],
+    ["Character", "/storyboard-character.html", state.character],
     ["Story Builder", "/storyboard.html", state.storyBuilder],
-    ["Story Scenes", "/storyboard-scenes.html", state.storyScenes],
-    ["AI Story", "/ai-storybook.html", state.aiStory],
+    ["Story Board (Scenes)", "/storyboard-scenes.html", state.storyScenes],
+    ["AI Story Generator", "/ai-storybook.html", state.aiStory],
+    ["My Account", "/account.html", false],
   ].map(([label, href, complete], index) => {
     const current = window.location.pathname.startsWith(href.replace(".html", ""));
     return `${index ? '<span aria-hidden="true">&gt;</span>' : ""}<a href="${href}" class="${complete ? "is-complete" : ""}" ${current ? 'aria-current="page"' : ""}>${label}${complete ? " \u2713" : ""}</a>`;
