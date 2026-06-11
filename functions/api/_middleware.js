@@ -11,6 +11,7 @@ const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-generator", 60],
   ["/api/story-draft", 60],
   ["/api/story-read-audio", 30],
+  ["/api/storybook-narration", 120],
   ["/api/story-branch", 30],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],

@@ -8,9 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/ai-storybook.css?v=7" />
+    <link rel="stylesheet" href="/ai-storybook.css?v=8" />
     <script src="/storyboard-account.js?v=2" defer></script>
-    <script src="/ai-storybook.js?v=9" defer></script>
+    <script src="/storybook-narration.js?v=1" defer></script>
+    <script src="/ai-storybook.js?v=10" defer></script>
   </head>
   <body>
     <main class="story-game" id="storyGame">
@@ -64,7 +65,7 @@
           <img id="speakerPortrait" alt="" />
         </div>
         <div class="speaker-name" id="speakerName">Narrator</div>
-        <button class="voice-button" id="speakBeatButton" type="button" aria-label="Read this passage aloud" title="Read aloud">&#128266;</button>
+        <button class="voice-button" id="speakBeatButton" type="button" aria-label="Play or pause narration" title="Play or pause narration">&#9654;</button>
         <button class="dialogue-expand-button" id="dialogueExpandButton" type="button" aria-label="Expand dialogue" aria-expanded="false" title="Expand dialogue">&#8593;</button>
 
         <div class="dialogue-copy">
@@ -100,13 +101,18 @@
         </label>
       </div>
       <div class="settings-options">
+        <button class="read-story-button" id="readStoryButton" type="button">Read Story To Me</button>
+        <button id="replayBeatButton" type="button"><span aria-hidden="true">&#8634;</span> Replay Beat</button>
         <button class="auto-play-toggle" id="autoPlayButton" type="button" aria-pressed="false">Auto Play</button>
+        <span class="narration-status" id="narrationStatus" role="status">Text-only mode</span>
         <label><input id="motionToggle" type="checkbox" checked /> Cinematic motion</label>
         <button id="fullscreenButton" type="button"><span aria-hidden="true">&#9974;</span> Fullscreen</button>
         <button id="restartBookButton" type="button"><span aria-hidden="true">&#8634;</span> Restart</button>
         <button id="skipSceneButton" type="button">Skip Scene <span aria-hidden="true">&#187;</span></button>
       </div>
     </div>
+
+    <audio id="narrationAudio" preload="metadata"></audio>
 
     <div class="chapter-map-modal" id="chapterMapModal" hidden>
       <section class="glass-panel">

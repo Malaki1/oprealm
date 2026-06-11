@@ -696,6 +696,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-weight: 800;
 }
 
+.settings-options .read-story-button {
+  border-color: rgba(88, 221, 255, 0.72);
+  background: rgba(12, 110, 151, 0.34);
+  box-shadow: 0 0 18px rgba(65, 205, 255, 0.14);
+}
+
+.narration-status {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  color: rgba(219, 238, 255, 0.84);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.narration-status.is-error { color: #ff9db0; }
+
 .drawer-launcher {
   position: absolute;
   z-index: 11;
@@ -823,6 +841,15 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .dialogue-copy { min-height: 42px; max-height: 86px; overflow-y: auto; }
 .dialogue-panel.is-expanded .dialogue-copy { max-height: none; overflow: visible; }
 .dialogue-copy p { font-size: clamp(0.9rem, 1.25vw, 1.08rem); line-height: 1.45; }
+.narration-word {
+  border-radius: 3px;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+.narration-word.is-read {
+  color: #fff;
+  background: rgba(56, 207, 255, 0.18);
+  box-shadow: 0 0 8px rgba(56, 207, 255, 0.08);
+}
 .choice-cards { gap: 8px; }
 .choice-card { min-height: 66px; padding: 9px 12px; font-size: 0.8rem; }
 .dialogue-footer { gap: 8px; }

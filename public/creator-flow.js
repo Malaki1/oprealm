@@ -2714,8 +2714,14 @@ function renderStoryOutputChooser(project) {
 function launchAiStoryBook(project) {
   const scenes = project.scenes || [];
   if (scenes.length < MIN_STORY_SCENES || scenes.some((scene) => !scene.generatedImageUrl)) return;
+  if (!project.storybookId) {
+    project.storybookId = `storybook-${project.id || Date.now()}`;
+  }
+  project.storybookAudioStatus = project.storybookAudioStatus || "pending";
+  writeStoryboardProject(project);
   localStorage.setItem("oprealm_ai_storybook_source", JSON.stringify({
     projectId: project.id || "",
+    storybookId: project.storybookId,
     createdAt: new Date().toISOString(),
   }));
   window.OPREALMRefreshCreatorSteps?.();
