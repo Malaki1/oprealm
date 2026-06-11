@@ -22,9 +22,10 @@ const outcomeSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["speaker", "text"],
+        required: ["speaker", "speakerRole", "text"],
         properties: {
           speaker: { type: "string" },
+          speakerRole: { type: "string", enum: ["narrator", "hero", "supporting"] },
           text: { type: "string" },
         },
       },
@@ -57,7 +58,7 @@ export async function onRequestPost({ request, env }) {
     if (currentPassage.length < 40 || choice.length < 4) {
       return json({ ok: false, error: "This scene needs a stronger passage and choice before a new outcome can be created." }, 400);
     }
-    await assertRateLimit(env, user.id, BRANCH_TOOL, { limit: 3, windowSeconds: 60 });
+    await assertRateLimit(env, user.id, BRANCH_TOOL, { limit: 30, windowSeconds: 60 });
 
     const outcome = await writeOutcome(env, {
       storyTitle,
@@ -114,7 +115,8 @@ async function writeOutcome(env, details) {
         `Later main-story passage to reconnect toward without copying or spoiling it: ${details.nextPassage}`,
         "Write a clear 140-220 word outcome in which something specific happens and changes the situation.",
         "Use plain, visual language. Avoid symbolic objects, dreamlike metaphors, unexplained magical hybrids, poetic gestures used instead of actions, and sentences that only describe feelings.",
-        "Return 3-7 playable script beats. At least two named characters must speak when the available cast contains two or more characters. Give the hero a useful line that advances the plan, and have another character answer, disagree, warn, reveal information or ask a meaningful question.",
+        "Return 3-7 playable script beats. Label every beat exactly like a play script: use speaker 'Narrator' for narration, the hero's exact saved name for hero dialogue, and a supporting character's exact saved name for their dialogue. Set speakerRole to narrator, hero or supporting to match. Never assign an unknown line to the hero.",
+        "At least two named characters must speak when the available cast contains two or more characters. Give the hero a useful line that advances the plan, and have another character answer, disagree, warn, reveal information or ask a meaningful question.",
         "Narrator beats may briefly describe visible action, but most beats should be spoken dialogue. Do not use dialogue such as 'as if to say'; let the character say the words directly.",
         "The outcome must honor the choice and end at a believable point where the main adventure can continue.",
         "Create a cinematic visual prompt for this exact new outcome. Show active characters and consequences, not text, UI, captions or a generic glowing object.",
@@ -165,6 +167,7 @@ function normalizeScript(script) {
   return (Array.isArray(script) ? script : [])
     .map((beat) => ({
       speaker: cleanText(beat?.speaker || "Narrator", 100) || "Narrator",
+      speakerRole: ["narrator", "hero", "supporting"].includes(beat?.speakerRole) ? beat.speakerRole : "narrator",
       text: cleanStoryInput(beat?.text, 600),
     }))
     .filter((beat) => beat.text)

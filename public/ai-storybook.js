@@ -18,6 +18,8 @@ let narrationGenerating = false;
 let narrationManifest = new Map();
 let voiceProfiles = [];
 let highlightedWordIndex = -1;
+let preparedBranches = new Map();
+let preparationRunning = false;
 
 const game = document.querySelector("#storyGame");
 const art = document.querySelector("#sceneArt");
@@ -42,6 +44,12 @@ const narrationAudio = document.querySelector("#narrationAudio");
 const narrationStatus = document.querySelector("#narrationStatus");
 const readStoryButton = document.querySelector("#readStoryButton");
 const speakBeatButton = document.querySelector("#speakBeatButton");
+const preparation = document.querySelector("#storybookPreparation");
+const preparationRing = document.querySelector("#preparationRing");
+const preparationPercent = document.querySelector("#preparationPercent");
+const preparationTitle = document.querySelector("#preparationTitle");
+const preparationDescription = document.querySelector("#preparationDescription");
+const preparationActions = document.querySelector("#preparationActions");
 
 initialize();
 
@@ -98,7 +106,7 @@ function demoProject() {
   };
 }
 
-function initialize() {
+async function initialize() {
   const scenes = [...(project.scenes || [])]
     .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
     .filter((scene) => scene.generatedImageUrl);
@@ -106,6 +114,7 @@ function initialize() {
   if (scenes.length < 1 || scenes.length !== (project.scenes || []).length) {
     game.hidden = true;
     empty.hidden = false;
+    preparation.hidden = true;
     return;
   }
 
@@ -124,7 +133,11 @@ function initialize() {
   restorePlayerState();
   renderPlayer();
   bindControls();
-  loadNarrationManifest();
+  if (DEMO_MODE) {
+    preparation.hidden = true;
+    return;
+  }
+  await prepareStorybook();
 }
 
 function chapterForScene(index, total) {
@@ -373,70 +386,87 @@ function goPrevious() {
 
 async function createBranch(page, choice) {
   stopNarration();
-  setBranchLoading(true);
   try {
-    const character = activeCharacter();
-    const world = (project.worlds || []).find((item) => item.id === project.activeWorldId) || project.worlds?.[0] || {};
-    const response = await fetch("/api/story-branch", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        storyTitle: project.storyDraft?.title || project.title || "OPRealm Story",
-        storyContext: project.storyDraft?.context || project.storyDraft?.summary || "",
-        currentPassage: page.storyExcerpt || page.passage || page.prompt || "",
-        currentVisual: page.visualPrompt || page.prompt || "",
-        choice,
-        character: JSON.stringify({
-          name: character.name,
-          description: character.prompt || character.description,
-          style: character.masterStyle || character.style,
-          outfit: character.customOutfit || character.outfit || character.recipe?.components?.outfit,
-          accessories: resolvedCharacterAccessories(character),
-          pet: resolvedCharacterPet(character),
-          palette: character.palette || character.recipe?.visual?.palette || [],
-        }),
-        cast: JSON.stringify(storyCast()),
-        world: JSON.stringify({ name: world.name, description: world.description || world.prompt }),
-        nextPassage: pages[pageIndex + 1]?.storyExcerpt || "",
-        referenceImages: [
-          { label: "Locked hero portrait and outfit", imageDataUrl: character.imageUrl || character.recipe?.generation?.generatedImageUrl || "" },
-          { label: "Current approved story scene", imageDataUrl: page.generatedImageUrl || page.imageDataUrl || "" },
-          { label: "Locked story world", imageDataUrl: world.imageUrl || world.generatedImageUrl || "" },
-        ].filter((reference) => reference.imageDataUrl?.startsWith("data:image/")),
-      }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok || !data.outcome?.imageDataUrl) throw new Error(data.error || "This story path could not be created.");
-    const cleanedPassage = cleanPlaceholderLabels(data.outcome.passage);
-    const branchSceneId = `branch-${page.id || pageIndex + 1}-${Date.now()}`;
-    const scriptedBeats = normalizeScriptBeats(data.outcome.script, branchSceneId);
-    const branchBeats = scriptedBeats.length
-      ? narrationEngine.applyVoiceProfiles(scriptedBeats, voiceProfiles)
-      : narrationEngine.applyVoiceProfiles(
-        narrationEngine.parseStorySceneIntoNarrationBeats(cleanedPassage, storyCharacters(), branchSceneId),
-        voiceProfiles,
-      );
-    branchPage = {
-      id: branchSceneId,
-      title: data.outcome.title,
-      passage: cleanedPassage,
-      storyExcerpt: cleanedPassage,
-      imageDataUrl: data.outcome.imageDataUrl,
-      chapterLabel: "Your Choice Changed the Story",
-      beats: branchBeats,
-      decisions: [],
-    };
+    const key = branchKey(page, choice);
+    let prepared = preparedBranches.get(key) || await readPreparedBranch(key);
+    if (!prepared) {
+      setBranchLoading(true);
+      prepared = await generatePreparedBranch(page, choice, pageIndex);
+      preparedBranches.set(key, prepared);
+      await savePreparedBranch(key, prepared);
+    }
+    branchPage = prepared;
     beatIndex = 0;
-    setBranchProgress(100);
-    window.setTimeout(() => {
-      setBranchLoading(false);
-      playSceneTransition();
-      renderPlayer({ sceneChanged: true });
-    }, 350);
+    setBranchLoading(false);
+    playSceneTransition();
+    renderPlayer({ sceneChanged: true });
+    if (autoPlay) scheduleAutoPlay();
   } catch (error) {
     setBranchLoading(false);
     dialogueText.textContent = error.message || "This story path could not be created.";
   }
+}
+
+async function generatePreparedBranch(page, choice, sourcePageIndex) {
+  const response = await fetch("/api/story-branch", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(branchRequestBody(page, choice, sourcePageIndex)),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok || !data.outcome?.imageDataUrl) {
+    throw new Error(data.error || "This story path could not be created.");
+  }
+  const cleanedPassage = cleanPlaceholderLabels(data.outcome.passage);
+  const branchSceneId = `branch-${safeKey(page.id || sourcePageIndex + 1)}-${safeKey(choice)}`;
+  const scriptedBeats = normalizeScriptBeats(data.outcome.script, branchSceneId);
+  const branchBeats = scriptedBeats.length
+    ? narrationEngine.applyVoiceProfiles(scriptedBeats, voiceProfiles)
+    : narrationEngine.applyVoiceProfiles(
+      narrationEngine.parseStorySceneIntoNarrationBeats(cleanedPassage, storyCharacters(), branchSceneId),
+      voiceProfiles,
+    );
+  return {
+    id: branchSceneId,
+    sourcePageId: page.id,
+    choice,
+    title: data.outcome.title,
+    passage: cleanedPassage,
+    storyExcerpt: cleanedPassage,
+    imageDataUrl: data.outcome.imageDataUrl,
+    chapterLabel: "Your Choice Changed the Story",
+    beats: branchBeats,
+    decisions: [],
+  };
+}
+
+function branchRequestBody(page, choice, sourcePageIndex) {
+  const character = activeCharacter();
+  const world = (project.worlds || []).find((item) => item.id === project.activeWorldId) || project.worlds?.[0] || {};
+  return {
+    storyTitle: project.storyDraft?.title || project.title || "OPRealm Story",
+    storyContext: project.storyDraft?.context || project.storyDraft?.summary || "",
+    currentPassage: page.storyExcerpt || page.passage || page.prompt || "",
+    currentVisual: page.visualPrompt || page.prompt || "",
+    choice,
+    character: JSON.stringify({
+      name: character.name,
+      description: character.prompt || character.description,
+      style: character.masterStyle || character.style,
+      outfit: character.customOutfit || character.outfit || character.recipe?.components?.outfit,
+      accessories: resolvedCharacterAccessories(character),
+      pet: resolvedCharacterPet(character),
+      palette: character.palette || character.recipe?.visual?.palette || [],
+    }),
+    cast: JSON.stringify(storyCast()),
+    world: JSON.stringify({ name: world.name, description: world.description || world.prompt }),
+    nextPassage: pages[sourcePageIndex + 1]?.storyExcerpt || "",
+    referenceImages: [
+      { label: "Locked hero portrait and outfit", imageDataUrl: character.imageUrl || character.recipe?.generation?.generatedImageUrl || "" },
+      { label: "Current approved story scene", imageDataUrl: page.generatedImageUrl || page.imageDataUrl || "" },
+      { label: "Locked story world", imageDataUrl: world.imageUrl || world.generatedImageUrl || "" },
+    ].filter((reference) => reference.imageDataUrl?.startsWith("data:image/")),
+  };
 }
 
 function normalizeBeat(beat) {
@@ -473,22 +503,46 @@ function normalizeBeat(beat) {
 
 function normalizeScriptBeats(script, sceneId = "scene") {
   return (Array.isArray(script) ? script : [])
-    .map((beat, index) => normalizeBeat({
-      ...beat,
-      id: beat?.id || `${sceneId}-beat-${index + 1}`,
-      sceneId,
-      order: index + 1,
-      type: /^narrator$/i.test(beat?.speaker || "") ? "narration" : "dialogue",
-    }))
+    .map((beat, index) => {
+      const speaker = canonicalSpeaker(beat?.speaker, beat?.speakerRole);
+      return normalizeBeat({
+        ...beat,
+        speaker,
+        id: beat?.id || `${sceneId}-beat-${index + 1}`,
+        sceneId,
+        order: index + 1,
+        type: /^narrator$/i.test(speaker) ? "narration" : "dialogue",
+      });
+    })
     .filter((beat) => beat.text)
     .slice(0, 12);
 }
 
 function storyCharacters() {
-  return [
-    ...(project.characters || []),
+  const hero = activeCharacter();
+  const characters = [
+    hero,
+    ...(project.characters || []).filter((item) => item.id !== hero.id),
     ...(project.objects || []).filter((item) => item.kind === "pet" || item.kind === "companion"),
   ];
+  return characters.filter((item, index) =>
+    item?.name && characters.findIndex((candidate) => candidate.id
+      ? candidate.id === item.id
+      : String(candidate.name).toLowerCase() === String(item.name).toLowerCase()) === index,
+  );
+}
+
+function canonicalSpeaker(value, speakerRole = "") {
+  const requested = String(value || "")
+    .replace(/^(hero|supporting character|speaker|character)\s*:\s*/i, "")
+    .trim();
+  if (speakerRole === "narrator" || /^narrator$/i.test(requested)) return "Narrator";
+  const exact = storyCharacters().find((item) =>
+    String(item.name || "").toLowerCase() === requested.toLowerCase(),
+  );
+  if (exact) return exact.name;
+  if (speakerRole === "hero") return activeCharacter().name || "Narrator";
+  return "Narrator";
 }
 
 function accountAgeBand() {
@@ -594,8 +648,109 @@ function replayCurrentBeat() {
 
 function scheduleAutoPlay() {
   window.clearTimeout(autoPlayTimer);
-  if (!autoPlay || !narrationEnabled || choiceCards.children.length || !narrationAudio.paused) return;
+  if (!autoPlay || !narrationEnabled || !narrationAudio.paused) return;
+  if (choiceCards.children.length) {
+    narrationStatus.textContent = "Choose what happens next";
+    return;
+  }
   autoPlayTimer = window.setTimeout(() => speakCurrentBeat(), 180);
+}
+
+async function prepareStorybook() {
+  if (preparationRunning) return;
+  preparationRunning = true;
+  preparation.hidden = false;
+  preparationActions.hidden = true;
+  try {
+    setPreparationProgress(3, "Checking your completed story", "Reading the approved scenes, character cast and available choices.");
+    await hydrateNarrationManifest();
+
+    const branchTasks = pages.flatMap((page, sourcePageIndex) =>
+      (page.decisions || []).map((choice) => ({ page, sourcePageIndex, choice })),
+    );
+    for (let index = 0; index < branchTasks.length; index += 1) {
+      const task = branchTasks[index];
+      const progress = 8 + Math.round(((index + 1) / Math.max(1, branchTasks.length)) * 52);
+      const key = branchKey(task.page, task.choice);
+      setPreparationProgress(
+        progress,
+        `Creating optional path ${index + 1} of ${branchTasks.length}`,
+        `Writing and illustrating “${task.choice}” so it opens instantly during play.`,
+      );
+      let branch = await readPreparedBranch(key);
+      if (!branch) {
+        branch = await generatePreparedBranch(task.page, task.choice, task.sourcePageIndex);
+        await savePreparedBranch(key, branch);
+      }
+      preparedBranches.set(key, branch);
+    }
+
+    const audioTasks = [
+      ...pages.flatMap((page, sceneIndex) =>
+        (page.beats || []).map((beat, beatPosition) => ({
+          beat: normalizeBeat(beat),
+          sceneIndex,
+          beatPosition,
+          sceneId: page.id,
+          sceneNumber: sceneIndex + 1,
+        })),
+      ),
+      ...[...preparedBranches.values()].flatMap((branch, branchIndex) =>
+        (branch.beats || []).map((beat, beatPosition) => ({
+          beat: normalizeBeat(beat),
+          sceneIndex: 0,
+          beatPosition,
+          sceneId: branch.id,
+          sceneNumber: pages.length + branchIndex + 1,
+        })),
+      ),
+    ];
+    narrationEnabled = true;
+    for (let index = 0; index < audioTasks.length; index += 1) {
+      const task = audioTasks[index];
+      const progress = 62 + Math.round(((index + 1) / Math.max(1, audioTasks.length)) * 36);
+      setPreparationProgress(
+        progress,
+        `Recording story voices ${index + 1} of ${audioTasks.length}`,
+        `Preparing ${task.beat.speaker || "Narrator"} so every line plays without waiting.`,
+      );
+      await ensureBeatAudio(task.beat, task.sceneIndex, task.beatPosition, {
+        sceneId: task.sceneId,
+        sceneNumber: task.sceneNumber,
+      });
+    }
+
+    setPreparationProgress(100, "Your storybook is ready", "All scenes, optional paths, illustrations and voices are prepared.");
+    readStoryButton.textContent = "Narration Ready";
+    narrationStatus.textContent = "Narration ready";
+    window.setTimeout(() => {
+      preparation.hidden = true;
+      preparationRunning = false;
+    }, 650);
+  } catch (error) {
+    preparationRunning = false;
+    setPreparationProgress(
+      Number(preparationPercent.textContent.replace("%", "")) || 0,
+      "Preparation paused",
+      error.message || "OPRealm could not finish preparing this storybook.",
+    );
+    preparationActions.hidden = false;
+  }
+}
+
+async function hydrateNarrationManifest() {
+  const response = await fetch(`/api/storybook-narration?storybookId=${encodeURIComponent(storybookId())}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) throw new Error(data.error || "Narration preparation could not begin.");
+  (data.beats || []).forEach((beat) => narrationManifest.set(beat.beatId, beat));
+}
+
+function setPreparationProgress(percent, title, description) {
+  const safe = Math.max(0, Math.min(100, Math.round(percent)));
+  preparationRing.style.setProperty("--preparation-progress", `${safe * 3.6}deg`);
+  preparationPercent.textContent = `${safe}%`;
+  preparationTitle.textContent = title;
+  preparationDescription.textContent = description;
 }
 
 async function generateStorybookNarration() {
@@ -628,48 +783,20 @@ async function generateStorybookNarration() {
   }
 }
 
-async function loadNarrationManifest() {
-  if (DEMO_MODE) return;
-  try {
-    const response = await fetch(`/api/storybook-narration?storybookId=${encodeURIComponent(storybookId())}`);
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) return;
-    (data.beats || []).forEach((beat) => narrationManifest.set(beat.beatId, beat));
-    const readyCount = [...narrationManifest.values()]
-      .filter((beat) => beat.status === "ready" && beat.audioUrl && Number(beat.generationVersion || 1) >= 2)
-      .length;
-    const expectedCount = pages.reduce((total, page) => total + (page.beats || []).length, 0);
-    if (readyCount) {
-      narrationEnabled = true;
-      readStoryButton.textContent = readyCount >= expectedCount ? "Narration Ready" : "Updating Narration";
-      narrationStatus.textContent = `${readyCount} narrated beats ready`;
-      renderPlayer();
-      if (readyCount < expectedCount) window.setTimeout(() => generateStorybookNarration(), 250);
-    } else if ([...narrationManifest.values()].some((beat) => beat.status === "failed")) {
-      readStoryButton.textContent = "Retry Narration";
-      narrationStatus.textContent = "Narration unavailable";
-      narrationStatus.classList.add("is-error");
-    } else {
-      narrationStatus.textContent = "Preparing story narration 0%";
-      window.setTimeout(() => generateStorybookNarration(), 250);
-    }
-  } catch {
-    narrationStatus.textContent = "Text-only mode";
-  }
-}
-
-async function ensureBeatAudio(beat, sceneIndex, beatPosition) {
+async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = null) {
   const cached = narrationManifest.get(beat.id);
   if (cached?.audioUrl && Number(cached.generationVersion || 1) >= 2) return cached;
   if (DEMO_MODE) throw new Error("Narration unavailable in demo mode.");
+  const sceneNumber = Number(sceneOverride?.sceneNumber || sceneIndex + 1);
+  const sceneId = sceneOverride?.sceneId || beat.sceneId || pages[sceneIndex]?.id || `scene-${sceneNumber}`;
   const response = await fetch("/api/storybook-narration", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       storybookId: storybookId(),
-      sceneId: beat.sceneId || pages[sceneIndex]?.id || `scene-${sceneIndex + 1}`,
+      sceneId,
       beatId: beat.id,
-      sceneNumber: sceneIndex + 1,
+      sceneNumber,
       beatNumber: beatPosition + 1,
       speaker: beat.speaker,
       text: beat.text,
@@ -706,6 +833,54 @@ function storybookId() {
     .slice(0, 120);
 }
 
+function branchKey(page, choice) {
+  return `v2:${storybookId()}:${safeKey(page.id || "scene")}:${safeKey(choice)}`;
+}
+
+function safeKey(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "path";
+}
+
+async function openStorybookCache() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("oprealm_storybook_cache", 1);
+    request.onupgradeneeded = () => {
+      const database = request.result;
+      if (!database.objectStoreNames.contains("branches")) database.createObjectStore("branches");
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Storybook cache could not be opened."));
+  });
+}
+
+async function readPreparedBranch(key) {
+  try {
+    const database = await openStorybookCache();
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction("branches", "readonly");
+      const request = transaction.objectStore("branches").get(key);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function savePreparedBranch(key, branch) {
+  const database = await openStorybookCache();
+  await new Promise((resolve, reject) => {
+    const transaction = database.transaction("branches", "readwrite");
+    transaction.objectStore("branches").put(branch, key);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
 function bindControls() {
   continueButton.addEventListener("click", advance);
   previousBeatButton.addEventListener("click", goPrevious);
@@ -719,6 +894,7 @@ function bindControls() {
     renderPlayer({ sceneChanged });
   });
   document.querySelector("#restartBookButton").addEventListener("click", restartStory);
+  document.querySelector("#retryPreparationButton").addEventListener("click", prepareStorybook);
   speakBeatButton.addEventListener("click", speakCurrentBeat);
   readStoryButton.addEventListener("click", () => {
     autoPlay = true;
@@ -747,6 +923,8 @@ function bindControls() {
     highlightedWordIndex = -1;
     if (autoPlay && !choiceCards.children.length) {
       advance();
+    } else if (choiceCards.children.length) {
+      narrationStatus.textContent = "Choose what happens next";
     } else {
       narrationStatus.textContent = "Beat finished";
       updateNarrationControls(normalizeBeat(currentPage().beats[beatIndex]));

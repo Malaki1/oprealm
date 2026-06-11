@@ -442,6 +442,62 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .branch-loading-ring::after { content: ""; position: absolute; inset: 8px; border-radius: inherit; background: #07102d; }
 .branch-loading-ring span { position: relative; z-index: 1; font-weight: 900; }
 
+.storybook-preparation {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(52, 174, 226, 0.17), transparent 24rem),
+    rgba(2, 7, 24, 0.985);
+}
+
+.storybook-preparation[hidden] { display: none; }
+.storybook-preparation h2,
+.storybook-preparation p { max-width: 620px; margin: 0; }
+.storybook-preparation h2 { font-size: clamp(1.45rem, 3vw, 2.25rem); }
+.storybook-preparation > p:not(.preparation-eyebrow) { color: rgba(213, 226, 249, 0.8); line-height: 1.55; }
+.preparation-eyebrow {
+  color: var(--cyan);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.preparation-ring {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: conic-gradient(var(--cyan) 0 var(--preparation-progress), var(--violet) var(--preparation-progress), rgba(255,255,255,.1) var(--preparation-progress) 360deg);
+  box-shadow: 0 0 36px rgba(66, 216, 255, 0.16);
+}
+.preparation-ring::after { content: ""; position: absolute; inset: 9px; border-radius: inherit; background: #07102d; }
+.preparation-ring span { position: relative; z-index: 1; font-size: 1.05rem; font-weight: 900; }
+.preparation-actions { display: flex; gap: 10px; margin-top: 10px; }
+.preparation-actions button,
+.preparation-actions a {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 16px;
+  border: 1px solid rgba(126, 214, 255, 0.34);
+  border-radius: 7px;
+  background: rgba(13, 49, 85, 0.76);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .book-empty {
   min-height: 100vh;
   display: grid;

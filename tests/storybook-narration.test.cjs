@@ -20,13 +20,13 @@ test("parses narration and quoted dialogue into ordered beats", () => {
   assert.equal(beats[0].id, "scene-2-beat-1");
 });
 
-test("assigns an unknown quote to the active or main character", () => {
+test("assigns an unknown quote to the narrator instead of guessing the hero", () => {
   const beats = narration.parseStorySceneIntoNarrationBeats(
     '"We should cross before sunset." The bridge shook beneath them.',
     characters,
     "scene-3",
   );
-  assert.equal(beats[0].speaker, "Shark Girl");
+  assert.equal(beats[0].speaker, "Narrator");
   assert.equal(beats[0].type, "dialogue");
 });
 
@@ -47,6 +47,24 @@ test("assigns distinct narrator and hero voice profiles", () => {
   assert.notEqual(narrator.voiceId, hero.voiceId);
   assert.match(narrator.deliveryDirection, /warm/i);
   assert.match(hero.deliveryDirection, /brave/i);
+});
+
+test("a named supporting speaker never receives the hero voice", () => {
+  const profiles = narration.assignVoiceProfiles(characters, "7-10", "adventure");
+  const beats = narration.applyVoiceProfiles([
+    {
+      id: "scene-1-beat-1",
+      sceneId: "scene-1",
+      order: 1,
+      type: "dialogue",
+      speaker: "Kora",
+      text: "The tide is changing.",
+      emotion: "urgent",
+    },
+  ], profiles);
+  const heroVoice = profiles.find((profile) => profile.speaker === "Shark Girl").voiceId;
+  assert.notEqual(beats[0].voiceId, heroVoice);
+  assert.equal(beats[0].speaker, "Kora");
 });
 
 test("audio generation hashes are stable and include voice direction", async () => {

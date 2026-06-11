@@ -53,18 +53,18 @@
     const segments = [];
     let cursor = 0;
     let quoteMatch;
-    let activeSpeaker = hero;
+    let activeSpeaker = "";
 
     while ((quoteMatch = quotePattern.exec(text))) {
       const narration = cleanNarrationSegment(text.slice(cursor, quoteMatch.index), cast);
       if (narration) segments.push({ type: "narration", speaker: NARRATOR, text: narration });
       const contextBefore = text.slice(Math.max(0, quoteMatch.index - 100), quoteMatch.index);
       const contextAfter = text.slice(quotePattern.lastIndex, quotePattern.lastIndex + 100);
-      const speaker = detectSpeaker(contextBefore, contextAfter, cast, activeSpeaker || hero);
-      if (speaker) activeSpeaker = speaker;
+      const speaker = detectSpeaker(contextBefore, contextAfter, cast, activeSpeaker);
+      if (speaker && speaker !== NARRATOR) activeSpeaker = speaker;
       segments.push({
         type: "dialogue",
-        speaker: speaker || hero || NARRATOR,
+        speaker: speaker || NARRATOR,
         text: quoteMatch[1].trim(),
       });
       cursor = quotePattern.lastIndex;
@@ -144,7 +144,7 @@
       const afterNameFirst = new RegExp(`^\\s*[,;:-]?\\s*(?:${escaped})\\s+(?:${SPEECH_VERBS})\\b`, "i");
       if (beforePattern.test(before) || afterPattern.test(after) || afterNameFirst.test(after)) return name;
     }
-    return fallback || names[0] || NARRATOR;
+    return fallback || NARRATOR;
   }
 
   function chunkForAudio(text, maxChars) {

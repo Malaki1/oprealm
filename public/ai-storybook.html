@@ -10,8 +10,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/ai-storybook.css?v=8" />
     <script src="/storyboard-account.js?v=2" defer></script>
-    <script src="/storybook-narration.js?v=1" defer></script>
-    <script src="/ai-storybook.js?v=11" defer></script>
+    <script src="/storybook-narration.js?v=2" defer></script>
+    <script src="/ai-storybook.js?v=12" defer></script>
   </head>
   <body>
     <main class="story-game" id="storyGame">
@@ -125,6 +125,19 @@
       <div class="branch-loading-ring" id="branchLoadingRing" style="--branch-progress: 0deg;"><span id="branchLoadingPercent">0%</span></div>
       <h2>Creating your unique outcome...</h2>
       <p>OPREALM is writing what happens next and illustrating this new path.</p>
+    </div>
+
+    <div class="storybook-preparation" id="storybookPreparation" aria-live="polite">
+      <div class="preparation-ring" id="preparationRing" style="--preparation-progress: 0deg;">
+        <span id="preparationPercent">0%</span>
+      </div>
+      <p class="preparation-eyebrow">Building your playable storybook</p>
+      <h2 id="preparationTitle">Preparing the adventure...</h2>
+      <p id="preparationDescription">Checking the story, characters and completed scene artwork.</p>
+      <div class="preparation-actions" id="preparationActions" hidden>
+        <button id="retryPreparationButton" type="button">Try Again</button>
+        <a href="/storyboard.html">Back to Story Builder</a>
+      </div>
     </div>
 
     <section class="book-empty" id="bookEmpty" hidden>
