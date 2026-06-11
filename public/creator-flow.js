@@ -871,26 +871,27 @@ function buildScenesFromApprovedStory(project) {
   const generatedCameras = new Set(plan.map((beat) => String(beat.camera || "").trim().toLowerCase()).filter(Boolean));
   const repeatedMood = plan.length > 2 && generatedMoods.size <= 1;
   const repeatedCamera = plan.length > 2 && generatedCameras.size <= 1;
+  updateProjectContinuityBible(project);
   project.scenes = plan.map((beat, index) => {
     const existing = existingScenes[index] || {};
-    const visualPrompt = cleanStoryText(beat.visualDirection, "Show this story moment as a clear cinematic scene.");
-    return {
+    const scene = {
       ...existing,
       id: existing.id || uid("scene"),
       order: index + 1,
       title: beat.title || `Scene ${index + 1}`,
-      prompt: visualPrompt,
-      visualPrompt,
       storyExcerpt: beat.passage || "",
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
-      imagePromptInternal: visualPrompt,
-      mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${visualPrompt}`, index),
-      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${visualPrompt}`, index),
+      mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
+      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
       selectedCharacterIds: character.id ? [character.id] : [],
       selectedWorldId: world.id || "",
-      selectedObjectIds: [],
+      selectedObjectIds: activeObjects(project)
+        .filter((item) => new RegExp(`\\b${escapeRegExp(storyObjectName(item))}\\b`, "i").test(beat.passage || ""))
+        .map((item) => item.id),
       status: existing.generatedImageUrl ? "complete" : "draft",
     };
+    refreshSceneVisualPrompts(project, scene, index);
+    return scene;
   });
   project.storyDraft.sceneCount = project.scenes.length;
   project.storyDraft.approved = true;
@@ -957,6 +958,83 @@ function activeWorld(project) {
 
 function activeObjects(project) {
   return (project.objects || []).filter((item) => item && item.name && item.name !== "None");
+}
+
+function sceneCharacters(project, scene) {
+  const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
+  const selected = (scene.selectedCharacterIds || []).map((id) => characterById.get(id)).filter(Boolean);
+  return selected.length ? selected : [activeCharacter(project)].filter((character) => character?.id || character?.name);
+}
+
+function sceneSelectedObjects(project, scene) {
+  const selectedIds = new Set(scene.selectedObjectIds || []);
+  return activeObjects(project).filter((item) => selectedIds.has(item.id));
+}
+
+function projectAgeBand(project) {
+  const ages = (project.characters || [])
+    .map((character) => Number(character.characterAge || character.recipe?.identity?.characterAge))
+    .filter((age) => Number.isFinite(age));
+  const youngest = ages.length ? Math.min(...ages) : 9;
+  if (youngest <= 7) return "ages 6-9";
+  if (youngest <= 11) return "ages 8-12";
+  return "ages 10-14";
+}
+
+function updateProjectContinuityBible(project) {
+  const builder = window.OPREALMSceneVisualPrompt;
+  if (!builder?.createContinuityBible) return project.continuityBible || {};
+  project.continuityBible = builder.createContinuityBible({
+    world: activeWorld(project),
+    characters: (project.characters || []).filter(Boolean),
+    objects: activeObjects(project).map(storyObjectName),
+    visualStyle: activeCharacter(project).masterStyle || activeCharacter(project).style || project.globalStyle || "",
+    storyType: storySettings(project).storyType,
+    eraAndGenre: activeWorld(project).theme || activeWorld(project).generatedTheme || "",
+  });
+  return project.continuityBible;
+}
+
+function sceneVisualPromptInput(project, scene, sceneIndex) {
+  const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
+  const characters = sceneCharacters(project, scene);
+  const selectedObjects = sceneSelectedObjects(project, scene);
+  const continuityBible = updateProjectContinuityBible(project);
+  return {
+    storyTitle: project.storyDraft?.title || project.title || "My OPREALM Story",
+    world,
+    characters,
+    approvedFullStory: preserveStoryFormatting(project.storyDraft?.story),
+    scene: {
+      ...scene,
+      passage: scene.storyExcerpt || "",
+      selectedObjects: selectedObjects.map(storyObjectName),
+    },
+    sceneIndex,
+    ageBand: projectAgeBand(project),
+    visualStyle: characters[0]?.masterStyle || characters[0]?.style || project.globalStyle || continuityBible.styleGuide || "",
+    continuityBible,
+  };
+}
+
+function refreshSceneVisualPrompts(project, scene, sceneIndex, { preserveSummary = false } = {}) {
+  const builder = window.OPREALMSceneVisualPrompt;
+  if (!builder?.buildSceneVisualPrompt) {
+    if (!preserveSummary || !scene.visualPromptSummary) {
+      scene.visualPromptSummary = cleanStoryText(scene.prompt || scene.storyExcerpt, "Show this exact story moment.");
+    }
+    scene.visualPromptFull = buildSceneImagePromptLegacy(project, scene, sceneIndex);
+  } else {
+    const input = sceneVisualPromptInput(project, scene, sceneIndex);
+    if (!preserveSummary || !scene.visualPromptSummary) {
+      scene.visualPromptSummary = builder.buildSceneVisualPromptSummary(input);
+    }
+    scene.visualPromptFull = builder.buildSceneVisualPrompt(input);
+  }
+  scene.prompt = scene.visualPromptSummary;
+  scene.visualPrompt = scene.visualPromptFull;
+  scene.imagePromptInternal = scene.visualPromptFull;
+  return scene;
 }
 
 function cleanStoryText(value, fallback = "") {
@@ -1637,7 +1715,7 @@ function escapeRegExp(value) {
   return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function buildSceneImagePrompt(project, scene, sceneIndex) {
+function buildSceneImagePromptLegacy(project, scene, sceneIndex) {
   const character = activeCharacter(project);
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
   const storyText = cleanStoryText(scene.prompt, storyPromptForIndex(project, sceneIndex));
@@ -1657,6 +1735,12 @@ function buildSceneImagePrompt(project, scene, sceneIndex) {
     "Do not render narration, chapter labels, lesson text, UI, captions or written words.",
     "Translate abstract emotions into visible cinematic storytelling without changing the scene events.",
   ].join("\n");
+}
+
+function buildSceneImagePrompt(project, scene, sceneIndex) {
+  const builder = window.OPREALMSceneVisualPrompt;
+  if (!builder?.buildSceneVisualPrompt) return buildSceneImagePromptLegacy(project, scene, sceneIndex);
+  return builder.buildSceneVisualPrompt(sceneVisualPromptInput(project, scene, sceneIndex));
 }
 
 function ensureSceneList(project) {
@@ -1785,6 +1869,7 @@ function buildSceneVideoPrompt(project, scene, sceneIndex) {
   const previousScene = project.scenes?.[sceneIndex - 1];
   const nextScene = project.scenes?.[sceneIndex + 1];
   const shot = sceneVideoShotRecipe(project, scene, sceneIndex, { character, world, prompt, previousScene, nextScene });
+  const visualPromptFull = buildSceneImagePrompt(project, scene, sceneIndex);
   return [
     "Create an 8-second cinematic movie shot from the supplied image for OPRealm.",
     "Use the supplied image as the exact first frame and visual anchor. Preserve the character identity, world, outfit, colors, art style, and family-friendly tone.",
@@ -1793,6 +1878,7 @@ function buildSceneVideoPrompt(project, scene, sceneIndex) {
     "STORY MOMENT:",
     `Scene ${sceneIndex + 1}: ${cleanStoryText(scene.title, `Scene ${sceneIndex + 1}`)}`,
     prompt,
+    `Full visual art direction: ${visualPromptFull}`,
     previousScene?.prompt ? `Previous scene context: ${cleanStoryText(previousScene.prompt, "")}` : "",
     nextScene?.prompt ? `Next scene direction: ${cleanStoryText(nextScene.prompt, "")}` : "",
     "",
@@ -2284,8 +2370,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   const storyContext = cleanStoryText(scene.storyExcerpt, prompt);
 
   scene.prompt = prompt;
-  scene.visualPrompt = prompt;
-  scene.imagePromptInternal = cleanStoryText(scene.visualPrompt, buildSceneImagePrompt(project, scene, sceneIndex));
+  refreshSceneVisualPrompts(project, scene, sceneIndex);
   scene.title = scene.title || sceneTitleFromPrompt(prompt, `Scene ${sceneIndex + 1}`);
   scene.status = "generating";
   scene.imageQueuedAt = "";
@@ -2468,7 +2553,7 @@ function quickPopulateStory(project) {
     };
   });
   project.scenes.forEach((scene, index) => {
-    scene.imagePromptInternal = buildSceneImagePrompt(project, scene, index);
+    refreshSceneVisualPrompts(project, scene, index);
   });
   project.storyArc = plan.map(({ arcRole, title }) => ({ arcRole, title }));
   project.moral = themeLesson(project.storySettings.lessonTheme, character);
@@ -3286,9 +3371,12 @@ function bindStoryboardSceneControls(project) {
       const scene = (project.scenes || []).find((item) => item.id === input.dataset.scenePrompt);
       if (!scene) return;
       scene.prompt = input.value.slice(0, 900);
-      scene.visualPrompt = scene.prompt;
       const sceneIndex = (project.scenes || []).findIndex((item) => item.id === scene.id);
-      scene.imagePromptInternal = scene.visualPrompt || buildSceneImagePrompt(project, scene, sceneIndex);
+      scene.visualPromptSummary = scene.prompt;
+      scene.userVisualDirection = scene.prompt;
+      scene.visualPromptFull = buildSceneImagePrompt(project, scene, sceneIndex);
+      scene.visualPrompt = scene.visualPromptFull;
+      scene.imagePromptInternal = scene.visualPromptFull;
       if (!scene.title || /^Scene \d+$/i.test(scene.title)) {
         scene.title = sceneTitleFromPrompt(scene.prompt, scene.title || "Scene");
       }
@@ -3303,7 +3391,10 @@ function bindStoryboardSceneControls(project) {
       if (!scene) return;
       if (select.dataset.sceneMood) scene.mood = select.value;
       if (select.dataset.sceneCamera) scene.camera = select.value;
+      const sceneIndex = (project.scenes || []).findIndex((item) => item.id === scene.id);
+      refreshSceneVisualPrompts(project, scene, sceneIndex, { preserveSummary: true });
       writeStoryboardProject(project);
+      rerenderStoryboard(project);
     });
   });
 
@@ -3324,7 +3415,7 @@ function bindStoryboardSceneControls(project) {
       const scene = project.scenes?.[sceneIndex];
       if (!scene) return;
       scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
-      scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
+      refreshSceneVisualPrompts(project, scene, sceneIndex);
       scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       writeStoryboardProject(project);
       rerenderStoryboard(project);
@@ -3337,7 +3428,7 @@ function bindStoryboardSceneControls(project) {
       const scene = project.scenes?.[sceneIndex];
       if (!scene || select.value === "AI Assist") return;
       scene.mood = select.value;
-      scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
+      refreshSceneVisualPrompts(project, scene, sceneIndex);
       writeStoryboardProject(project);
       rerenderStoryboard(project);
     });
@@ -3395,7 +3486,7 @@ function bindStoryboardSceneControls(project) {
       if (!scene) return;
       if (!scene.prompt) {
         scene.prompt = storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
-        scene.imagePromptInternal = buildSceneImagePrompt(project, scene, sceneIndex);
+        refreshSceneVisualPrompts(project, scene, sceneIndex);
         scene.title = sceneTitleFromPrompt(scene.prompt, `Scene ${sceneIndex + 1}`);
       }
       scene.status = "generating";
