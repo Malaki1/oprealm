@@ -293,6 +293,14 @@ function isPlaceholderProjectObject(item = {}) {
   return /^(custom\s+pet|custom\s+object)$/i.test(cleanStoryText(item.name));
 }
 
+function friendlySceneImageError(value = "") {
+  const message = String(value || "").trim();
+  if (/\b(?:502|503|504)\b|service unavailable|temporarily unavailable/i.test(message)) {
+    return "The image service was temporarily busy. Press Try Again and OPRealm will resume this scene.";
+  }
+  return message;
+}
+
 function sanitizeStoryboardProject(project = {}) {
   const storyGenerationStartedAt = Date.parse(project.storyDraft?.generationStartedAt || "");
   const storyGenerationIsStale = ["generating", "splitting"].includes(project.storyDraft?.status)
@@ -327,7 +335,9 @@ function sanitizeStoryboardProject(project = {}) {
       status: generationIsStale ? "image_error" : scene.status,
       imageProgress: generationIsStale ? 0 : scene.imageProgress,
       imageGenerationStartedAt: generationIsStale ? "" : scene.imageGenerationStartedAt,
-      imageError: generationIsStale ? "Image generation was interrupted. Press Try Again." : scene.imageError,
+      imageError: generationIsStale
+        ? "Image generation was interrupted. Press Try Again."
+        : friendlySceneImageError(scene.imageError),
     };
   });
   applySceneCinematicSettings(project);
