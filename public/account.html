@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/studio.css?v=7" />
-    <script src="/account.js?v=4" defer></script>
+    <script src="/account.js?v=5" defer></script>
   </head>
   <body class="account-progress-body">
     <header class="studio-header account-topbar">
@@ -102,14 +102,14 @@
               </div>
             </div>
             <div class="continue-project">
-              <img src="/assets/studio/thumbnails/thumb-fantasy-kingdom.png" alt="" />
+              <img id="activeProjectImage" src="/assets/studio/thumbnails/thumb-fantasy-kingdom.png" alt="" />
               <div>
-                <h4 id="activeProjectTitle">Skyfall Kingdom</h4>
-                <span id="activeProjectType">World</span>
-                <div class="mini-progress"><span></span></div>
-                <p>68% Complete</p>
-                <a class="button button-primary" href="/storyboard">Continue</a>
-                <a class="button button-secondary" href="/account.html#settings">View All Projects</a>
+                <h4 id="activeProjectTitle">Your First Creation</h4>
+                <span id="activeProjectType">Creator Project</span>
+                <div class="mini-progress"><span id="activeProjectProgressBar"></span></div>
+                <p id="activeProjectProgressLabel">Ready to begin</p>
+                <a class="button button-primary" id="activeProjectContinue" href="/studio">Start Creating</a>
+                <a class="button button-secondary" href="/library">View Your Library</a>
               </div>
             </div>
             <a class="daily-spark-row" href="/realm-spark">

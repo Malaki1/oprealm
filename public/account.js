@@ -21,6 +21,12 @@ const nodes = {
   profileStatus: document.querySelector("#profileStatus"),
   passwordStatus: document.querySelector("#passwordStatus"),
   logoutButton: document.querySelector("#logoutButton"),
+  activeProjectImage: document.querySelector("#activeProjectImage"),
+  activeProjectTitle: document.querySelector("#activeProjectTitle"),
+  activeProjectType: document.querySelector("#activeProjectType"),
+  activeProjectProgressBar: document.querySelector("#activeProjectProgressBar"),
+  activeProjectProgressLabel: document.querySelector("#activeProjectProgressLabel"),
+  activeProjectContinue: document.querySelector("#activeProjectContinue"),
 };
 
 const tierCopy = {
@@ -103,6 +109,81 @@ function renderAccount(user) {
 
   renderWeek(progress.currentStreak);
   renderBadges(progress);
+  renderRecentProject();
+}
+
+function renderRecentProject() {
+  const project = mostRecentLocalProject();
+  if (!project) {
+    nodes.activeProjectImage.src = "/assets/homepage/hero/main-hero-world.png";
+    nodes.activeProjectTitle.textContent = "Create Your First Project";
+    nodes.activeProjectType.textContent = "OPREALM Creator Studio";
+    nodes.activeProjectProgressBar.style.width = "8%";
+    nodes.activeProjectProgressLabel.textContent = "Your creator journey starts here";
+    nodes.activeProjectContinue.textContent = "Start Creating";
+    nodes.activeProjectContinue.href = "/studio";
+    return;
+  }
+
+  nodes.activeProjectImage.src = project.image;
+  nodes.activeProjectTitle.textContent = project.title;
+  nodes.activeProjectType.textContent = project.type;
+  nodes.activeProjectProgressBar.style.width = `${project.progress}%`;
+  nodes.activeProjectProgressLabel.textContent = `${project.progress}% complete`;
+  nodes.activeProjectContinue.textContent = "Continue";
+  nodes.activeProjectContinue.href = project.href;
+}
+
+function mostRecentLocalProject() {
+  const projects = [];
+  const storyboard = readLocalProject("oprealm_storyboard_project_v1");
+  if (storyboard && (storyboard.title || storyboard.worlds?.length || storyboard.characters?.length || storyboard.scenes?.length)) {
+    const sceneCount = storyboard.scenes?.length || 0;
+    const worldCount = storyboard.worlds?.length || 0;
+    const characterCount = storyboard.characters?.length || 0;
+    const completionSignals = Number(worldCount > 0) + Number(characterCount > 0) + Number(sceneCount > 0) + Number(sceneCount >= 4);
+    const image = storyboard.scenes?.find((scene) => scene.imageUrl || scene.imageDataUrl)?.imageUrl
+      || storyboard.scenes?.find((scene) => scene.imageUrl || scene.imageDataUrl)?.imageDataUrl
+      || storyboard.worlds?.find((world) => world.imageUrl || world.imageDataUrl)?.imageUrl
+      || storyboard.worlds?.find((world) => world.imageUrl || world.imageDataUrl)?.imageDataUrl
+      || storyboard.characters?.find((character) => character.imageUrl || character.imageDataUrl)?.imageUrl
+      || storyboard.characters?.find((character) => character.imageUrl || character.imageDataUrl)?.imageDataUrl
+      || "/assets/studio/thumbnails/thumb-fantasy-kingdom.png";
+    projects.push({
+      title: storyboard.title || "My Story World",
+      type: `${sceneCount} ${sceneCount === 1 ? "scene" : "scenes"} · Story Builder`,
+      progress: Math.max(18, Math.min(92, 18 + completionSignals * 18)),
+      image,
+      href: "/storyboard",
+      updatedAt: storyboard.updatedAt || storyboard.createdAt || "",
+    });
+  }
+
+  const storyGame = readLocalProject("oprealm_story_game_project");
+  if (storyGame && (storyGame.title || storyGame.scenes?.length)) {
+    const sceneCount = storyGame.scenes?.length || 0;
+    projects.push({
+      title: storyGame.title || "My AI Story Game",
+      type: `${sceneCount} ${sceneCount === 1 ? "scene" : "scenes"} · AI Story Game`,
+      progress: Math.max(22, Math.min(94, 22 + sceneCount * 9)),
+      image: storyGame.coverImageUrl
+        || storyGame.scenes?.find((scene) => scene.imageUrl || scene.imageDataUrl)?.imageUrl
+        || storyGame.scenes?.find((scene) => scene.imageUrl || scene.imageDataUrl)?.imageDataUrl
+        || "/assets/homepage/cards/story-games.png",
+      href: "/story-game",
+      updatedAt: storyGame.updatedAt || storyGame.generatedAt || "",
+    });
+  }
+
+  return projects.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0] || null;
+}
+
+function readLocalProject(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null");
+  } catch {
+    return null;
+  }
 }
 
 function buildProgress(user, credits) {
