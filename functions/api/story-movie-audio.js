@@ -1,6 +1,7 @@
 import { requireUser } from "../_lib/auth.js";
 import { json, readJson } from "../_lib/http.js";
 import { movieMusicCredits, movieNarrationCredits } from "../_lib/creator-pricing.js";
+import { checkPromptSafety } from "../_lib/validate.js";
 
 const MAX_NARRATION_CHARS = 2200;
 const MAX_MUSIC_SECONDS = 60;
@@ -154,10 +155,7 @@ function voiceIdFor(env, voice) {
 }
 
 function checkAudioSafety(value) {
-  const text = String(value || "").toLowerCase();
-  const blocked = ["phone number", "address", "school name", "password", "private chat", "meet me", "snapchat", "instagram", "tiktok", "whatsapp"];
-  const phrase = blocked.find((item) => text.includes(item));
-  return phrase ? "Remove personal or private contact details before creating movie audio." : "";
+  return checkPromptSafety(value) ? "Remove personal or private contact details before creating movie audio." : "";
 }
 
 function cleanText(value, max = 1000) {

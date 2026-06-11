@@ -10,6 +10,7 @@ import {
 } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
+import { checkPromptSafety } from "../_lib/validate.js";
 
 const SCENE_VIDEO_COST = CREATOR_CREDIT_COSTS.sceneVideoStandard8s;
 const SCENE_VIDEO_TOOL = "story_scene_video";
@@ -253,13 +254,6 @@ async function readProviderJson(response, fallbackMessage) {
     const clean = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     throw new Error(clean ? `${fallbackMessage} ${clean.slice(0, 160)}` : fallbackMessage);
   }
-}
-
-function checkPromptSafety(value) {
-  const text = String(value || "").toLowerCase();
-  const blocked = ["phone number", "address", "school name", "password", "private chat", "meet me", "snapchat", "instagram", "tiktok", "whatsapp"];
-  const phrase = blocked.find((item) => text.includes(item));
-  return phrase ? `Please remove unsafe personal/contact wording like "${phrase}" before generating video.` : "";
 }
 
 function cleanText(value, maxLength) {

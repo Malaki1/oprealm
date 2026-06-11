@@ -32,24 +32,24 @@ export function enumValue(value, allowed, fallback) {
 export function checkPromptSafety(value) {
   const text = String(value || "").toLowerCase();
   const blocked = [
-    "dm me",
-    "message me",
-    "add me",
-    "phone number",
-    "address",
-    "school name",
-    "password",
-    "free robux",
-    "private chat",
-    "meet me",
-    "snapchat",
-    "instagram",
-    "tiktok",
-    "whatsapp",
+    ["dm me", /\bdm\s+me\b/i],
+    ["message me", /\bmessage\s+me\b/i],
+    ["add me", /\badd\s+me\b/i],
+    ["phone number", /\b(?:my|your|their|send|share|give|text|call|what(?:'s| is))?\s*phone\s+number\b/i],
+    ["home address", /\b(?:my|your|their|send|share|give|tell|what(?:'s| is)|street|home|email|mailing|postal)\s+(?:home\s+)?address\b/i],
+    ["school name", /\b(?:my|your|their|send|share|give|tell|what(?:'s| is))?\s*school\s+name\b/i],
+    ["password", /\b(?:my|your|their|send|share|give|tell|what(?:'s| is))?\s*password\b/i],
+    ["free robux", /\bfree\s+robux\b/i],
+    ["private chat", /\bprivate\s+chat\b/i],
+    ["meet me", /\bmeet\s+me\b/i],
+    ["snapchat", /\bsnapchat\b/i],
+    ["instagram", /\binstagram\b/i],
+    ["tiktok", /\btiktok\b/i],
+    ["whatsapp", /\bwhatsapp\b/i],
   ];
-  const phrase = blocked.find((item) => text.includes(item));
-  if (!phrase) return "";
-  return `Please remove unsafe personal/contact wording like "${phrase}" before generating.`;
+  const match = blocked.find(([, pattern]) => pattern.test(text));
+  if (!match) return "";
+  return `Please remove personal contact details such as "${match[0]}" before generating.`;
 }
 
 export function assertSafePrompt(value) {

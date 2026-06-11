@@ -1,6 +1,7 @@
 import { requireUser } from "../_lib/auth.js";
 import { json, readJson } from "../_lib/http.js";
 import { storyReaderCredits } from "../_lib/creator-pricing.js";
+import { checkPromptSafety } from "../_lib/validate.js";
 
 const MAX_STORY_CHARS = 30000;
 
@@ -103,9 +104,5 @@ function voiceIdFor(env, voice) {
 }
 
 function checkAudioSafety(value) {
-  const text = String(value || "").toLowerCase();
-  const blocked = ["phone number", "address", "school name", "password", "private chat", "meet me", "snapchat", "instagram", "tiktok", "whatsapp"];
-  return blocked.some((phrase) => text.includes(phrase))
-    ? "Remove personal or private contact details before creating story audio."
-    : "";
+  return checkPromptSafety(value) ? "Remove personal or private contact details before creating story audio." : "";
 }

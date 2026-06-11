@@ -3,6 +3,7 @@ import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
+import { checkPromptSafety } from "../_lib/validate.js";
 
 const REFERENCE_BOARD_COST = CREATOR_CREDIT_COSTS.referenceBoard;
 const REFERENCE_BOARD_ESTIMATED_COST_USD = 0.2;
@@ -259,28 +260,6 @@ async function logAiUsage(env, user, prompt, result, referenceCount) {
   } catch (error) {
     console.error("Story reference board usage log failed", error);
   }
-}
-
-function checkPromptSafety(value) {
-  const text = String(value || "").toLowerCase();
-  const blocked = [
-    "dm me",
-    "message me",
-    "add me",
-    "phone number",
-    "address",
-    "school name",
-    "password",
-    "free robux",
-    "private chat",
-    "meet me",
-    "snapchat",
-    "instagram",
-    "tiktok",
-    "whatsapp",
-  ];
-  const phrase = blocked.find((item) => text.includes(item));
-  return phrase ? `Please remove unsafe personal/contact wording like "${phrase}" before generating.` : "";
 }
 
 function cleanText(value, maxLength) {
