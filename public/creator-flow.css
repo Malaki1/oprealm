@@ -3822,6 +3822,57 @@ button {
   font-weight: 750;
 }
 
+.story-writing-loader {
+  position: relative;
+  min-height: 138px;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  overflow: hidden;
+  padding: 22px 24px;
+  border: 1px solid rgba(143, 240, 255, 0.25);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 18% 50%, rgba(34, 217, 255, 0.14), transparent 24rem),
+    rgba(3, 10, 35, 0.88);
+  box-shadow: inset 0 0 36px rgba(34, 217, 255, 0.06);
+}
+
+.story-writing-loader[hidden] {
+  display: none;
+}
+
+.story-writing-loader .image-loader-dotfield,
+.story-writing-loader .image-loader-wave {
+  inset: -45%;
+}
+
+.story-writing-loader .scene-image-progress,
+.story-writing-loader-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.story-writing-loader-copy strong,
+.story-writing-loader-copy p {
+  margin: 0;
+}
+
+.story-writing-loader-copy strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #fff;
+  font-size: 1.08rem;
+  font-weight: 1000;
+}
+
+.story-writing-loader-copy p {
+  color: rgba(210, 225, 250, 0.82);
+  line-height: 1.45;
+  font-weight: 750;
+}
+
 .story-review-details {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4017,6 +4068,12 @@ button {
 }
 
 @media (max-width: 760px) {
+  .story-writing-loader {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
   .story-review-details {
     grid-template-columns: 1fr;
   }

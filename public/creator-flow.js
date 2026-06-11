@@ -698,6 +698,50 @@ function setStorySetupLoading(isLoading, message = "") {
   if (messageNode && message) messageNode.textContent = message;
 }
 
+let storyWritingProgressValue = 0;
+let storyWritingProgressTimer = null;
+
+function renderStoryWritingProgress() {
+  const progress = document.querySelector("#storyWritingProgress");
+  const percent = document.querySelector("#storyWritingPercent");
+  const safePercent = Math.max(0, Math.min(100, Math.round(storyWritingProgressValue)));
+  if (progress) progress.style.setProperty("--scene-image-progress", `${safePercent * 3.6}deg`);
+  if (percent) percent.textContent = `${safePercent}%`;
+}
+
+function setStoryWritingLoading(isLoading, { complete = false } = {}) {
+  const loader = document.querySelector("#storyWritingLoader");
+  if (!loader) return;
+  window.clearInterval(storyWritingProgressTimer);
+  storyWritingProgressTimer = null;
+  loader.hidden = !isLoading;
+  if (!isLoading) return;
+  storyWritingProgressValue = complete ? 100 : 3;
+  renderStoryWritingProgress();
+  if (complete) return;
+  storyWritingProgressTimer = window.setInterval(() => {
+    storyWritingProgressValue = Math.min(
+      94,
+      storyWritingProgressValue + Math.max(1, Math.ceil((94 - storyWritingProgressValue) * 0.065)),
+    );
+    renderStoryWritingProgress();
+    if (storyWritingProgressValue >= 94) {
+      window.clearInterval(storyWritingProgressTimer);
+      storyWritingProgressTimer = null;
+    }
+  }, 700);
+}
+
+function finishStoryWritingLoading() {
+  setStoryWritingLoading(true, { complete: true });
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      setStoryWritingLoading(false);
+      resolve();
+    }, 260);
+  });
+}
+
 function storyDraftPayload(project, mode = "write") {
   const character = activeCharacter(project);
   const world = activeWorld(project);
@@ -736,6 +780,8 @@ async function requestFullStory(project, mode = "write") {
     : "Writing the complete story...";
   if (mode === "split") {
     setStorySetupLoading(true, "Orbit is reading the approved story, choosing the strongest scene breaks and preparing cinematic visual prompts.");
+  } else {
+    setStoryWritingLoading(true);
   }
   try {
     const response = await fetch("/api/story-draft", {
@@ -763,6 +809,7 @@ async function requestFullStory(project, mode = "write") {
     project.title = result.draft.title || project.title || "My OPREALM Story";
     if (mode === "split") buildScenesFromApprovedStory(project);
     writeStoryboardProject(project);
+    if (mode === "write") await finishStoryWritingLoading();
     rerenderStoryboard(project);
     setStorySetupLoading(false);
     const currentStatus = document.querySelector("#fullStoryStatus") || status;
@@ -771,6 +818,7 @@ async function requestFullStory(project, mode = "write") {
       : `Story written using ${result.creditsUsed || 0} Creator credits. Review and edit it before approval.`;
   } catch (error) {
     setStorySetupLoading(false);
+    setStoryWritingLoading(false);
     project.storyDraft = { ...previousDraft, status: "error", approved: false };
     writeStoryboardProject(project);
     renderStoryApproval(project);

@@ -8,9 +8,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=43" />
+    <link rel="stylesheet" href="/creator-flow.css?v=44" />
     <script src="/storyboard-account.js?v=2" defer></script>
-    <script src="/creator-flow.js?v=64" defer></script>
+    <script src="/creator-flow.js?v=65" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -180,6 +180,18 @@
             <span class="story-approval-state" id="storyApprovalState">Not written yet</span>
           </div>
           <p class="story-approval-intro">Review or edit the complete story here. After approval, OPREALM will decide how many visual scenes are needed, with a minimum of eight.</p>
+          <div class="story-writing-loader" id="storyWritingLoader" hidden aria-live="polite" aria-busy="true">
+            <span class="image-loader-dotfield"></span>
+            <span class="image-loader-dotfield is-second"></span>
+            <span class="image-loader-wave"></span>
+            <div class="scene-image-progress" id="storyWritingProgress" style="--scene-image-progress: 0deg;">
+              <span id="storyWritingPercent">0%</span>
+            </div>
+            <div class="story-writing-loader-copy">
+              <strong>Writing your story...</strong>
+              <p id="storyWritingMessage">Creating the chapters, dialogue, twists and ending.</p>
+            </div>
+          </div>
           <div class="story-review-details" id="storyReviewDetails" hidden>
             <section>
               <span>Context</span>
