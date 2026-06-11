@@ -68,8 +68,8 @@ export async function onRequestPost({ request, env }) {
   ].join(" "));
   if (safetyWarning) return json({ ok: false, error: safetyWarning }, 400);
 
-  const webPrompt = buildScenePrompt(body, "web");
   const referenceImages = normalizeReferenceImages(body.referenceImages);
+  const webPrompt = buildScenePrompt(body, "web", referenceImages);
   let web;
   try {
     web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
@@ -202,7 +202,7 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
 }
 
-function buildScenePrompt(body, format) {
+function buildScenePrompt(body, format, referenceImages = []) {
   const savedStyle = cleanText(body.characterStyle || "Bright 3D game mascot", 120);
   const hasSecondHero = Boolean(cleanText(body.secondCharacterName || body.secondCharacterPrompt || "", 200));
   const requestedSceneStyle = cleanText(body.sceneStyle || "inherit", 120);
@@ -219,7 +219,10 @@ function buildScenePrompt(body, format) {
       : "VISUAL CONTINUITY MODE: on. Use the supplied reference images as continuity anchors, not loose inspiration.",
     body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
       ? ""
-      : "Reference priority order: first saved hero portrait, second saved hero portrait, first scene style anchor, previous approved scene. Preserve identities and style from these references while creating the new requested scene.",
+      : `Supplied reference order: ${referenceImages.map((item, index) => `${index + 1}. ${item.label}`).join(" | ") || "No valid image references supplied."}`,
+    body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
+      ? ""
+      : "REFERENCE AUTHORITY: the original locked hero portrait is the highest authority for character identity and costume. A previous scene controls sequence, pose context, camera continuity and environment only; it must never overwrite costume details or propagate visual drift. A reference board supports detail callouts but does not override the original hero portrait.",
     body.lockSceneContinuity === false || body.lockSceneContinuity === "false"
       ? ""
       : `Continuity brief: ${cleanText(body.continuityBrief || "Continue the same safe story sequence with consistent characters and art style.", 1600)}`,
@@ -228,6 +231,11 @@ function buildScenePrompt(body, format) {
     "CHARACTER CONSISTENCY LOCK:",
     "Treat the saved character as a fixed, locked design, not a loose inspiration.",
     "Do not redesign the character. Preserve the same apparent age, body proportions, face shape, hairstyle or fur shape, skin/fur tone, outfit, accessories, color palette, silhouette, and art style across every scene.",
+    "COSTUME MICRO-DETAIL LOCK: reproduce the exact garment construction visible in the locked hero portrait. Preserve the base color of each clothing section and the exact color, shape, size, count and placement of pockets, pocket flaps, patches, shoulder panels, chest panels, lapels, collar lining, sleeves, cuffs, seams, stitching, piping, zippers, buttons, buckles, straps, armor plates and accessory mounts.",
+    "Preserve left-versus-right placement and asymmetry. Never mirror a patch, move a colored pocket panel, swap orange and blue sections, remove a pattern, add a new stripe, simplify a seam layout, or recolor a material between scenes.",
+    "Lighting may change brightness and reflections, but it must not change the underlying local color identity of any garment panel. A blue pocket patch remains blue; orange jacket fabric remains orange; metal armor remains the same metal color.",
+    "At new camera angles, infer hidden details conservatively from the locked design. For every detail already visible in a reference, reproduce it exactly rather than improvising.",
+    "Before finalizing, compare the generated character against the original hero portrait and correct any mismatch in clothing colors, panel boundaries, patterns, pockets, patches, accessories and left/right placement.",
     `ART STYLE LOCK: ${styleLockMode}. The entire scene must be rendered in "${lockedStyle}".`,
     "Do not mix art styles. Do not convert the saved character into a different style such as realistic, anime, pixel, storybook, chibi, 3D, or manga unless that is the saved locked style.",
     "Backgrounds, props, lighting, UI-safe space, sidekicks, and effects must all match the same locked style.",

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Track native beasts on an OPREALM creator planet using lures, clues and hunting tools." />
+    <title>Beast Hunt | OPREALM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Inter:wght@600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/beast-hunt.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/beast-hunt.js?v=1" defer></script>
+  </head>
+  <body>
+    <main class="hunt-shell">
+      <header class="hunt-topbar">
+        <a class="back-button" id="backToHub" href="/planet-hub.html?planet=lumora" aria-label="Back to Planet Hub">&lt;</a>
+        <section class="player-panel" aria-label="Player profile">
+          <div class="avatar" aria-hidden="true">EM</div>
+          <div>
+            <strong>ExplorerMax</strong>
+            <span>Level 24</span>
+            <div class="xp-bar"><i style="width: 61%"></i></div>
+          </div>
+        </section>
+        <section class="hunt-title">
+          <p class="eyebrow" id="planetBiome">Crystal Jungle</p>
+          <h1 id="huntPlanetName">Lumora Planet</h1>
+          <span>Tracking native beast activity</span>
+        </section>
+        <section class="compass" aria-label="Compass">
+          <span>NW</span><strong>N</strong><span>NE</span>
+        </section>
+      </header>
+
+      <section class="hunt-layout">
+        <aside class="tracker-panel">
+          <h2>Tracker</h2>
+          <section class="target-card">
+            <div class="beast-mark" aria-hidden="true">?</div>
+            <div>
+              <strong id="targetName">Stormbyte</strong>
+              <span id="targetRarity">Rare Beast</span>
+            </div>
+          </section>
+          <div class="clue-progress">
+            <span>Clues Found</span>
+            <strong id="clueCount">2 / 4</strong>
+            <div class="progress-bar"><i id="clueProgress" style="width: 50%"></i></div>
+          </div>
+          <ul class="clue-list" id="clueList"></ul>
+
+          <section class="active-lure">
+            <h3>Active Lure</h3>
+            <div class="lure-row">
+              <span class="lure-icon" aria-hidden="true"></span>
+              <div>
+                <strong id="lureName">Electro Berry</strong>
+                <small>Premium Lure</small>
+              </div>
+            </div>
+            <time id="lureTimer">00:15:32</time>
+            <div class="lure-meter"><i></i></div>
+            <button id="cancelLureButton" type="button">Cancel Lure</button>
+          </section>
+        </aside>
+
+        <section class="hunt-stage" aria-label="Beast hunting scene">
+          <div class="jungle-sky" aria-hidden="true"></div>
+          <div class="hunt-waterfall waterfall-one" aria-hidden="true"></div>
+          <div class="hunt-waterfall waterfall-two" aria-hidden="true"></div>
+          <div class="crystal cluster-one" aria-hidden="true"></div>
+          <div class="crystal cluster-two" aria-hidden="true"></div>
+          <div class="crystal cluster-three" aria-hidden="true"></div>
+          <div class="hunt-path" aria-hidden="true"></div>
+          <div class="energy-trail" id="energyTrail" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="explorer" aria-label="ExplorerMax"></div>
+          <button class="beast-encounter" id="beastEncounter" type="button" aria-label="Stormbyte encounter">
+            <span class="alert">!</span>
+            <span class="beast-body"></span>
+            <strong>Stormbyte</strong>
+          </button>
+          <section class="tracking-toast" aria-live="polite">
+            <span class="paw" aria-hidden="true"></span>
+            <div>
+              <strong>Tracking: <span id="toastBeast">Stormbyte</span></strong>
+              <small id="toastCopy">Follow the energy trail. Clues found: 2 / 4</small>
+            </div>
+          </section>
+          <section class="hunt-event-card" id="huntEventCard" aria-live="polite">
+            <p class="eyebrow">System</p>
+            <h2>Energy footprints detected.</h2>
+            <p>Follow the glowing marks toward the next clue before the lure expires.</p>
+          </section>
+        </section>
+
+        <aside class="hunt-side-panel">
+          <section class="mini-map">
+            <div class="mini-map-world" aria-hidden="true"><i></i></div>
+            <strong id="mapPlanet">Lumora</strong>
+            <span>Stormbyte trail active</span>
+          </section>
+          <section class="control-panel">
+            <h2>Controls</h2>
+            <p><kbd>Shift</kbd> Sprint</p>
+            <p><kbd>Space</kbd> Jump</p>
+            <p><kbd>E</kbd> Interact</p>
+            <p><kbd>C</kbd> Crouch</p>
+            <p><kbd>M</kbd> Map</p>
+          </section>
+          <section class="system-log">
+            <h2>System</h2>
+            <p>You placed a Premium Lure.</p>
+            <p>Stormbyte has been drawn to your location.</p>
+            <p>Energy footprints detected.</p>
+            <p>A distant howl echoes...</p>
+          </section>
+        </aside>
+      </section>
+
+      <section class="hunt-bottom">
+        <nav class="hotbar" aria-label="Hunting hotbar">
+          <button class="is-active" type="button" data-tool="lure"><span>1</span><strong>Lure</strong><small>12</small></button>
+          <button type="button" data-tool="tranquilizer"><span>2</span><strong>Tranquilizer</strong><small>8</small></button>
+          <button type="button" data-tool="spray"><span>3</span><strong>Calming Spray</strong><small>6</small></button>
+          <button type="button" data-tool="tracker"><span>4</span><strong>Tracker</strong><small>Unlimited</small></button>
+          <button type="button" data-tool="rations"><span>5</span><strong>Rations</strong><small>10</small></button>
+          <button type="button" data-tool="whistle"><span>6</span><strong>Mount Whistle</strong><small>3</small></button>
+        </nav>
+        <nav class="hunt-dock" aria-label="Hunting actions">
+          <a href="#inventory">Inventory</a>
+          <a href="/crafting-station.html?planet=lumora" id="craftingLink">Crafting</a>
+          <a href="#map">Map</a>
+          <a href="#realmdex">RealmDex</a>
+        </nav>
+      </section>
+    </main>
+  </body>
+</html>

@@ -860,16 +860,16 @@ async function buildSceneReferenceBundle() {
   const characters = storyProject.characters || [];
   await addReference("Hero 1 locked character portrait", characters[0]?.imageDataUrl);
   await addReference("Hero 2 locked character portrait", characters[1]?.imageDataUrl);
-  await addReference("Latest OPREALM reference board", storyProject.referenceBoards?.[0]?.imageDataUrl);
 
   const scenes = storyProject.scenes || [];
-  if (scenes[0]?.webImageDataUrl) {
-    await addReference("Scene 1 style anchor", scenes[0].webImageDataUrl);
-  }
   const previousScene = scenes[scenes.length - 1];
   if (previousScene?.webImageDataUrl && previousScene !== scenes[0]) {
     await addReference(`Previous approved scene ${scenes.length}`, previousScene.webImageDataUrl);
   }
+  if (scenes[0]?.webImageDataUrl) {
+    await addReference("Scene 1 style anchor", scenes[0].webImageDataUrl);
+  }
+  await addReference("Latest OPREALM reference board", storyProject.referenceBoards?.[0]?.imageDataUrl);
 
   return {
     referenceImages: references.slice(0, 4),
@@ -900,6 +900,8 @@ function buildContinuityBrief(characters, scenes) {
   return [
     "Continue the same story sequence instead of restarting the visual design.",
     "Use the reference images as hard anchors for identity, costume, palette, rendering style, lighting language, and overall game art direction.",
+    "The original locked hero portrait is the highest authority for face, hair, body, outfit construction, exact garment color placement, pockets, patches, seams, trim, armor panels and accessories. Later scenes must not overwrite or gradually drift from it.",
+    "Treat clothing as a fixed production model sheet: preserve every visible color block, material boundary, pattern, pocket, patch, zipper, buckle, strap, fastener, emblem-free panel, sleeve detail and left/right placement. Do not simplify, recolor, add, remove, mirror or relocate those details.",
     heroLines.join("\n"),
     boardLines.join("\n"),
     sceneLines.join("\n"),
@@ -937,7 +939,9 @@ function renderSceneFormPreview() {
   const inheritedStyle = character.style || "the saved character style";
   const sceneStyle = data.sceneStyle === "inherit" ? inheritedStyle : data.sceneStyle;
   if (sceneStyleLockNote) {
-    const continuity = data.lockSceneContinuity ? " Previous scenes and saved hero images will be used as visual anchors." : "";
+    const continuity = data.lockSceneContinuity
+      ? " Saved portraits and approved scenes will lock exact clothing colours, pockets, patches, patterns, trim, accessories and left/right placement."
+      : "";
     sceneStyleLockNote.textContent = data.lockCharacterStyle
       ? `Scene images will lock to: ${sceneStyle || inheritedStyle}${heroCount > 1 ? ` with ${heroCount} heroes` : ""}.${continuity}`
       : `Scene images may use: ${sceneStyle || inheritedStyle}.${continuity}`;

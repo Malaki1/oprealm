@@ -522,7 +522,7 @@ function buildCharacterRecipePrompt(recipe, promptNotes, variation, world) {
       ? `SAVED WORLD LOCK: The supplied image is the creator's previously selected world, "${world.name}". Keep that world recognisable as the background and add the new character naturally into it. Preserve its architecture, terrain, materials, atmosphere, lighting language and color reference. Do not replace, cover or transform it into a portal studio, glowing gateway, generic stage, fantasy grove or another preset world. ${environmentPrompt}.`
       : `Environment for this preview: ${recipe.components.environment || "simple neutral character studio"}. ${environmentPrompt || "Use a restrained neutral background without portals or invented world scenery."}.`,
     recipe.generation.consistencyLock
-      ? "Consistency lock is ON: preserve the same face, hair, age, body proportions, outfit structure, palette, and selected accessories in future versions."
+      ? "Consistency lock is ON: establish a fixed production design and preserve the same face, hair, age, body proportions, outfit structure, exact local color placement, pocket and patch shapes, seams, trim, panel boundaries, left/right asymmetry, and selected accessories in all future versions. Do not mirror, relocate, simplify, add, remove or recolor minor clothing details."
       : "Consistency lock is OFF for this first exploratory draft, but still keep the recipe coherent.",
     changedComponent
       ? `Only the changed component should update: ${changedComponent}. Keep all other identity and component details unchanged.`
