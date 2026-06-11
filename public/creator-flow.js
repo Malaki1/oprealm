@@ -2467,13 +2467,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   if (freshStatusTarget) freshStatusTarget.textContent = "Generating scene artwork...";
 
   try {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 210000);
-    const response = await fetch("/api/story-scene-images", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
+    const requestBody = JSON.stringify({
         prompt: storyContext,
         visualPrompt: scene.imagePromptInternal,
         camera: scene.camera || "Wide Shot",
@@ -2504,15 +2498,36 @@ async function generateStoryboardSceneImage(project, sceneId) {
         lockSceneContinuity: true,
         continuityBrief: `Scene ${sceneIndex + 1} of ${project.title || "an OPREALM story"}. Preserve the saved character, selected world, outfit colors, accessories, and the previous scene logic.`,
         referenceImages: storyboardReferenceImages(project, scene),
-      }),
-    }).finally(() => window.clearTimeout(timeout));
-    const result = await response.json().catch(() => ({}));
+      });
+    let response;
+    let result;
+    const retryDelays = [0, 8000, 16000];
+    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
+      if (retryDelays[attempt]) {
+        const retryStatus = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
+        if (retryStatus) retryStatus.textContent = `Image service busy. Retrying automatically (${attempt + 1} of ${retryDelays.length})...`;
+        await sleep(retryDelays[attempt]);
+      }
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 210000);
+      response = await fetch("/api/story-scene-images", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: requestBody,
+      }).finally(() => window.clearTimeout(timeout));
+      result = await response.json().catch(() => ({}));
+      const retryable = result.retryable || [502, 503, 504].includes(response.status);
+      if (response.ok || !retryable || attempt === retryDelays.length - 1) break;
+    }
     if (!response.ok || !result.ok || !result.webImageDataUrl) {
       const prefix = response.status === 401
         ? "Please log in before generating scene images."
         : response.status === 402
           ? "Not enough Creator credits for this scene image."
-          : "";
+          : [502, 503, 504].includes(response.status)
+            ? "The image service stayed busy after automatic retries. Press Try Again and OPRealm will resume this scene."
+            : "";
       throw new Error(prefix || result.error || `Scene image generation failed (${response.status || "network"}).`);
     }
 
@@ -2580,6 +2595,7 @@ async function processSceneImageQueue() {
     await generateStoryboardSceneImage(readStoryboardProject(), sceneId);
   } finally {
     sceneImageQueueActive = false;
+    if (sceneImageGenerationQueue.length) await sleep(2500);
     processSceneImageQueue();
   }
 }

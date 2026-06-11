@@ -75,7 +75,14 @@ export async function onRequestPost({ request, env }) {
   try {
     web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
   } catch (error) {
-    return json({ ok: false, error: error.message || "Scene image generation failed." }, 502);
+    const status = isTemporaryProviderError(error) ? 503 : 502;
+    return json({
+      ok: false,
+      error: status === 503
+        ? "The scene image service is temporarily busy. OPRealm will retry this scene automatically."
+        : error.message || "Scene image generation failed.",
+      retryable: status === 503,
+    }, status, status === 503 ? { "retry-after": "8" } : {});
   }
 
   await env.OPREALM_DB.prepare(
@@ -108,14 +115,20 @@ async function generateImage(env, prompt, size, referenceImages = []) {
   let lastError;
 
   for (const attempt of referenceImages.length ? referenceAttempts : generationAttempts) {
-    const response = referenceImages.length
-      ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
-      : await requestImageGeneration(env, prompt, size, attempt);
+    let response;
+    try {
+      response = referenceImages.length
+        ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
+        : await requestImageGeneration(env, prompt, size, attempt);
+    } catch (error) {
+      lastError = providerError(error.message || "Scene image provider request failed.", 503);
+      continue;
+    }
     let data;
     try {
       data = await readJsonResponse(response);
     } catch (error) {
-      lastError = error;
+      lastError = providerError(error.message, response.status);
       continue;
     }
     const b64 = data.data?.[0]?.b64_json;
@@ -126,17 +139,23 @@ async function generateImage(env, prompt, size, referenceImages = []) {
         mode: referenceImages.length ? "reference edit" : "generation",
       };
     }
-    lastError = new Error(data.error?.message || `Scene image generation failed with ${attempt.model}.`);
+    lastError = providerError(data.error?.message || `Scene image generation failed with ${attempt.model}.`, response.status);
   }
 
   if (referenceImages.length) {
     for (const attempt of generationAttempts) {
-      const response = await requestImageGeneration(env, prompt, size, attempt);
+      let response;
+      try {
+        response = await requestImageGeneration(env, prompt, size, attempt);
+      } catch (error) {
+        lastError = providerError(error.message || "Scene image provider request failed.", 503);
+        continue;
+      }
       let data;
       try {
         data = await readJsonResponse(response);
       } catch (error) {
-        lastError = error;
+        lastError = providerError(error.message, response.status);
         continue;
       }
       const b64 = data.data?.[0]?.b64_json;
@@ -147,7 +166,7 @@ async function generateImage(env, prompt, size, referenceImages = []) {
           mode: "generation fallback",
         };
       }
-      lastError = new Error(data.error?.message || `Scene image generation fallback failed with ${attempt.model}.`);
+      lastError = providerError(data.error?.message || `Scene image generation fallback failed with ${attempt.model}.`, response.status);
     }
   }
 
@@ -181,7 +200,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
+    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -200,7 +219,18 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
     body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
+  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+}
+
+function providerError(message, status) {
+  const error = new Error(message || "Scene image generation failed.");
+  error.status = Number(status) || 502;
+  return error;
+}
+
+function isTemporaryProviderError(error) {
+  const status = Number(error?.status || 0);
+  return status === 408 || status === 409 || status === 429 || status >= 500;
 }
 
 function buildScenePrompt(body, format, referenceImages = []) {
@@ -337,12 +367,13 @@ function cleanText(value, maxLength) {
   return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
-function json(data, status = 200) {
+function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
+      ...extraHeaders,
     },
   });
 }
