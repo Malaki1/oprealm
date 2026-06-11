@@ -408,11 +408,11 @@ async function createBranch(page, choice) {
 }
 
 async function generatePreparedBranch(page, choice, sourcePageIndex) {
-  const response = await fetch("/api/story-branch", {
+  const response = await fetchPreparationRequest("/api/story-branch", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(branchRequestBody(page, choice, sourcePageIndex)),
-  });
+  }, "Waiting to continue building optional story paths");
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok || !data.outcome?.imageDataUrl) {
     throw new Error(data.error || "This story path could not be created.");
@@ -789,7 +789,7 @@ async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = n
   if (DEMO_MODE) throw new Error("Narration unavailable in demo mode.");
   const sceneNumber = Number(sceneOverride?.sceneNumber || sceneIndex + 1);
   const sceneId = sceneOverride?.sceneId || beat.sceneId || pages[sceneIndex]?.id || `scene-${sceneNumber}`;
-  const response = await fetch("/api/storybook-narration", {
+  const response = await fetchPreparationRequest("/api/storybook-narration", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
@@ -803,7 +803,7 @@ async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = n
       voiceId: beat.voiceId || voiceProfiles[0]?.voiceId,
       deliveryDirection: beat.deliveryDirection || voiceProfiles[0]?.deliveryDirection,
     }),
-  });
+  }, "Waiting to continue recording story voices");
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok || !data.beat?.audioUrl) {
     throw new Error(data.error || "Narration unavailable");
@@ -811,6 +811,32 @@ async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = n
   narrationManifest.set(beat.id, data.beat);
   attachAudioToBeat(beat);
   return data.beat;
+}
+
+async function fetchPreparationRequest(url, options, waitingMessage) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(url, options);
+    if (response.status !== 429) return response;
+    const retryAfter = Math.max(2, Number(response.headers.get("retry-after")) || 15);
+    await waitForPreparationRetry(retryAfter, waitingMessage);
+  }
+  throw new Error("OPRealm is still receiving a lot of creation requests. Preparation will resume when you press Try Again.");
+}
+
+async function waitForPreparationRetry(seconds, message) {
+  for (let remaining = seconds; remaining > 0; remaining -= 1) {
+    if (!preparation.hidden) {
+      preparationTitle.textContent = "Still preparing your storybook";
+      preparationDescription.textContent = `${message}. Resuming automatically in ${formatRetryTime(remaining)}.`;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+}
+
+function formatRetryTime(seconds) {
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"}`;
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 function attachAudioToBeat(beat) {
