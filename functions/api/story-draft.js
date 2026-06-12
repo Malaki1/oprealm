@@ -5,6 +5,7 @@ import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText } from "../_lib/validate.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 import { validateStoryQuality } from "../_lib/story-quality.mjs";
+import { removeFrameworkLanguage, validateStoryPayoffs } from "../_lib/story-payoffs.mjs";
 
 const STORY_DRAFT_COST = CREATOR_CREDIT_COSTS.storyDraft;
 const STORY_DRAFT_MODEL = "gpt-5-mini";
@@ -13,7 +14,7 @@ const MIN_SCENE_COUNT = 16;
 const MAX_SCENE_COUNT = 32;
 const SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
-const DECISION_TYPES = ["trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice", "final_fate_choice"];
+const DECISION_TYPES = ["trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice", "moral_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice", "power_choice", "final_fate_choice"];
 const ENDING_TYPES = ["heroic_ending", "wise_ending", "betrayal_ending", "friendship_ending", "chaos_ending", "secret_ending"];
 const CHOICE_TENSIONS = ["trust versus suspicion", "safety versus courage", "loyalty versus mission", "mercy versus victory", "truth versus comfort", "sacrifice versus reward"];
 const SCORE_SCHEMA = {
@@ -131,6 +132,17 @@ const storySpineSchema = {
   },
 };
 
+const bestMomentsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["biggestReveal", "coolestCreatureOrEntity", "hardestChoice", "mostEmotionalScene", "largestVisualSpectacle", "betrayalMoment", "finaleMoment", "wonderMoment", "humorOrWarmthMoment", "terrifyingButKidSafeMoment"],
+  properties: Object.fromEntries([
+    "biggestReveal", "coolestCreatureOrEntity", "hardestChoice", "mostEmotionalScene",
+    "largestVisualSpectacle", "betrayalMoment", "finaleMoment", "wonderMoment",
+    "humorOrWarmthMoment", "terrifyingButKidSafeMoment",
+  ].map((key) => [key, { type: "string" }])),
+};
+
 const logicPlanSchema = {
   type: "object",
   additionalProperties: false,
@@ -145,7 +157,7 @@ const logicPlanSchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "introducedInSceneId", "clueText", "visualObject", "linkedDecisionId", "helpsChoiceId", "subtlety"],
+        required: ["id", "introducedInSceneId", "clueText", "visualObject", "linkedDecisionId", "helpsChoiceId", "subtlety", "payoffTarget"],
         properties: {
           id: { type: "string" },
           introducedInSceneId: { type: "string" },
@@ -154,6 +166,7 @@ const logicPlanSchema = {
           linkedDecisionId: { type: "string" },
           helpsChoiceId: { type: "string" },
           subtlety: { type: "string", enum: ["subtle", "moderate", "clear"] },
+          payoffTarget: { type: "string", enum: ["biggest_reveal", "betrayal", "hardest_choice", "finale"] },
         },
       },
     },
@@ -262,7 +275,7 @@ export async function onRequestPost({ request, env }) {
     const user = await requireUser(request, env);
     const body = await readJson(request, "Invalid story request.");
     const mode = body.mode === "split" ? "split" : "write";
-    const requestedStage = mode === "write" && ["spine", "logic", "prose"].includes(body.stage)
+    const requestedStage = mode === "write" && ["spine", "logic", "moments", "prose"].includes(body.stage)
       ? body.stage
       : "";
     if (mode === "write" && Number(user.credits_remaining || 0) < STORY_DRAFT_COST) {
@@ -305,6 +318,7 @@ export async function onRequestPost({ request, env }) {
       draft = normalizeDraft({
         title: cleanText(body.title, 100),
         storySpine: body.storySpine || {},
+        bestMomentsPlan: body.bestMomentsPlan || {},
         ...split.value,
       });
       models = [split.model];
@@ -331,33 +345,61 @@ export async function onRequestPost({ request, env }) {
         creditsUsed: 0,
         model: plan.model,
       });
+    } else if (requestedStage === "moments") {
+      const storySpine = normalizeStorySpine(body.storySpine);
+      const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+      if (!storySpine.centralMystery || logicPlan.decisions.length < 3) {
+        return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
+      }
+      const moments = await generateBestMomentsPlan(env, storySpine, logicPlan, creatorBible, `${user.id}:moments`);
+      return json({
+        ok: true,
+        stage: "moments",
+        bestMomentsPlan: normalizeBestMomentsPlan(moments.value),
+        creditsUsed: 0,
+        model: moments.model,
+      });
     } else if (requestedStage === "prose") {
       const storySpine = normalizeStorySpine(body.storySpine);
       const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+      const suppliedMoments = normalizeBestMomentsPlan(body.bestMomentsPlan);
+      const bestMomentsPlan = suppliedMoments.biggestReveal
+        ? suppliedMoments
+        : fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible);
       if (!storySpine.centralMystery || logicPlan.decisions.length < 3 || logicPlan.clues.length < 3) {
         return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
       }
-      const prose = await generateFullChapterStory(env, storySpine, logicPlan, creatorBible, `${user.id}:prose`);
-      draft = normalizeDraft({
+      const prose = await generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, `${user.id}:prose`);
+      draft = normalizeDraft(removeFrameworkLanguage({
         ...prose.value,
         storySpine,
         logicPlan,
+        bestMomentsPlan,
         scenes: [],
-      });
+      }));
       models = [prose.model];
     } else {
       const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
       const plan = await generatePickPathPlan(env, spine.value, creatorBible, `${user.id}:logic`);
-      const prose = await generateFullChapterStory(env, spine.value, plan.value, creatorBible, `${user.id}:prose`);
-      draft = normalizeDraft({
+      let momentsValue = fallbackBestMomentsPlan(spine.value, plan.value, creatorBible);
+      let momentsModel = "deterministic-fallback";
+      try {
+        const moments = await generateBestMomentsPlan(env, spine.value, plan.value, creatorBible, `${user.id}:moments`);
+        momentsValue = moments.value;
+        momentsModel = moments.model;
+      } catch {}
+      const prose = await generateFullChapterStory(env, spine.value, plan.value, momentsValue, creatorBible, `${user.id}:prose`);
+      draft = normalizeDraft(removeFrameworkLanguage({
         ...prose.value,
         storySpine: spine.value,
         logicPlan: plan.value,
+        bestMomentsPlan: momentsValue,
         scenes: [],
-      });
-      models = [spine.model, plan.model, prose.model];
+      }));
+      models = [spine.model, plan.model, momentsModel, prose.model];
     }
     draft.quality = validateStoryQuality(draft);
+    draft.payoffQuality = validateStoryPayoffs(draft, draft.bestMomentsPlan, draft.logicPlan?.clues, draft.logicPlan?.decisions);
 
     if (mode === "write") {
       const charged = await chargeCredits(env, user.id);
@@ -399,16 +441,19 @@ export async function generatePickPathPlan(env, storySpine, creatorBible, seed =
     `Story Spine: ${JSON.stringify(storySpine)}`,
     `Creator Bible: ${JSON.stringify(creatorBible)}`,
     "Design exactly three major decisions before prose is written: two branch-and-converge decisions and one final ending decision.",
+    `Use exactly three different decision types chosen from: ${DECISION_TYPES.join(", ")}.`,
     `Use meaningful tensions such as: ${CHOICE_TENSIONS.join("; ")}.`,
     "Every decision must state why it matters emotionally, what the player knows, the concrete clue that helps, the wrong consequence, the wise consequence and the endings it influences.",
     "Each decision question must be spoken naturally by a named character to the hero inside the future prose.",
     "Plant 3-5 concrete visible clues before their decisions. A clue must be a specific object, mark, sound, wound, tool, garment detail, footprint, message or physical contradiction.",
+    "Assign every clue a payoffTarget: biggest_reveal, betrayal, hardest_choice or finale. No clue may exist only to lead to another clue.",
     "Never use abstract clues such as a feeling, something being wrong, a witness remembering differently or a familiar mark without describing the exact mark.",
     "Include one false-trust or betrayal possibility when age appropriate.",
     "Use provisional placement IDs chapter-1, chapter-2 and so on. Scene IDs will be assigned only after story approval.",
     "Set every decision visualPrompt to an empty string. Visual prompts are forbidden at this stage.",
     "Create exactly three distinct endings and a bounded branch-and-converge route map.",
     "Choice labels must name concrete actions, people, places or evidence. Never write generic labels such as Act on the evidence, Take the dangerous route or Choose wisely.",
+    "Avoid three tactical choices. Across the story vary trust, sacrifice, morality, deduction, betrayal, dangerous power, loyalty and final fate.",
   ].join("\n");
   return requestStructured(env, {
     schema: logicPlanSchema,
@@ -421,10 +466,36 @@ export async function generatePickPathPlan(env, storySpine, creatorBible, seed =
   });
 }
 
-export async function generateFullChapterStory(env, storySpine, logicPlan, creatorBible, seed = "full-story") {
+export async function generateBestMomentsPlan(env, storySpine, pickPathPlan, creatorBible, seed = "best-moments") {
+  const prompt = [
+    `Story Spine: ${JSON.stringify(storySpine)}`,
+    `Pick-a-Path Plan: ${JSON.stringify(pickPathPlan)}`,
+    `Creator Bible: ${JSON.stringify(creatorBible)}`,
+    "Design ten unforgettable moments the finished story will build toward. Be specific to the named cast, world, clues and mystery.",
+    "Every clue must connect to the biggest reveal, betrayal, finale or another major payoff.",
+    "The hardest choice must protect two valuable things and make either option emotionally costly.",
+    "The largest spectacle must be illustration-worthy and physically happen in the story, not exist as background lore.",
+    "The betrayal must hurt because of a relationship or promise, not merely reveal tactical information.",
+    "The finale must resolve the immediate danger, core mystery and hero's emotional struggle while leaving only optional room for another adventure.",
+    "Include tonal variety: wonder, warmth or humor, kid-safe fear, friendship and triumphant spectacle.",
+    "Do not write chapter prose, scene directions or production commentary.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: bestMomentsSchema,
+    schemaName: "oprealm_best_moments_plan",
+    instructions: "You are a bestselling children's adventure editor choosing the ten moments readers will remember and talk about.",
+    input: prompt,
+    effort: "low",
+    maxOutputTokens: 5000,
+    seed,
+  });
+}
+
+export async function generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, seed = "full-story") {
   const prompt = [
     `Approved Story Spine: ${JSON.stringify(storySpine)}`,
     `Approved Pick-a-Path Logic Plan: ${JSON.stringify(logicPlan)}`,
+    `Approved Best Moments Plan: ${JSON.stringify(bestMomentsPlan)}`,
     `Creator Bible: ${JSON.stringify(creatorBible)}`,
     "Write only the complete chapter prose, title and spoiler-light summary. Do not create scenes, image prompts, visual directions, metadata or a new logic plan.",
     "Write as if creating a bestselling children's adventure series: entertainment first, invisible structure and irresistible momentum.",
@@ -441,6 +512,9 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, creat
     "Plant every planned clue visibly before it becomes useful. Later dialogue or action must allow the reader to connect that clue to the wiser choice.",
     "Include real setbacks and costly reversals. Let plans fail, allies disagree and discoveries change what the characters believe.",
     "Most stories should contain false trust, a hidden motive, a misunderstood clue or a mistaken assumption. The reversal must make earlier concrete details suddenly meaningful.",
+    "Build naturally toward every Best Moments Plan item. Do not list them or force them together; earn them through setup, escalation and payoff.",
+    "Every major clue must pay off in a reveal, betrayal, difficult decision or finale rather than leading only to another clue.",
+    "Vary the chapter rhythm across danger, wonder, mystery, friendship, reversal and high-stakes finale. Do not keep every chapter grim or equally intense.",
     "Make decisions genuinely uncomfortable. Both options must protect something valuable and risk something painful; never make one answer obviously correct.",
     "Use smells, sounds, textures, lighting, weather and movement to make locations physical, while keeping descriptions active and concise.",
     "Use the lesson through consequences and changed behavior, never by explaining the moral.",
@@ -448,6 +522,7 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, creat
     "Avoid symbolic filler, unexplained magical objects, hybrid messengers and vague emotional gestures when a concrete action or spoken line can tell the story.",
     "Use only the supplied cast and naturally necessary unnamed background people. Do not import characters from other saved stories.",
     "Keep all content original, child-safe and suitable for ages 7-13.",
+    "The final chapter must resolve the immediate danger, the main choice, the core mystery and the hero's emotional conflict. It may hint at future adventures only after delivering a satisfying ending.",
     "Before returning, silently inspect and revise the story. Fix any chapter lacking tension, spectacle, a hook, distinct dialogue or sensory life. Fix twists without foreshadowing, obvious choices, unearned victories and framework-exposing prose.",
     "Return only the polished final story. Never mention this hidden inspection.",
   ].join("\n");
@@ -535,6 +610,7 @@ function extractOutputText(data) {
 
 function normalizeDraft(value) {
   const storySpine = normalizeStorySpine(value.storySpine);
+  const bestMomentsPlan = normalizeBestMomentsPlan(value.bestMomentsPlan);
   const chapters = (value.chapters || []).slice(0, 8).map((chapter, index) => ({
     title: cleanText(chapter.title, 100) || `Chapter ${index + 1}`,
     description: cleanText(chapter.description, 420) || chapterDescriptionFromParagraphs(chapter.paragraphs, index),
@@ -564,11 +640,50 @@ function normalizeDraft(value) {
     title: cleanText(value.title, 100) || "My OPREALM Story",
     summary: cleanProse(value.summary, 1800),
     storySpine,
+    bestMomentsPlan,
     logicPlan,
     chapters,
     story: formattedStory,
     scenes: attachPlanDecisions(scenes, logicPlan),
   };
+}
+
+function normalizeBestMomentsPlan(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries([
+    "biggestReveal", "coolestCreatureOrEntity", "hardestChoice", "mostEmotionalScene",
+    "largestVisualSpectacle", "betrayalMoment", "finaleMoment", "wonderMoment",
+    "humorOrWarmthMoment", "terrifyingButKidSafeMoment",
+  ].map((key) => [key, cleanProse(source[key], 700)]));
+}
+
+function fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible) {
+  const spine = normalizeStorySpine(storySpine);
+  const plan = normalizeLogicPlan(logicPlan);
+  const hero = parseNamedValue(creatorBible?.character, "name") || "the protagonist";
+  const world = parseNamedValue(creatorBible?.world, "name") || "the selected realm";
+  const clueObjects = plan.clues.map((clue) => clue.visualObject).filter(Boolean);
+  return normalizeBestMomentsPlan({
+    biggestReveal: `${clueObjects[0] || "the earliest physical clue"} proves that ${spine.trueRevelation || spine.majorSecret}.`,
+    coolestCreatureOrEntity: `${spine.mainAntagonisticForce || "a colossal guardian"} reveals an unexpected living form tied to ${world}.`,
+    hardestChoice: plan.decisions[1]?.questionText || `${hero} must protect a trusted friend or stop the threat before it reaches everyone else.`,
+    mostEmotionalScene: `${hero} admits the mistake caused by ${spine.heroFlaw || "refusing help"} and asks a hurt ally to stand with them again.`,
+    largestVisualSpectacle: `${world} transforms around the final confrontation as its largest landmark, weather and hidden power awaken together.`,
+    betrayalMoment: `${spine.keyRelationshipConflict || "A trusted ally's hidden promise"} reveals a motive that makes ${hero} question the entire journey.`,
+    finaleMoment: `${hero} resolves ${spine.centralMystery}, stops the immediate danger and acts on ${spine.trueRevelation || "the truth learned through the journey"}.`,
+    wonderMoment: `${hero} enters a hidden part of ${world} that overturns what everyone believed was possible.`,
+    humorOrWarmthMoment: `${hero} and an ally share a badly timed joke while repairing trust after a failed plan.`,
+    terrifyingButKidSafeMoment: `A vast silhouette belonging to ${spine.mainAntagonisticForce || "the hidden guardian"} moves behind the heroes while escape routes close.`,
+  });
+}
+
+function parseNamedValue(value, key) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return cleanText(parsed?.[key], 120);
+  } catch {
+    return "";
+  }
 }
 
 function ensurePlayableLogicPlan(plan, scenes, context = {}) {
@@ -683,6 +798,9 @@ function normalizeLogicPlan(value) {
       linkedDecisionId: cleanId(clue?.linkedDecisionId),
       helpsChoiceId: cleanId(clue?.helpsChoiceId),
       subtlety: ["subtle", "moderate", "clear"].includes(clue?.subtlety) ? clue.subtlety : "subtle",
+      payoffTarget: ["biggest_reveal", "betrayal", "hardest_choice", "finale"].includes(clue?.payoffTarget)
+        ? clue.payoffTarget
+        : "biggest_reveal",
     })),
     decisions: (Array.isArray(source.decisions) ? source.decisions : [])
       .map((decision, index) => normalizeDecisionNode(decision, cleanId(decision?.sceneId) || `scene-${index + 1}`))

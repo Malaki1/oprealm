@@ -858,6 +858,9 @@ function storyDraftPayload(project, mode = "write") {
   if (mode === "split" && project.storyDraft?.storySpine) {
     payload.storySpine = project.storyDraft.storySpine;
   }
+  if (mode === "split" && project.storyDraft?.bestMomentsPlan) {
+    payload.bestMomentsPlan = project.storyDraft.bestMomentsPlan;
+  }
   return payload;
 }
 
@@ -894,12 +897,26 @@ async function requestFullStory(project, mode = "write") {
         stage: "logic",
         storySpine: spineResult.storySpine,
       }, "choice plan");
-      setStoryWritingStage(62, "Writing the complete chapter story...");
+      setStoryWritingStage(52, "Planning the moments readers will remember...");
+      let bestMomentsPlan = {};
+      try {
+        const momentsResult = await requestStoryDraftStage({
+          ...basePayload,
+          stage: "moments",
+          storySpine: spineResult.storySpine,
+          storyLogicPlan: logicResult.logicPlan,
+        }, "best moments plan");
+        bestMomentsPlan = momentsResult.bestMomentsPlan || {};
+      } catch {
+        bestMomentsPlan = {};
+      }
+      setStoryWritingStage(68, "Writing the complete chapter story...");
       result = await requestStoryDraftStage({
         ...basePayload,
         stage: "prose",
         storySpine: spineResult.storySpine,
         storyLogicPlan: logicResult.logicPlan,
+        bestMomentsPlan,
       }, "chapter story");
     } else {
       result = await requestStoryDraftStage(basePayload, "scene breakdown", 5 * 60 * 1000);
@@ -911,8 +928,10 @@ async function requestFullStory(project, mode = "write") {
       title: result.draft.title,
       summary: result.draft.summary || previousDraft.summary || "",
       storySpine: result.draft.storySpine || previousDraft.storySpine || null,
+      bestMomentsPlan: result.draft.bestMomentsPlan || previousDraft.bestMomentsPlan || null,
       logicPlan: result.draft.logicPlan || previousDraft.logicPlan || null,
       quality: result.draft.quality || previousDraft.quality || null,
+      payoffQuality: result.draft.payoffQuality || previousDraft.payoffQuality || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],

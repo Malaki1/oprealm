@@ -7,7 +7,8 @@
   const PLAYER_STATES = ["playing_beat", "waiting_for_continue", "waiting_for_choice", "transitioning", "complete"];
   const DECISION_TYPES = [
     "trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice",
-    "mystery_deduction", "loyalty_choice", "betrayal_choice", "final_fate_choice",
+    "moral_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice",
+    "power_choice", "final_fate_choice",
   ];
 
   /**
