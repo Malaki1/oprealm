@@ -42,12 +42,19 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
   }
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
-  const existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
+  let existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
   if (existingJob?.status === "completed") return json(jobResponse(existingJob));
   if (existingJob?.status === "processing" || existingJob?.status === "queued") {
+    const updatedAt = Date.parse(`${existingJob.updated_at || existingJob.created_at || ""}Z`);
+    const stale = !Number.isFinite(updatedAt) || Date.now() - updatedAt > 4 * 60 * 1000;
+    if (stale) {
+      await markJobFailed(env, existingJob.id, new Error("The previous image request was interrupted."));
+      existingJob = { ...existingJob, status: "failed" };
+    } else {
     return json({ ok: false, jobId: existingJob.id, status: existingJob.status, retryable: true, error: "Scene artwork is still generating." }, 202, {
       "retry-after": "8",
     });
+    }
   }
   try {
     await assertRateLimit(env, user.id, SCENE_TOOL, { limit: 6, windowSeconds: 60 });
@@ -112,7 +119,7 @@ export async function onRequestPost({ request, env }) {
     return json({
       ok: false,
       error: status === 503
-        ? "The scene image service is temporarily busy. OPRealm will retry this scene automatically."
+        ? "The scene image service is temporarily busy. Press Try Again when you are ready."
         : error.message || "Scene image generation failed.",
       retryable: status === 503,
     }, status, status === 503 ? { "retry-after": "8" } : {});

@@ -7,19 +7,36 @@ export async function onRequestGet({ request, env }) {
     const user = await requireUser(request, env);
     const url = new URL(request.url);
     const id = url.searchParams.get("id");
-    if (!id) return json({ ok: false, error: "Missing generation job id." }, 400);
+    const idempotencyKey = String(url.searchParams.get("idempotencyKey") || "").trim().slice(0, 120);
+    const tool = String(url.searchParams.get("tool") || "").trim().slice(0, 80);
+    if (!id && (!idempotencyKey || !tool)) {
+      return json({ ok: false, error: "Missing generation job id." }, 400);
+    }
 
-    const job = await env.OPREALM_DB.prepare(
-      `
-        SELECT *
-        FROM generation_jobs
-        WHERE id = ?
-          AND web_user_id = ?
-        LIMIT 1
-      `,
-    )
-      .bind(id, user.id)
-      .first();
+    const job = id
+      ? await env.OPREALM_DB.prepare(
+        `
+          SELECT *
+          FROM generation_jobs
+          WHERE id = ?
+            AND web_user_id = ?
+          LIMIT 1
+        `,
+      )
+        .bind(id, user.id)
+        .first()
+      : await env.OPREALM_DB.prepare(
+        `
+          SELECT *
+          FROM generation_jobs
+          WHERE web_user_id = ?
+            AND tool = ?
+            AND idempotency_key = ?
+          LIMIT 1
+        `,
+      )
+        .bind(user.id, tool, idempotencyKey)
+        .first();
 
     if (!job) return json({ ok: false, error: "Generation job was not found." }, 404);
     return json(jobResponse(job));

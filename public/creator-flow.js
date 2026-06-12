@@ -2522,16 +2522,33 @@ async function generateStoryboardSceneImage(project, sceneId) {
       });
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 210000);
-    const response = await fetch("/api/story-scene-images", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-idempotency-key": scene.imageRequestId || "",
-      },
-      signal: controller.signal,
-      body: requestBody,
-    }).finally(() => window.clearTimeout(timeout));
-    const result = await response.json().catch(() => ({}));
+    let response;
+    let result;
+    try {
+      response = await fetch("/api/story-scene-images", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-idempotency-key": scene.imageRequestId || "",
+        },
+        signal: controller.signal,
+        body: requestBody,
+      });
+      result = await response.json().catch(() => ({}));
+    } catch (requestError) {
+      result = await waitForExistingSceneImageJob({
+        idempotencyKey: scene.imageRequestId,
+        sceneId,
+      });
+      response = { ok: Boolean(result?.ok && result?.status === "completed"), status: result?.status === "completed" ? 200 : 0 };
+      if (!response.ok) throw requestError;
+    } finally {
+      window.clearTimeout(timeout);
+    }
+    if (response.status === 202 && result.jobId) {
+      result = await waitForExistingSceneImageJob({ jobId: result.jobId, sceneId });
+      response = { ok: Boolean(result?.ok && result?.status === "completed"), status: result?.status === "completed" ? 200 : 202 };
+    }
     const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
     if (!response.ok || !result.ok || !generatedImageSource) {
       const retryable = Boolean(result.retryable || response.status === 202 || [502, 503, 504].includes(response.status));
@@ -2592,6 +2609,28 @@ async function generateStoryboardSceneImage(project, sceneId) {
     const errorTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
     if (errorTarget) errorTarget.textContent = latestScene.imageError;
   }
+}
+
+async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", sceneId = "" } = {}) {
+  const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
+  if (statusTarget) statusTarget.textContent = "Image created. Saving it safely...";
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 3 * 60 * 1000) {
+    const query = jobId
+      ? `id=${encodeURIComponent(jobId)}`
+      : `tool=story_scene_images&idempotencyKey=${encodeURIComponent(idempotencyKey)}`;
+    const response = await fetch(`/api/generation-job?${query}`, { cache: "no-store" });
+    const result = await response.json().catch(() => ({}));
+    if (response.ok && result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) return result;
+    if (response.ok && result.status === "failed") {
+      throw new Error(result.error || "Scene image generation failed. Press Try Again.");
+    }
+    if (response.status !== 404 && !response.ok) {
+      throw new Error(result.error || "Could not check the scene image status.");
+    }
+    await sleep(5000);
+  }
+  throw new Error("The image is still processing. Wait a moment, then press Try Again to check it.");
 }
 
 function queueStoryboardSceneImage(sceneId) {
