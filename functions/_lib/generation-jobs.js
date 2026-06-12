@@ -106,7 +106,7 @@ export async function enqueueGenerationJob(env, jobId, payload = {}) {
 
 export async function markJobProcessing(env, jobId) {
   await env.OPREALM_DB.prepare(
-    "UPDATE generation_jobs SET status = 'processing', updated_at = datetime('now') WHERE id = ?",
+    "UPDATE generation_jobs SET status = 'processing', error = NULL, completed_at = NULL, updated_at = datetime('now') WHERE id = ?",
   )
     .bind(jobId)
     .run();
@@ -121,6 +121,7 @@ export async function markJobCompleted(env, jobId, { result, creditsCharged, mod
           credits_charged = ?,
           model = ?,
           quality = ?,
+          error = NULL,
           updated_at = datetime('now'),
           completed_at = datetime('now')
       WHERE id = ?

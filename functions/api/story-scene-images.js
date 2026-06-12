@@ -1,6 +1,15 @@
 import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
-import { assertRateLimit } from "../_lib/generation-jobs.js";
+import {
+  assertRateLimit,
+  createGenerationJob,
+  findIdempotentJob,
+  jobResponse,
+  markJobCompleted,
+  markJobFailed,
+  markJobProcessing,
+  sha256Text,
+} from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 import { checkPromptSafety } from "../_lib/validate.js";
@@ -31,6 +40,14 @@ export async function onRequestPost({ request, env }) {
     body = await readJson(request, "Invalid scene image request.", 14 * 1024 * 1024);
   } catch {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
+  }
+  const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
+  const existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
+  if (existingJob?.status === "completed") return json(jobResponse(existingJob));
+  if (existingJob?.status === "processing" || existingJob?.status === "queued") {
+    return json({ ok: false, jobId: existingJob.id, status: existingJob.status, retryable: true, error: "Scene artwork is still generating." }, 202, {
+      "retry-after": "8",
+    });
   }
   try {
     await assertRateLimit(env, user.id, SCENE_TOOL, { limit: 6, windowSeconds: 60 });
@@ -71,10 +88,26 @@ export async function onRequestPost({ request, env }) {
 
   const referenceImages = normalizeReferenceImages(body.referenceImages);
   const webPrompt = buildScenePrompt(body, "web", referenceImages);
+  const promptHash = await sha256Text(`${SCENE_TOOL}:${SCENE_IMAGE_MODEL}:${SCENE_IMAGE_QUALITY}:${webPrompt}`);
+  const jobId = existingJob?.id || crypto.randomUUID();
+  if (!existingJob) {
+    await createGenerationJob(env, {
+      id: jobId,
+      userId: user.id,
+      tool: SCENE_TOOL,
+      promptHash,
+      idempotencyKey,
+      creditsReserved: SCENE_IMAGE_COST,
+      metadata: { source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120) },
+    });
+  }
+
   let web;
   try {
+    await markJobProcessing(env, jobId);
     web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
   } catch (error) {
+    await markJobFailed(env, jobId, error);
     const status = isTemporaryProviderError(error) ? 503 : 502;
     return json({
       ok: false,
@@ -85,21 +118,54 @@ export async function onRequestPost({ request, env }) {
     }, status, status === 503 ? { "retry-after": "8" } : {});
   }
 
-  await env.OPREALM_DB.prepare(
-    "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ?",
-  )
-    .bind(SCENE_IMAGE_COST, user.id)
-    .run();
-  await logAiUsage(env, user, webPrompt, web);
+  let webImageUrl = "";
+  let webImageDataUrl = "";
+  let r2Key = "";
+  if (env.OPREALM_ASSETS) {
+    r2Key = `story-scene-images/${user.id}/${jobId}.png`;
+    const bytes = Uint8Array.from(atob(web.b64), (char) => char.charCodeAt(0));
+    await env.OPREALM_ASSETS.put(r2Key, bytes, {
+      httpMetadata: { contentType: "image/png", cacheControl: "private, max-age=31536000, immutable" },
+      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120) },
+    });
+    webImageUrl = `/api/story-scene-image-file?jobId=${encodeURIComponent(jobId)}`;
+  } else {
+    webImageDataUrl = `data:image/png;base64,${web.b64}`;
+  }
 
-  return json({
-    ok: true,
-    webImageDataUrl: `data:image/png;base64,${web.b64}`,
+  const creditUpdate = await env.OPREALM_DB.prepare(
+    "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ? AND credits_remaining >= ?",
+  )
+    .bind(SCENE_IMAGE_COST, user.id, SCENE_IMAGE_COST)
+    .run();
+  if (!creditUpdate.meta?.changes) {
+    const error = Object.assign(new Error(`You need ${SCENE_IMAGE_COST} Creator credits to finish this scene image.`), { status: 402 });
+    await markJobFailed(env, jobId, error);
+    return json({ ok: false, error: error.message }, 402);
+  }
+
+  await logAiUsage(env, user, webPrompt, web);
+  const storedResult = {
+    webImageUrl,
+    webImageDataUrl,
     creditsUsed: SCENE_IMAGE_COST,
     model: web.model,
     quality: web.quality,
     generationMode: web.mode,
     referenceCount: referenceImages.length,
+    r2Key,
+  };
+  await markJobCompleted(env, jobId, {
+    result: storedResult,
+    creditsCharged: SCENE_IMAGE_COST,
+    model: web.model,
+    quality: web.quality,
+  });
+
+  return json({
+    ok: true,
+    jobId,
+    ...storedResult,
   });
 }
 

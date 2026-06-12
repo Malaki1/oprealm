@@ -2478,6 +2478,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   scene.imageProgress = 3;
   scene.imageGenerationStartedAt = new Date().toISOString();
   scene.imageError = "";
+  scene.imageRequestId = scene.imageRequestId || crypto.randomUUID();
   try {
     writeStoryboardProject(project);
   } catch (error) {
@@ -2495,6 +2496,8 @@ async function generateStoryboardSceneImage(project, sceneId) {
 
   try {
     const requestBody = JSON.stringify({
+        sceneId,
+        idempotencyKey: scene.imageRequestId || "",
         prompt: storyContext,
         visualPrompt: scene.imagePromptInternal,
         camera: scene.camera || "Wide Shot",
@@ -2539,16 +2542,20 @@ async function generateStoryboardSceneImage(project, sceneId) {
       const timeout = window.setTimeout(() => controller.abort(), 210000);
       response = await fetch("/api/story-scene-images", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          "x-idempotency-key": scene.imageRequestId || "",
+        },
         signal: controller.signal,
         body: requestBody,
       }).finally(() => window.clearTimeout(timeout));
       result = await response.json().catch(() => ({}));
-      const retryable = result.retryable || [502, 503, 504].includes(response.status);
+      const retryable = result.retryable || response.status === 202 || [502, 503, 504].includes(response.status);
       if (response.ok || !retryable || attempt === retryDelays.length - 1) break;
     }
-    if (!response.ok || !result.ok || !result.webImageDataUrl) {
-      const retryable = Boolean(result.retryable || [502, 503, 504].includes(response.status));
+    const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
+    if (!response.ok || !result.ok || !generatedImageSource) {
+      const retryable = Boolean(result.retryable || response.status === 202 || [502, 503, 504].includes(response.status));
       const prefix = response.status === 401
         ? "Please log in before generating scene images."
         : response.status === 402
@@ -2564,13 +2571,16 @@ async function generateStoryboardSceneImage(project, sceneId) {
     const latestProject = await compactStoryboardImages(ensureSceneList(readStoryboardProject()));
     const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId);
     if (!latestScene) throw new Error("Scene was removed before the image finished.");
-    latestScene.generatedImageUrl = await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+    latestScene.generatedImageUrl = result.webImageUrl
+      ? result.webImageUrl
+      : await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
     stopSceneImageProgress(sceneId);
     latestScene.imageProgress = 100;
     latestScene.imageGenerationStartedAt = "";
     latestScene.imageQueuedAt = "";
     latestScene.imageRetryCount = 0;
     latestScene.imageNextRetryAt = "";
+    latestScene.imageRequestId = "";
     setSceneImageProgress(sceneId, 100);
     await sleep(350);
     latestScene.status = "complete";
@@ -2630,6 +2640,7 @@ function queueStoryboardSceneImage(sceneId) {
   scene.imageQueuedAt = new Date().toISOString();
   scene.imageRetryCount = 0;
   scene.imageNextRetryAt = "";
+  scene.imageRequestId = crypto.randomUUID();
   scene.imageError = "";
   writeStoryboardProject(project);
   rerenderStoryboard(project);
