@@ -50,10 +50,10 @@ body::before {
   box-shadow: 18px 0 50px rgba(0, 0, 0, 0.28);
 }
 .realm-brand { text-align: center; }
-.realm-crown { display: block; color: var(--gold); font-size: 2rem; text-shadow: 0 0 18px #ff9d00; }
-.realm-brand strong, .realm-brand b { display: block; font-family: "Baloo 2", sans-serif; letter-spacing: 0; }
-.realm-brand strong { color: #ffdc7a; font-size: 1.05rem; }
-.realm-brand b { font-size: 1.65rem; line-height: 1; background: linear-gradient(90deg, #ff70df, #6fc8ff); color: transparent; background-clip: text; }
+.realm-logo { display: inline-flex; align-items: center; gap: 12px; margin: 0 auto 10px; color: #fff; text-decoration: none; font-size: 1.18rem; font-weight: 900; }
+.brand-mark { position: relative; display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 10px; background: linear-gradient(135deg, var(--pink), var(--purple) 48%, var(--cyan)); box-shadow: 0 0 28px rgba(141,71,255,.6); transform: rotate(45deg); }
+.brand-mark span { width: 15px; height: 15px; border-radius: 5px; background: #020817; }
+.realm-brand b { display: block; font: 800 1.65rem/1 "Baloo 2", sans-serif; letter-spacing: 0; background: linear-gradient(90deg, #ff70df, #6fc8ff); color: transparent; background-clip: text; }
 .realm-brand p { margin: 9px auto 0; max-width: 180px; color: #d2d8eb; font-size: 0.72rem; line-height: 1.45; }
 .realm-sidebar nav { display: grid; gap: 4px; }
 .realm-sidebar nav a {
