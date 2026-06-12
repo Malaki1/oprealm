@@ -397,7 +397,7 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, creat
     schemaName: "oprealm_full_chapter_story",
     instructions: "You are a celebrated children's adventure novelist. Write immersive, exciting pick-a-path prose, not a mission log, synopsis or production plan.",
     input: prompt,
-    effort: "medium",
+    effort: "low",
     maxOutputTokens: 18000,
     seed,
   });
