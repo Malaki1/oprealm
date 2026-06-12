@@ -45,6 +45,7 @@ export async function onRequestGet({ request, env }) {
         thumbnail_url,
         tags,
         age_band,
+        project_snapshot_json,
         review_status,
         created_at,
         approved_at
@@ -57,7 +58,27 @@ export async function onRequestGet({ request, env }) {
     .bind(...params, limit)
     .all();
 
-  return json({ ok: true, creations: creations.results || [] });
+  return json({
+    ok: true,
+    creations: (creations.results || []).map((creation) => {
+      const snapshot = safeJson(creation.project_snapshot_json);
+      const publishing = snapshot.publishing || {};
+      const { project_snapshot_json: _snapshot, ...publicCreation } = creation;
+      return {
+        ...publicCreation,
+        creator_name: cleanText(publishing.author || "", 80) || "OPREALM Creator",
+        genre: cleanText(publishing.genre || snapshot.genre || "", 60),
+        cover_card: {
+          subtitle: cleanText(publishing.subtitle || "", 120),
+          author: cleanText(publishing.author || "", 80),
+          font: cleanText(publishing.coverFont || "", 24),
+          colour: cleanColour(publishing.coverColour),
+          effect: cleanText(publishing.coverEffect || "", 24),
+          position: cleanText(publishing.coverPosition || "", 16),
+        },
+      };
+    }),
+  });
 }
 
 export async function onRequestPost({ request, env }) {
@@ -69,7 +90,7 @@ export async function onRequestPost({ request, env }) {
   let body;
   try {
     user = await requireUser(request, env);
-    body = await readJson(request, "Invalid creation submission request.");
+    body = await readJson(request, "Invalid creation submission request.", 14 * 1024 * 1024);
   } catch (error) {
     return json({ ok: false, error: error.message || "Invalid creation submission request." }, error.status || 400);
   }
@@ -84,7 +105,7 @@ export async function onRequestPost({ request, env }) {
   const tags = cleanText(body.tags || "", 200);
   const ageBand = cleanText(body.ageBand || body.age_band || "", 24);
   const mediaUrl = cleanUrl(body.mediaUrl || body.media_url || "");
-  const thumbnailUrl = cleanUrl(body.thumbnailUrl || body.thumbnail_url || "");
+  let thumbnailUrl = cleanUrl(body.thumbnailUrl || body.thumbnail_url || "");
   const projectSnapshot = JSON.stringify(body.projectSnapshot || body.project_snapshot || []).slice(0, 8000);
 
   if (title.length < 3 || description.length < 12) {
@@ -96,7 +117,44 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: error.message || "Please remove unsafe wording before submitting." }, error.status || 400);
   }
 
-  const id = crypto.randomUUID();
+  const requestedId = cleanId(body.creationId || body.creation_id || "");
+  const existing = requestedId
+    ? await env.OPREALM_DB.prepare(
+      "SELECT id, owner_discord_user_id, review_status FROM public_creations WHERE id = ? AND review_status != 'deleted' LIMIT 1",
+    ).bind(requestedId).first()
+    : null;
+  if (requestedId && (!existing || existing.owner_discord_user_id !== `web:${user.id}`)) {
+    return json({ ok: false, error: "That published creation could not be updated." }, 404);
+  }
+
+  const id = existing?.id || crypto.randomUUID();
+  const cover = decodeImageDataUrl(body.coverImageDataUrl || body.cover_image_data_url || "");
+  if (cover) {
+    if (!env.OPREALM_ASSETS) {
+      return json({ ok: false, error: "RealmVerse cover storage is not connected." }, 500);
+    }
+    const r2Key = coverKey(user.id, id, cover.extension);
+    await env.OPREALM_ASSETS.put(r2Key, cover.bytes, {
+      httpMetadata: { contentType: cover.contentType, cacheControl: "public, max-age=31536000, immutable" },
+      customMetadata: { userId: user.id, creationId: id, assetType: "published-cover" },
+    });
+    thumbnailUrl = `/api/creation-cover?id=${encodeURIComponent(id)}`;
+  }
+
+  if (existing) {
+    await env.OPREALM_DB.prepare(
+      `
+        UPDATE public_creations
+        SET title = ?, type = ?, description = ?, media_url = ?, thumbnail_url = ?,
+            tags = ?, age_band = ?, project_snapshot_json = ?, updated_at = datetime('now')
+        WHERE id = ? AND owner_discord_user_id = ?
+      `,
+    )
+      .bind(title, type, description, mediaUrl, thumbnailUrl, tags, ageBand, projectSnapshot, id, `web:${user.id}`)
+      .run();
+    return json({ ok: true, id, reviewStatus: existing.review_status || "pending", updated: true });
+  }
+
   await env.OPREALM_DB.prepare(
     `
       INSERT INTO public_creations (
@@ -122,6 +180,52 @@ export async function onRequestPost({ request, env }) {
     .run();
 
   return json({ ok: true, id, reviewStatus: "pending" }, 201);
+}
+
+function decodeImageDataUrl(value) {
+  const raw = String(value || "");
+  if (!raw) return null;
+  const match = raw.match(/^data:image\/(png|jpeg|webp);base64,([a-z0-9+/=\s]+)$/i);
+  if (!match) {
+    const error = new Error("The selected cover image could not be prepared for publishing.");
+    error.status = 400;
+    throw error;
+  }
+  const contentType = `image/${match[1].toLowerCase()}`;
+  const extension = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase();
+  const binary = atob(match[2].replace(/\s/g, ""));
+  if (binary.length > 10 * 1024 * 1024) {
+    const error = new Error("The selected cover image is too large to publish.");
+    error.status = 413;
+    throw error;
+  }
+  return {
+    contentType,
+    extension,
+    bytes: Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+  };
+}
+
+function coverKey(userId, creationId, extension) {
+  return `public-creations/${userId}/${creationId}/cover.${extension}`;
+}
+
+function cleanId(value) {
+  const id = String(value || "").trim();
+  return /^[a-f0-9-]{36}$/i.test(id) ? id : "";
+}
+
+function cleanColour(value) {
+  const colour = String(value || "").trim();
+  return /^#[a-f0-9]{3,8}$/i.test(colour) ? colour : "";
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value || "{}") || {};
+  } catch {
+    return {};
+  }
 }
 
 function sanitizeChoice(value, allowed, fallback) {

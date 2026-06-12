@@ -59,6 +59,10 @@ function hydrate() {
   renderPreview();
   showStep(activeStep);
   bindEvents();
+  if (publishing.creationId) {
+    document.querySelector("#publishStoryButton").textContent = "Update RealmVerse Cover";
+    document.querySelector("#publishPermission").nextElementSibling.textContent = "I have reviewed these updates and want to apply them to my RealmVerse story.";
+  }
 }
 
 function deriveTags() {
@@ -229,15 +233,125 @@ async function compressImage(dataUrl) {
     image.onerror = () => resolve(dataUrl); image.src = dataUrl;
   });
 }
+async function renderPublishedCover() {
+  const source = selectedCover();
+  const image = await loadImage(source);
+  const canvas = document.createElement("canvas");
+  canvas.width = 900;
+  canvas.height = 1350;
+  const context = canvas.getContext("2d");
+  drawCoverImage(context, image, canvas.width, canvas.height);
+
+  const isTop = publishing.coverPosition === "top";
+  const gradient = context.createLinearGradient(0, isTop ? 0 : 760, 0, isTop ? 590 : 1350);
+  if (isTop) {
+    gradient.addColorStop(0, "rgba(2,6,19,.94)");
+    gradient.addColorStop(1, "rgba(2,6,19,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 900, 620);
+  } else {
+    gradient.addColorStop(0, "rgba(2,6,19,0)");
+    gradient.addColorStop(1, "rgba(2,6,19,.96)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 730, 900, 620);
+  }
+
+  const titleY = isTop ? 125 : 1010;
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  context.fillStyle = publishing.coverColour || "#fff4d6";
+  context.font = `800 76px ${coverCanvasFont()}`;
+  applyCoverTextEffect(context);
+  const titleLines = wrapCanvasText(context, publishing.title, 760, 3);
+  titleLines.forEach((line, index) => context.fillText(line.toUpperCase(), 450, titleY + index * 74));
+  context.shadowColor = "transparent";
+  context.shadowBlur = 0;
+  context.shadowOffsetX = 0;
+  context.shadowOffsetY = 0;
+
+  const detailsY = titleY + titleLines.length * 74 + 22;
+  context.fillStyle = "#ffffff";
+  context.font = `700 31px ${coverCanvasFont()}`;
+  const subtitleLines = wrapCanvasText(context, publishing.subtitle, 720, 2);
+  subtitleLines.forEach((line, index) => context.fillText(line, 450, detailsY + index * 38));
+  context.font = "600 24px Arial, sans-serif";
+  context.fillText(`By ${publishing.author}`, 450, detailsY + subtitleLines.length * 38 + 22);
+  return canvas.toDataURL("image/jpeg", .88);
+}
+function loadImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("The selected cover could not be loaded."));
+    image.src = source;
+  });
+}
+function drawCoverImage(context, image, width, height) {
+  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+  const drawWidth = image.naturalWidth * scale;
+  const drawHeight = image.naturalHeight * scale;
+  context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+function coverCanvasFont() {
+  if (publishing.coverFont === "cinematic") return "Georgia, serif";
+  return "'Arial Rounded MT Bold', 'Trebuchet MS', Arial, sans-serif";
+}
+function applyCoverTextEffect(context) {
+  if (publishing.coverEffect === "none") return;
+  context.shadowColor = publishing.coverEffect === "shadow" ? "#000000" : "#8b45ff";
+  context.shadowBlur = publishing.coverEffect === "shadow" ? 0 : 24;
+  context.shadowOffsetX = publishing.coverEffect === "shadow" ? 7 : 0;
+  context.shadowOffsetY = publishing.coverEffect === "shadow" ? 7 : 0;
+}
+function wrapCanvasText(context, value, maxWidth, maxLines) {
+  const words = String(value || "").trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && context.measureText(candidate).width > maxWidth) {
+      lines.push(line);
+      line = word;
+      if (lines.length === maxLines - 1) break;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  return lines.length ? lines : ["Untitled Story"];
+}
 async function publishStory() {
   const button = document.querySelector("#publishStoryButton");
   const status = document.querySelector("#publishStatus");
   button.disabled = true; status.textContent = "Submitting your book to the RealmVerse review team...";
   updateMetadata();
   try {
+    status.textContent = "Preparing your finished cover card...";
+    const coverImageDataUrl = await renderPublishedCover();
+    status.textContent = publishing.creationId
+      ? "Updating your RealmVerse book and cover..."
+      : "Submitting your book to the RealmVerse review team...";
     const response = await fetch("/api/creations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
       title: publishing.title, type: "story_game", description: publishing.description, mediaUrl: `${location.origin}/ai-storybook.html`,
-      tags: publishing.tags, ageBand: publishing.age, projectSnapshot: { projectId: project.id, storybookId: project.storybookId, cover: selectedCover().slice(0, 120), sceneCount: scenes.length, genre: publishing.genre, age: publishing.age },
+      creationId: publishing.creationId || "",
+      coverImageDataUrl,
+      tags: publishing.tags, ageBand: publishing.age, projectSnapshot: {
+        projectId: project.id,
+        storybookId: project.storybookId,
+        sceneCount: scenes.length,
+        genre: publishing.genre,
+        age: publishing.age,
+        publishing: {
+          title: publishing.title,
+          subtitle: publishing.subtitle,
+          author: publishing.author,
+          genre: publishing.genre,
+          coverColour: publishing.coverColour,
+          coverEffect: publishing.coverEffect,
+          coverPosition: publishing.coverPosition,
+          coverFont: publishing.coverFont,
+        },
+      },
     })});
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || "Publishing could not finish.");
