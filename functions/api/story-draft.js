@@ -68,7 +68,7 @@ const DECISION_NODE_SCHEMA = {
 const storySpineSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["heroWant", "heroFear", "heroFlaw", "emotionalNeed", "centralMystery", "mainAntagonisticForce", "keyRelationshipConflict", "majorSecret", "falseBelief", "trueRevelation", "chapterHooks", "toneProfile", "targetFeeling"],
+  required: ["heroWant", "heroFear", "heroFlaw", "emotionalNeed", "centralMystery", "mainAntagonisticForce", "keyRelationshipConflict", "majorSecret", "falseBelief", "trueRevelation", "chapterHooks", "toneProfile", "targetFeeling", "characterVoiceProfiles", "chapterAdventurePromises", "reversalDesign"],
   properties: {
     heroWant: { type: "string" },
     heroFear: { type: "string" },
@@ -83,6 +83,51 @@ const storySpineSchema = {
     chapterHooks: { type: "array", minItems: 4, maxItems: 8, items: { type: "string" } },
     toneProfile: { type: "string" },
     targetFeeling: { type: "string" },
+    characterVoiceProfiles: {
+      type: "array",
+      minItems: 1,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["characterName", "role", "speechRhythm", "vocabulary", "verbalHabit", "avoids"],
+        properties: {
+          characterName: { type: "string" },
+          role: { type: "string" },
+          speechRhythm: { type: "string" },
+          vocabulary: { type: "string" },
+          verbalHabit: { type: "string" },
+          avoids: { type: "string" },
+        },
+      },
+    },
+    chapterAdventurePromises: {
+      type: "array",
+      minItems: 4,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["chapterNumber", "tensionEngine", "wowMoment", "endingHook"],
+        properties: {
+          chapterNumber: { type: "integer", minimum: 1, maximum: 8 },
+          tensionEngine: { type: "string" },
+          wowMoment: { type: "string" },
+          endingHook: { type: "string" },
+        },
+      },
+    },
+    reversalDesign: {
+      type: "object",
+      additionalProperties: false,
+      required: ["falseAssumption", "hiddenMotive", "reversal", "emotionalCost"],
+      properties: {
+        falseAssumption: { type: "string" },
+        hiddenMotive: { type: "string" },
+        reversal: { type: "string" },
+        emotionalCost: { type: "string" },
+      },
+    },
   },
 };
 
@@ -332,6 +377,9 @@ export async function generateStorySpine(env, input, seed = "story-spine") {
     "The hero's want must be concrete. The fear and flaw must actively cause trouble.",
     "The central mystery and major secret must support surprising but fair discoveries.",
     "The relationship conflict must involve a named supporting character when one exists.",
+    "Create a distinct voice profile for every important named character. Vary rhythm, vocabulary, sentence length, humor, bluntness and verbal habits so dialogue identifies the speaker without labels.",
+    "Create 4-8 chapter adventure promises. Every chapter needs an escalating tension engine, an illustration-worthy WOW moment and an irresistible ending hook.",
+    "Design a fair reversal with a false assumption, hidden motive, truth-flipping reveal and emotional cost. It must be foreshadowed without becoming obvious.",
     "Chapter hooks must escalate and must include cliffhangers, dangerous arrivals, betrayal hints, impossible choices, emotional reversals or discoveries that change everything.",
     "Do not write scenes, chapters, visual prompts or production notes.",
   ].join("\n");
@@ -379,18 +427,29 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, creat
     `Approved Pick-a-Path Logic Plan: ${JSON.stringify(logicPlan)}`,
     `Creator Bible: ${JSON.stringify(creatorBible)}`,
     "Write only the complete chapter prose, title and spoiler-light summary. Do not create scenes, image prompts, visual directions, metadata or a new logic plan.",
+    "Write as if creating a bestselling children's adventure series: entertainment first, invisible structure and irresistible momentum.",
     "Write a page-turning children's adventure with emotional stakes, vivid action, strong character voices, suspenseful chapter endings, surprising discoveries and meaningful choices.",
     "Write approximately 1200-1900 words in 4-8 titled chapters with 3-8 substantial paragraphs per chapter.",
-    "Every chapter must contain a clear character want, a problem that complicates that want, dialogue with distinct voices, a sensory world detail, an emotional reaction, a clue/twist/setback/reveal and a reason to keep reading.",
+    "Never expose the framework. Do not name a character's want, fear, flaw, emotional need, lesson, arc, problem, choice structure or story function in the prose.",
+    "Show emotion through body reactions, spoken words, interrupted actions, mistakes and consequences. Minimize explanatory introspection and author commentary.",
+    "Target 35-50 percent dialogue. Important characters must follow their voice profiles closely enough to be recognized from dialogue alone.",
+    "Every chapter must contain active pressure, distinct dialogue, several sensory details, a visible emotional reaction, a planted clue or payoff, a setback or reversal and a reason to keep reading.",
+    "Every chapter must deliver one illustration-worthy WOW moment: an impossible discovery, colossal creature, hidden world, magical event, terrifying enemy, unexpected ally, impossible object or reality-changing twist.",
+    "Never allow two ordinary travel, investigation or conversation chapters in a row. Escalate scale, danger, wonder or emotional cost.",
     "Every non-final chapter must end with a cliffhanger, shocking reveal, dangerous arrival, betrayal hint, impossible choice, emotional reversal or discovery that changes everything.",
     "Before every planned decision, a named character must directly ask the hero to choose between the concrete options. The choice must feel like the climax of the conversation, never a UI insert.",
     "Plant every planned clue visibly before it becomes useful. Later dialogue or action must allow the reader to connect that clue to the wiser choice.",
     "Include real setbacks and costly reversals. Let plans fail, allies disagree and discoveries change what the characters believe.",
+    "Most stories should contain false trust, a hidden motive, a misunderstood clue or a mistaken assumption. The reversal must make earlier concrete details suddenly meaningful.",
+    "Make decisions genuinely uncomfortable. Both options must protect something valuable and risk something painful; never make one answer obviously correct.",
+    "Use smells, sounds, textures, lighting, weather and movement to make locations physical, while keeping descriptions active and concise.",
     "Use the lesson through consequences and changed behavior, never by explaining the moral.",
     "Do not write outline language, future summaries, production language, scene labels, prompts, lessons, arcs or commentary about storytelling.",
     "Avoid symbolic filler, unexplained magical objects, hybrid messengers and vague emotional gestures when a concrete action or spoken line can tell the story.",
     "Use only the supplied cast and naturally necessary unnamed background people. Do not import characters from other saved stories.",
     "Keep all content original, child-safe and suitable for ages 7-13.",
+    "Before returning, silently inspect and revise the story. Fix any chapter lacking tension, spectacle, a hook, distinct dialogue or sensory life. Fix twists without foreshadowing, obvious choices, unearned victories and framework-exposing prose.",
+    "Return only the polished final story. Never mention this hidden inspection.",
   ].join("\n");
   return requestStructured(env, {
     schema: proseSchema,
@@ -677,6 +736,39 @@ function normalizeStorySpine(value) {
     chapterHooks: cleanStringArray(source.chapterHooks, 8),
     toneProfile: cleanText(source.toneProfile, 200),
     targetFeeling: cleanText(source.targetFeeling, 200),
+    characterVoiceProfiles: cleanVoiceProfiles(source.characterVoiceProfiles),
+    chapterAdventurePromises: cleanChapterAdventurePromises(source.chapterAdventurePromises),
+    reversalDesign: cleanReversalDesign(source.reversalDesign),
+  };
+}
+
+function cleanVoiceProfiles(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 8).map((profile) => ({
+    characterName: cleanText(profile?.characterName, 100),
+    role: cleanText(profile?.role, 100),
+    speechRhythm: cleanText(profile?.speechRhythm, 240),
+    vocabulary: cleanText(profile?.vocabulary, 240),
+    verbalHabit: cleanText(profile?.verbalHabit, 240),
+    avoids: cleanText(profile?.avoids, 240),
+  })).filter((profile) => profile.characterName);
+}
+
+function cleanChapterAdventurePromises(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 8).map((promise, index) => ({
+    chapterNumber: Math.max(1, Math.min(8, Number(promise?.chapterNumber) || index + 1)),
+    tensionEngine: cleanProse(promise?.tensionEngine, 500),
+    wowMoment: cleanProse(promise?.wowMoment, 500),
+    endingHook: cleanProse(promise?.endingHook, 500),
+  }));
+}
+
+function cleanReversalDesign(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    falseAssumption: cleanProse(source.falseAssumption, 500),
+    hiddenMotive: cleanProse(source.hiddenMotive, 500),
+    reversal: cleanProse(source.reversal, 500),
+    emotionalCost: cleanProse(source.emotionalCost, 500),
   };
 }
 

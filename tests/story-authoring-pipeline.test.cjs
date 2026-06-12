@@ -26,7 +26,24 @@ function qualityFixture() {
     ],
   }));
   return {
-    storySpine: { heroFlaw: "Mira refuses help because she fears slowing everyone down." },
+    storySpine: {
+      heroFlaw: "Mira refuses help because she fears slowing everyone down.",
+      characterVoiceProfiles: [
+        { characterName: "Mira", speechRhythm: "quick and hopeful" },
+        { characterName: "Rowan", speechRhythm: "dry and precise" },
+      ],
+      chapterAdventurePromises: [
+        { chapterNumber: 1, tensionEngine: "bridge collapse", wowMoment: "floating city", endingHook: "footsteps" },
+        { chapterNumber: 2, tensionEngine: "masked pursuit", wowMoment: "clockwork dragon", endingHook: "gate opens" },
+        { chapterNumber: 3, tensionEngine: "final pursuit", wowMoment: "the ocean opens", endingHook: "truth revealed" },
+      ],
+      reversalDesign: {
+        falseAssumption: "The guide is loyal.",
+        hiddenMotive: "The guide forged the warning.",
+        reversal: "The reversed seal proves it.",
+        emotionalCost: "Mira must admit Rowan was right.",
+      },
+    },
     logicPlan: {
       decisions,
       clues: [
@@ -70,6 +87,22 @@ test("quality validation rejects a decision without a planted clue", async () =>
   const result = validateStoryQuality(fixture);
   assert.equal(result.metrics.ungroundedDecisions, 1);
   assert.match(result.errors.join(" "), /reference a clue planted earlier/i);
+});
+
+test("quality validation rejects prose that exposes the hidden framework", async () => {
+  const { validateStoryQuality } = await qualityModule;
+  const fixture = qualityFixture();
+  fixture.chapters[0].paragraphs.unshift("Mira's emotional need was to accept help, but her character flaw made that difficult.");
+  const result = validateStoryQuality(fixture);
+  assert.match(result.errors.join(" "), /exposes hidden story framework/i);
+});
+
+test("quality validation reports dialogue, tension and spectacle metrics", async () => {
+  const { validateStoryQuality } = await qualityModule;
+  const result = validateStoryQuality(qualityFixture());
+  assert.ok(result.metrics.dialogueRatio > 0);
+  assert.equal(typeof result.metrics.lowTensionChapters, "number");
+  assert.equal(typeof result.metrics.lowSpectacleChapters, "number");
 });
 
 test("fallback decisions are bounded, specific, and free of old generic wording", () => {
