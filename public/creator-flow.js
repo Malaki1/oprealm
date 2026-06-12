@@ -255,7 +255,6 @@ let storyReaderAudioUrl = "";
 let storyReaderProgressTimer = null;
 let storyReaderGenerationToken = 0;
 const sceneImageProgressTimers = new Map();
-const sceneImageRecoveryTimers = new Map();
 const sceneImageGenerationQueue = [];
 let sceneImageQueueActive = false;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
@@ -326,12 +325,7 @@ function sanitizeStoryboardProject(project = {}) {
     const generationStartedAt = Date.parse(scene.imageGenerationStartedAt || "");
     const generationIsStale = scene.status === "generating"
       && (!Number.isFinite(generationStartedAt) || Date.now() - generationStartedAt > 3 * 60 * 1000);
-    const savedTemporaryFailure = scene.status === "image_error"
-      && Number(scene.imageRetryCount || 0) < 4
-      && /\b(?:502|503|504)\b|image service (?:stayed|was) (?:busy|temporarily)|service unavailable/i.test(scene.imageError || "");
-    const recoveryAt = savedTemporaryFailure
-      ? scene.imageNextRetryAt || new Date(Date.now() + 5000).toISOString()
-      : scene.imageNextRetryAt;
+    const savedRecoveryQueue = scene.status === "image_queued" && Boolean(scene.imageNextRetryAt);
     return {
       ...scene,
       title: sanitizeStoryPlaceholders(scene.title),
@@ -339,15 +333,15 @@ function sanitizeStoryboardProject(project = {}) {
       imagePromptInternal: sanitizeStoryPlaceholders(scene.imagePromptInternal),
       videoPromptInternal: sanitizeStoryPlaceholders(scene.videoPromptInternal),
       selectedObjectIds: (scene.selectedObjectIds || []).filter((id) => !placeholderIds.has(id)),
-      status: generationIsStale ? "image_error" : savedTemporaryFailure ? "image_queued" : scene.status,
+      status: generationIsStale || savedRecoveryQueue ? "image_error" : scene.status,
       imageProgress: generationIsStale ? 0 : scene.imageProgress,
       imageGenerationStartedAt: generationIsStale ? "" : scene.imageGenerationStartedAt,
-      imageQueuedAt: savedTemporaryFailure ? scene.imageQueuedAt || new Date().toISOString() : scene.imageQueuedAt,
-      imageNextRetryAt: recoveryAt,
+      imageQueuedAt: savedRecoveryQueue ? "" : scene.imageQueuedAt,
+      imageNextRetryAt: "",
       imageError: generationIsStale
         ? "Image generation was interrupted. Press Try Again."
-        : savedTemporaryFailure
-          ? "The image service is cooling down. OPRealm will retry this scene automatically."
+        : savedRecoveryQueue
+          ? "Image generation paused. Press Try Again when you are ready."
           : friendlySceneImageError(scene.imageError),
     };
   });
@@ -566,12 +560,9 @@ function renderStoryboardScenes(project) {
               ? "needs-image"
               : "draft";
       const queuePosition = queuePositionById.get(scene.id) || 0;
-      const recoveryQueued = Boolean(scene.imageNextRetryAt);
-      const queueLabel = recoveryQueued
-        ? "Recovery queued"
-        : queuePosition
-          ? `Queued ${queuePosition} of ${queuedTotal}`
-          : "Queued";
+      const queueLabel = queuePosition
+        ? `Queued ${queuePosition} of ${queuedTotal}`
+        : "Queued";
       const statusLabel = {
         complete: "Complete",
         generating: "Generating",
@@ -632,7 +623,7 @@ function renderStoryboardScenes(project) {
                     <span class="scene-queue-position">${queuePosition || "?"}</span>
                     <strong>${escapeHtml(queueLabel)}</strong>
                     <small>Scene ${index + 1}: ${escapeHtml(scene.title || `Scene ${index + 1}`)}</small>
-                    <small>${recoveryQueued ? "OPRealm will retry automatically after the image service cools down." : "Its image will start automatically when the current one finishes."}</small>
+                    <small>Its image will start automatically when the current queued scene finishes.</small>
                   </div>`
               : hasImage && mediaMode === "video"
                 ? hasVideo
@@ -667,7 +658,7 @@ function renderStoryboardScenes(project) {
             <div class="scene-image-tools">
               <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? "Try Again (24 credits)" : "Generate Image (24 credits)"}</button>
               <button class="scene-action scene-video-button" data-bring-scene-to-life="${escapeHtml(scene.id)}" type="button" ${!hasImage || videoStatus === "generating" ? "disabled" : ""}>${videoButtonText}</button>
-              <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "queued" ? recoveryQueued ? "The image service is cooling down. This scene will retry automatically." : `${escapeHtml(queueLabel)}: Scene ${index + 1} will generate automatically.` : status === "needs-image" ? "Ready for artwork." : status === "image-error" ? escapeHtml(scene.imageError || "Image generation failed. Try again.") : ""}</span>
+              <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "queued" ? `${escapeHtml(queueLabel)}: Scene ${index + 1} will generate automatically.` : status === "needs-image" ? "Ready for artwork." : status === "image-error" ? escapeHtml(scene.imageError || "Image generation failed. Press Try Again to retry manually.") : ""}</span>
               <span class="scene-video-status" data-scene-video-status="${escapeHtml(scene.id)}">${videoStatus === "generating" ? escapeHtml(scene.videoMessage || "Creating video...") : videoStatus === "complete" ? "Scene video ready." : videoStatus === "video_ready" ? "Scene video canvas is ready." : videoStatus === "video_error" ? escapeHtml(scene.videoError || "Video setup failed. Try again.") : ""}</span>
             </div>
           </div>
@@ -2529,30 +2520,18 @@ async function generateStoryboardSceneImage(project, sceneId) {
         continuityBrief: `Scene ${sceneIndex + 1} of ${project.title || "an OPREALM story"}. Preserve the saved character, selected world, outfit colors, accessories, and the previous scene logic.`,
         referenceImages: storyboardReferenceImages(project, scene),
       });
-    let response;
-    let result;
-    const retryDelays = [0, 8000, 16000];
-    for (let attempt = 0; attempt < retryDelays.length; attempt += 1) {
-      if (retryDelays[attempt]) {
-        const retryStatus = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
-        if (retryStatus) retryStatus.textContent = `Image service busy. Retrying automatically (${attempt + 1} of ${retryDelays.length})...`;
-        await sleep(retryDelays[attempt]);
-      }
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 210000);
-      response = await fetch("/api/story-scene-images", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-idempotency-key": scene.imageRequestId || "",
-        },
-        signal: controller.signal,
-        body: requestBody,
-      }).finally(() => window.clearTimeout(timeout));
-      result = await response.json().catch(() => ({}));
-      const retryable = result.retryable || response.status === 202 || [502, 503, 504].includes(response.status);
-      if (response.ok || !retryable || attempt === retryDelays.length - 1) break;
-    }
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 210000);
+    const response = await fetch("/api/story-scene-images", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-idempotency-key": scene.imageRequestId || "",
+      },
+      signal: controller.signal,
+      body: requestBody,
+    }).finally(() => window.clearTimeout(timeout));
+    const result = await response.json().catch(() => ({}));
     const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
     if (!response.ok || !result.ok || !generatedImageSource) {
       const retryable = Boolean(result.retryable || response.status === 202 || [502, 503, 504].includes(response.status));
@@ -2561,7 +2540,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
         : response.status === 402
           ? "Not enough Creator credits for this scene image."
           : [502, 503, 504].includes(response.status)
-            ? "The image service stayed busy after automatic retries. Press Try Again and OPRealm will resume this scene."
+            ? "The image service is temporarily busy. Press Try Again when you are ready."
             : "";
       const generationError = new Error(prefix || result.error || `Scene image generation failed (${response.status || "network"}).`);
       generationError.retryable = retryable;
@@ -2592,22 +2571,6 @@ async function generateStoryboardSceneImage(project, sceneId) {
     stopSceneImageProgress(sceneId);
     const latestProject = ensureSceneList(readStoryboardProject());
     const latestScene = (latestProject.scenes || []).find((item) => item.id === sceneId) || scene;
-    const retryCount = Number(latestScene.imageRetryCount || 0);
-    if (error.retryable && retryCount < 4) {
-      const recoveryDelays = [45000, 90000, 180000, 300000];
-      const delay = recoveryDelays[retryCount];
-      latestScene.status = "image_queued";
-      latestScene.imageProgress = 0;
-      latestScene.imageGenerationStartedAt = "";
-      latestScene.imageQueuedAt = new Date().toISOString();
-      latestScene.imageRetryCount = retryCount + 1;
-      latestScene.imageNextRetryAt = new Date(Date.now() + delay).toISOString();
-      latestScene.imageError = "The image service is cooling down. OPRealm will retry this scene automatically.";
-      writeStoryboardProject(latestProject);
-      rerenderStoryboard(latestProject);
-      scheduleSceneImageRecovery(sceneId, delay);
-      return;
-    }
     latestScene.status = "image_error";
     latestScene.imageProgress = 0;
     latestScene.imageGenerationStartedAt = "";
@@ -2648,23 +2611,6 @@ function queueStoryboardSceneImage(sceneId) {
   processSceneImageQueue();
 }
 
-function scheduleSceneImageRecovery(sceneId, delayMs) {
-  const existingTimer = sceneImageRecoveryTimers.get(sceneId);
-  if (existingTimer) window.clearTimeout(existingTimer);
-  const timer = window.setTimeout(() => {
-    sceneImageRecoveryTimers.delete(sceneId);
-    const project = ensureSceneList(readStoryboardProject());
-    const scene = (project.scenes || []).find((item) => item.id === sceneId);
-    if (!scene || scene.status !== "image_queued" || scene.generatedImageUrl) return;
-    scene.imageNextRetryAt = "";
-    writeStoryboardProject(project);
-    rerenderStoryboard(project);
-    if (!sceneImageGenerationQueue.includes(sceneId)) sceneImageGenerationQueue.push(sceneId);
-    processSceneImageQueue();
-  }, Math.max(0, Number(delayMs) || 0));
-  sceneImageRecoveryTimers.set(sceneId, timer);
-}
-
 async function processSceneImageQueue() {
   if (sceneImageQueueActive) return;
   const sceneId = sceneImageGenerationQueue.shift();
@@ -2690,11 +2636,7 @@ function resumeQueuedSceneImages(project) {
       return Number(a.order || 0) - Number(b.order || 0);
     })
     .forEach((scene) => {
-      const retryAt = Date.parse(scene.imageNextRetryAt || "");
-      const retryDelay = Number.isFinite(retryAt) ? retryAt - Date.now() : 0;
-      if (retryDelay > 0) {
-        scheduleSceneImageRecovery(scene.id, retryDelay);
-      } else if (!sceneImageGenerationQueue.includes(scene.id)) {
+      if (!sceneImageGenerationQueue.includes(scene.id)) {
         sceneImageGenerationQueue.push(scene.id);
       }
     });

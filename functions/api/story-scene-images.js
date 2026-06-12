@@ -172,11 +172,9 @@ export async function onRequestPost({ request, env }) {
 async function generateImage(env, prompt, size, referenceImages = []) {
   const referenceAttempts = [
     { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
-    { model: SCENE_IMAGE_MODEL, quality: "medium" },
   ];
   const generationAttempts = [
     { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
-    { model: "gpt-image-1", quality: "high" },
   ];
   let lastError;
 
@@ -206,34 +204,6 @@ async function generateImage(env, prompt, size, referenceImages = []) {
       };
     }
     lastError = providerError(data.error?.message || `Scene image generation failed with ${attempt.model}.`, response.status);
-  }
-
-  if (referenceImages.length) {
-    for (const attempt of generationAttempts) {
-      let response;
-      try {
-        response = await requestImageGeneration(env, prompt, size, attempt);
-      } catch (error) {
-        lastError = providerError(error.message || "Scene image provider request failed.", 503);
-        continue;
-      }
-      let data;
-      try {
-        data = await readJsonResponse(response);
-      } catch (error) {
-        lastError = providerError(error.message, response.status);
-        continue;
-      }
-      const b64 = data.data?.[0]?.b64_json;
-      if (response.ok && b64) {
-        return {
-          b64,
-          ...attempt,
-          mode: "generation fallback",
-        };
-      }
-      lastError = providerError(data.error?.message || `Scene image generation fallback failed with ${attempt.model}.`, response.status);
-    }
   }
 
   throw lastError || new Error("Scene image generation failed.");
@@ -266,7 +236,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -285,7 +255,7 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
     body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
 }
 
 function providerError(message, status) {
