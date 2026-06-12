@@ -49,7 +49,7 @@ function normalizeCreation(item, index) {
     rating: Number(item.rating || (4.4 + (index % 5) * 0.1).toFixed(1)),
     views: item.views || `${1 + index}.${(index * 7) % 10}K`,
     image: item.image || item.thumbnail_url || fallbackImage(type, index),
-    hasPublishedCover: Boolean(item.thumbnail_url?.startsWith("/api/creation-cover")),
+    hasPublishedCover: Boolean(item.hasPublishedCover || item.thumbnail_url?.startsWith("/api/creation-cover")),
     description: item.description || "A new community creation waiting to be explored.",
     url: item.url || item.media_url || creationUrl(type),
   };
