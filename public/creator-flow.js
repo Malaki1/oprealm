@@ -806,11 +806,10 @@ function storyDraftPayload(project, mode = "write") {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   const settings = storySettings(project);
-  return {
+  const payload = {
     mode,
     title: project.storyDraft?.title || project.title || "My OPREALM Story",
     approvedStory: mode === "split" ? preserveStoryFormatting(project.storyDraft?.story) : "",
-    storyLogicPlan: mode === "split" ? project.storyDraft?.logicPlan || null : null,
     character: JSON.stringify({
       name: character.name || "The hero",
       type: character.characterType || character.type || "original hero",
@@ -845,6 +844,10 @@ function storyDraftPayload(project, mode = "write") {
     lessonTheme: settings.lessonTheme,
     objects: activeObjects(project).map(storyObjectName).filter(Boolean),
   };
+  if (mode === "split" && project.storyDraft?.logicPlan) {
+    payload.storyLogicPlan = project.storyDraft.logicPlan;
+  }
+  return payload;
 }
 
 async function requestFullStory(project, mode = "write") {
