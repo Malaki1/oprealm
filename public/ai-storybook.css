@@ -334,12 +334,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
 }
+.story-game.is-waiting-for-choice .scene-art { filter: brightness(.58) blur(2px); transform: scale(1.035); }
+.story-game.is-waiting-for-choice .scene-vignette { background: rgba(1,5,18,.38); }
+.decision-heading { margin: 0 0 12px; padding: 12px 14px; border-left: 3px solid #ffd34e; background: rgba(17,10,43,.72); }
+.decision-heading span { color: #ffd34e; font-size: .68rem; font-weight: 900; text-transform: uppercase; }
+.decision-heading strong { display: block; margin-top: 4px; font-size: 1.08rem; }
+.decision-heading p { margin: 5px 0 0; color: #f5f7ff; font-weight: 800; }
+.decision-heading button { margin-top: 9px; padding: 7px 10px; border: 1px solid #7960ad; border-radius: 6px; background: #171035; color: #d9c8ff; font-weight: 800; cursor: pointer; }
+#cluesPanel { margin-top: 8px; color: #cfeeff; font-size: .78rem; line-height: 1.45; }
 
 .choice-card {
   min-height: 92px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  flex-direction: column;
   padding: 12px 14px;
   border: 1px solid rgba(66, 216, 255, 0.7);
   border-radius: 8px;
@@ -352,6 +361,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
   transition: transform 160ms ease, filter 160ms ease;
 }
+.choice-card strong { display: block; font-size: .94rem; }
+.choice-card span { display: block; margin-top: 5px; color: #bcd2e9; font-size: .72rem; font-weight: 700; }
 
 .choice-card:nth-child(2) { border-color: rgba(115, 221, 83, 0.65); background: linear-gradient(135deg, rgba(15, 59, 30, 0.95), rgba(4, 26, 20, 0.9)); }
 .choice-card:nth-child(3) { border-color: rgba(171, 89, 255, 0.72); background: linear-gradient(135deg, rgba(52, 20, 87, 0.95), rgba(18, 10, 43, 0.9)); }

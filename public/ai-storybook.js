@@ -2,6 +2,7 @@ const STORYBOARD_KEY = "oprealm_storyboard_project_v1";
 const PLAYER_STATE_KEY = "oprealm_story_adventure_state_v1";
 const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
 const narrationEngine = window.OPREALMStorybookNarration;
+const decisionEngine = window.OPREALMStoryDecisionEngine;
 
 let project = DEMO_MODE
   ? demoProject()
@@ -20,6 +21,10 @@ let voiceProfiles = [];
 let highlightedWordIndex = -1;
 let preparedBranches = new Map();
 let preparationRunning = false;
+let storyRunState = decisionEngine.createRunState();
+let playerState = "playing_beat";
+let lastDecisionId = "";
+let lastCompletedBeatId = "";
 
 const game = document.querySelector("#storyGame");
 const art = document.querySelector("#sceneArt");
@@ -50,6 +55,12 @@ const preparationPercent = document.querySelector("#preparationPercent");
 const preparationTitle = document.querySelector("#preparationTitle");
 const preparationDescription = document.querySelector("#preparationDescription");
 const preparationActions = document.querySelector("#preparationActions");
+const decisionHeading = document.querySelector("#decisionHeading");
+const decisionTypeLabel = document.querySelector("#decisionTypeLabel");
+const decisionTitle = document.querySelector("#decisionTitle");
+const decisionQuestion = document.querySelector("#decisionQuestion");
+const cluesButton = document.querySelector("#cluesButton");
+const cluesPanel = document.querySelector("#cluesPanel");
 
 initialize();
 
@@ -126,11 +137,13 @@ async function initialize() {
       id: sceneId,
       chapterLabel: chapterForScene(index, scenes.length),
       beats: buildNarrationBeats(scene, sceneId),
+      decisionNode: decisionEngine.normalizeDecisionNode(scene.decisionNode, sceneId),
       decisions: decisionChoices(scene, index, scenes.length),
     };
   });
 
   restorePlayerState();
+  storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), pages[pageIndex]?.id);
   renderPlayer();
   bindControls();
   if (DEMO_MODE) {
@@ -164,10 +177,13 @@ function buildNarrationBeats(scene, sceneId) {
 }
 
 function decisionChoices(scene) {
+  const structured = decisionEngine.normalizeDecisionNode(scene.decisionNode, scene.id);
+  if (structured) return structured.choices;
   if (!Array.isArray(scene.choices)) return [];
   return scene.choices
-    .map((choice) => typeof choice === "string" ? choice : choice?.label || choice?.title || "")
-    .map((choice) => String(choice || "").trim())
+    .map((choice, index) => decisionEngine.normalizeChoice(choice, `${scene.id || "scene"}-choice-${index + 1}`))
+    .filter((choice) => choice.label)
+    .map((choice) => typeof scene.choices[0] === "string" ? choice.label : choice)
     .filter(Boolean)
     .slice(0, 3);
 }
@@ -197,7 +213,9 @@ function renderPlayer({ sceneChanged = false } = {}) {
   updateNarrationControls(beat);
 
   const atLastBeat = beatIndex >= beats.length - 1;
-  renderChoices(atLastBeat ? page.decisions || [] : []);
+  const activeDecision = atLastBeat ? page.decisionNode : null;
+  setPlayerState(activeDecision ? "waiting_for_choice" : atLastBeat ? "waiting_for_continue" : "playing_beat");
+  renderChoices(atLastBeat ? page.decisions || [] : [], activeDecision);
   continueButton.hidden = atLastBeat && Boolean((page.decisions || []).length) && !branchPage;
   continueButton.innerHTML = pageIndex >= pages.length - 1 && atLastBeat
     ? "Story Complete"
@@ -243,20 +261,75 @@ function currentPage() {
   return branchPage || pages[pageIndex];
 }
 
-function renderChoices(decisions) {
+function renderChoices(decisions, decision = null) {
   choiceCards.innerHTML = "";
-  choiceCards.dataset.count = String(decisions.length);
-  choiceCards.hidden = decisions.length === 0;
-  decisions.forEach((choice) => {
-    const label = String(choice || "").trim();
+  const visibleChoices = decision ? decisionEngine.availableChoices(decision, storyRunState) : decisions;
+  choiceCards.dataset.count = String(visibleChoices.length);
+  choiceCards.hidden = visibleChoices.length === 0;
+  renderDecisionHeading(decision);
+  if (decision && decision.id !== lastDecisionId) {
+    playDecisionSting();
+    lastDecisionId = decision.id;
+  }
+  visibleChoices.forEach((choice) => {
+    const structured = typeof choice === "object";
+    const label = String(structured ? choice.label : choice || "").trim();
     if (!label) return;
     const button = document.createElement("button");
     button.className = "choice-card";
     button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", () => createBranch(currentPage(), label));
+    button.innerHTML = structured
+      ? `<strong>${escapeHtml(label)}</strong><span>${escapeHtml(choice.visibleHint || choice.description || choice.emotionalHook || "")}</span>`
+      : `<strong>${escapeHtml(label)}</strong>`;
+    button.addEventListener("click", () => structured && decision
+      ? selectStructuredChoice(decision, choice)
+      : createBranch(currentPage(), label));
     choiceCards.appendChild(button);
   });
+}
+
+function renderDecisionHeading(decision) {
+  decisionHeading.hidden = !decision;
+  if (!decision) {
+    cluesPanel.hidden = true;
+    return;
+  }
+  decisionTypeLabel.textContent = decision.decisionType.replace(/_/g, " ");
+  decisionTitle.textContent = decision.title;
+  decisionQuestion.textContent = decision.questionText;
+  const clues = referencedDiscoveredClues(decision);
+  cluesButton.hidden = clues.length === 0;
+  cluesButton.textContent = `Clues discovered (${clues.length})`;
+  cluesPanel.innerHTML = clues.map((clue) => `<div><strong>${escapeHtml(clue.visualObject || "Clue")}:</strong> ${escapeHtml(clue.clueText)}</div>`).join("");
+}
+
+function referencedDiscoveredClues(decision) {
+  return storyClues().filter((clue) =>
+    storyRunState.discoveredClues.includes(clue.id)
+    && (!decision.clueReferences.length || decision.clueReferences.includes(clue.id)),
+  );
+}
+
+function selectStructuredChoice(decision, choice) {
+  stopNarration();
+  storyRunState = decisionEngine.applyChoice(storyRunState, decision, choice);
+  const ending = decision.consequenceMode === "ending"
+    ? decisionEngine.resolveEnding(endingRules(), storyRunState, choice)
+    : null;
+  const targetId = ending?.sceneId || choice.nextSceneId;
+  const targetIndex = pages.findIndex((page) => page.id === targetId);
+  if (ending) {
+    storyRunState.endingId = ending.id;
+    storyRunState.flags[`ending:${ending.endingType}`] = true;
+  }
+  pageIndex = targetIndex >= 0 ? targetIndex : Math.min(pages.length - 1, pageIndex + 1);
+  beatIndex = 0;
+  branchPage = null;
+  storyRunState.currentSceneId = pages[pageIndex]?.id || targetId;
+  storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), storyRunState.currentSceneId);
+  setPlayerState("transitioning");
+  playSceneTransition();
+  renderPlayer({ sceneChanged: true });
 }
 
 function renderChapterProgress() {
@@ -279,6 +352,8 @@ function renderChapterProgress() {
       pageIndex = nextPageIndex;
       beatIndex = 0;
       branchPage = null;
+      storyRunState.currentSceneId = pages[pageIndex]?.id || "";
+      storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), storyRunState.currentSceneId);
       closeDrawers();
       if (sceneChanged) playSceneTransition();
       renderPlayer({ sceneChanged });
@@ -348,6 +423,7 @@ function advance() {
   const page = currentPage();
   const beats = page.beats?.length ? page.beats : splitIntoBeats(page.storyExcerpt || page.passage || "");
   if (pageIndex >= pages.length - 1 && beatIndex >= beats.length - 1 && !branchPage) {
+    setPlayerState("complete");
     localStorage.setItem("oprealm_story_completion", JSON.stringify({
       projectId: project.id || "",
       storybookId: storybookId(),
@@ -367,6 +443,8 @@ function advance() {
     pageIndex = Math.min(pages.length - 1, pageIndex + 1);
     beatIndex = 0;
     playSceneTransition();
+    storyRunState.currentSceneId = pages[pageIndex]?.id || "";
+    storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), storyRunState.currentSceneId);
     renderPlayer({ sceneChanged: true });
     return;
   }
@@ -374,6 +452,8 @@ function advance() {
     pageIndex += 1;
     beatIndex = 0;
     playSceneTransition();
+    storyRunState.currentSceneId = pages[pageIndex]?.id || "";
+    storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), storyRunState.currentSceneId);
     renderPlayer({ sceneChanged: true });
   }
 }
@@ -658,7 +738,8 @@ function replayCurrentBeat() {
 function scheduleAutoPlay() {
   window.clearTimeout(autoPlayTimer);
   if (!autoPlay || !narrationEnabled || !narrationAudio.paused) return;
-  if (choiceCards.children.length) {
+  const beat = normalizeBeat(currentPage()?.beats?.[beatIndex]);
+  if ((playerState === "waiting_for_choice" || choiceCards.children.length) && lastCompletedBeatId === beat.id) {
     narrationStatus.textContent = "Choose what happens next";
     return;
   }
@@ -675,7 +756,9 @@ async function prepareStorybook() {
     await hydrateNarrationManifest();
 
     const branchTasks = pages.flatMap((page, sourcePageIndex) =>
-      (page.decisions || []).map((choice) => ({ page, sourcePageIndex, choice })),
+      page.decisionNode
+        ? []
+        : (page.decisions || []).map((choice) => ({ page, sourcePageIndex, choice })),
     );
     for (let index = 0; index < branchTasks.length; index += 1) {
       const task = branchTasks[index];
@@ -920,6 +1003,10 @@ function bindControls() {
   continueButton.addEventListener("click", advance);
   previousBeatButton.addEventListener("click", goPrevious);
   document.querySelector("#skipSceneButton").addEventListener("click", () => {
+    if (playerState === "waiting_for_choice") {
+      narrationStatus.textContent = "Make a choice before leaving this scene";
+      return;
+    }
     const previousPageIndex = pageIndex;
     branchPage = null;
     pageIndex = Math.min(pages.length - 1, pageIndex + 1);
@@ -946,6 +1033,10 @@ function bindControls() {
     if (!autoPlay) narrationAudio.pause();
     scheduleAutoPlay();
   });
+  cluesButton.addEventListener("click", () => {
+    cluesPanel.hidden = !cluesPanel.hidden;
+    cluesButton.setAttribute("aria-expanded", String(!cluesPanel.hidden));
+  });
   narrationAudio.addEventListener("play", () => {
     speakBeatButton.innerHTML = "&#10074;&#10074;";
     narrationStatus.textContent = `${normalizeBeat(currentPage().beats[beatIndex]).speaker} speaking`;
@@ -956,7 +1047,8 @@ function bindControls() {
   narrationAudio.addEventListener("timeupdate", updateTextHighlight);
   narrationAudio.addEventListener("ended", () => {
     highlightedWordIndex = -1;
-    if (autoPlay && !choiceCards.children.length) {
+    lastCompletedBeatId = normalizeBeat(currentPage().beats[beatIndex]).id;
+    if (autoPlay && playerState !== "waiting_for_choice" && !choiceCards.children.length) {
       advance();
     } else if (choiceCards.children.length) {
       narrationStatus.textContent = "Choose what happens next";
@@ -1047,6 +1139,8 @@ function restartStory() {
   pageIndex = 0;
   beatIndex = 0;
   branchPage = null;
+  storyRunState = decisionEngine.createRunState(pages[0]?.id || "");
+  playerState = "playing_beat";
   localStorage.removeItem(PLAYER_STATE_KEY);
   if (sceneChanged) playSceneTransition();
   renderPlayer({ sceneChanged });
@@ -1067,10 +1161,48 @@ function restorePlayerState() {
   const state = readJsonStorage(PLAYER_STATE_KEY);
   pageIndex = Math.max(0, Math.min(pages.length - 1, Number(state.pageIndex || 0)));
   beatIndex = Math.max(0, Number(state.beatIndex || 0));
+  storyRunState = decisionEngine.normalizeRunState(state.storyRunState, pages[pageIndex]?.id || "");
+  playerState = storyRunState.playerState;
 }
 
 function savePlayerState() {
-  localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify({ pageIndex, beatIndex }));
+  storyRunState.currentSceneId = currentPage()?.id || pages[pageIndex]?.id || "";
+  storyRunState.currentBeatIndex = beatIndex;
+  storyRunState.playerState = playerState;
+  localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify({ pageIndex, beatIndex, storyRunState }));
+}
+
+function setPlayerState(nextState) {
+  playerState = decisionEngine.PLAYER_STATES.includes(nextState) ? nextState : "playing_beat";
+  game.classList.toggle("is-waiting-for-choice", playerState === "waiting_for_choice");
+}
+
+function storyClues() {
+  return Array.isArray(project.storyDraft?.logicPlan?.clues) ? project.storyDraft.logicPlan.clues : [];
+}
+
+function endingRules() {
+  return Array.isArray(project.storyDraft?.logicPlan?.endingRules) ? project.storyDraft.logicPlan.endingRules : [];
+}
+
+function playDecisionSting() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(180, context.currentTime);
+    oscillator.frequency.exponentialRampToValueAtTime(90, context.currentTime + .32);
+    gain.gain.setValueAtTime(.08, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, context.currentTime + .38);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + .4);
+  } catch {
+    // Story choices remain fully usable when browser audio is unavailable.
+  }
 }
 
 function shortTitle(value) {

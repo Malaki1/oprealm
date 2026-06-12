@@ -810,6 +810,7 @@ function storyDraftPayload(project, mode = "write") {
     mode,
     title: project.storyDraft?.title || project.title || "My OPREALM Story",
     approvedStory: mode === "split" ? preserveStoryFormatting(project.storyDraft?.story) : "",
+    storyLogicPlan: mode === "split" ? project.storyDraft?.logicPlan || null : null,
     character: JSON.stringify({
       name: character.name || "The hero",
       type: character.characterType || character.type || "original hero",
@@ -883,6 +884,7 @@ async function requestFullStory(project, mode = "write") {
     project.storyDraft = {
       title: result.draft.title,
       summary: result.draft.summary || previousDraft.summary || "",
+      logicPlan: result.draft.logicPlan || previousDraft.logicPlan || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],
@@ -941,12 +943,15 @@ function buildScenesFromApprovedStory(project) {
     const existing = existingScenes[index] || {};
     const scene = {
       ...existing,
-      id: existing.id || uid("scene"),
+      id: beat.id || existing.id || uid("scene"),
       order: index + 1,
       title: beat.title || `Scene ${index + 1}`,
       storyExcerpt: beat.passage || "",
       script: normalizeSceneScriptForProject(beat.script, character, project),
+      visualDirection: beat.visualDirection || "",
+      userVisualDirection: beat.visualDirection || "",
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
+      decisionNode: beat.decisionNode || null,
       mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
       camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
       selectedCharacterIds: character.id ? [character.id] : [],
@@ -956,6 +961,11 @@ function buildScenesFromApprovedStory(project) {
         .map((item) => item.id),
       status: existing.generatedImageUrl ? "complete" : "draft",
     };
+    if (scene.decisionNode && window.OPREALMStoryDecisionEngine) {
+      scene.decisionNode = window.OPREALMStoryDecisionEngine.normalizeDecisionNode(scene.decisionNode, scene.id);
+      scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the hero");
+      scene.userVisualDirection = scene.visualDirection;
+    }
     refreshSceneVisualPrompts(project, scene, index);
     return scene;
   });
