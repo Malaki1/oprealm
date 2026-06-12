@@ -135,6 +135,7 @@ body::before {
   background: #061126;
 }
 .hero-backdrop { position: absolute; inset: 0; background-image: var(--hero-image, url("/assets/character-creator/environments/underwater-realm.png")); background-size: cover; background-position: center; transition: background-image 500ms ease; animation: hero-drift 18s ease-in-out infinite alternate; }
+.featured-hero.has-book-cover .hero-backdrop { background-size: contain; background-position: right center; background-repeat: no-repeat; background-color: #071229; }
 .hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(3, 7, 22, 0.96) 0%, rgba(3, 8, 24, 0.76) 32%, rgba(3, 8, 24, 0.08) 70%), linear-gradient(0deg, rgba(3, 7, 22, 0.82), transparent 50%); }
 @keyframes hero-drift { from { transform: scale(1.02); } to { transform: scale(1.08) translateX(1%); } }
 .hero-content { position: relative; z-index: 2; width: min(590px, 60%); padding: 58px 48px; }
@@ -180,6 +181,7 @@ body::before {
 .creation-card { min-width: 0; overflow: hidden; border: 1px solid rgba(124, 151, 255, 0.22); border-radius: 8px; background: rgba(2, 8, 25, 0.92); scroll-snap-align: start; transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
 .creation-card:hover { z-index: 2; transform: translateY(-4px) scale(1.018); border-color: #b95cff; box-shadow: 0 12px 30px rgba(99, 37, 188, 0.36); }
 .card-art { position: relative; width: 100%; aspect-ratio: 16 / 9; display: block; overflow: hidden; border: 0; background: #111b3f var(--card-image) center / cover no-repeat; }
+.creation-card.has-book-cover .card-art { background-size: contain; background-color: #091227; }
 .card-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(2,6,20,.78), transparent 55%); }
 .card-play { position: absolute; z-index: 2; right: 9px; bottom: 8px; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: linear-gradient(145deg, #ba3dff, #5425d6); box-shadow: 0 0 18px rgba(182, 62, 255, 0.7); opacity: 0; transform: scale(.8); transition: 160ms ease; }
 .creation-card:hover .card-play { opacity: 1; transform: scale(1); }

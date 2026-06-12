@@ -49,6 +49,7 @@ function normalizeCreation(item, index) {
     rating: Number(item.rating || (4.4 + (index % 5) * 0.1).toFixed(1)),
     views: item.views || `${1 + index}.${(index * 7) % 10}K`,
     image: item.image || item.thumbnail_url || fallbackImage(type, index),
+    hasPublishedCover: Boolean(item.thumbnail_url?.startsWith("/api/creation-cover")),
     description: item.description || "A new community creation waiting to be explored.",
     url: item.url || item.media_url || creationUrl(type),
   };
@@ -79,7 +80,7 @@ function render() {
 }
 
 function creationCard(item, index = 0) {
-  return `<article class="creation-card${index === 0 ? " is-leading" : ""}" data-creation-id="${escapeAttribute(item.id)}">
+  return `<article class="creation-card${index === 0 ? " is-leading" : ""}${item.hasPublishedCover ? " has-book-cover" : ""}" data-creation-id="${escapeAttribute(item.id)}">
     <button class="card-art" type="button" aria-label="View ${escapeAttribute(item.title)} details" style="--card-image:url('${escapeCssUrl(item.image)}')">
       ${index === 0 ? '<span class="rank-badge">1</span>' : ""}
       <span class="creation-type">${escapeHtml(item.type)}</span>
@@ -122,7 +123,9 @@ function renderHero() {
   if (!featured.length) return;
   heroIndex %= featured.length;
   const item = featured[heroIndex];
-  document.querySelector("#featuredHero").style.setProperty("--hero-image", `url("${item.image}")`);
+  const featuredHero = document.querySelector("#featuredHero");
+  featuredHero.style.setProperty("--hero-image", `url("${item.image}")`);
+  featuredHero.classList.toggle("has-book-cover", item.hasPublishedCover);
   document.querySelector("#featuredTitle").textContent = item.title;
   document.querySelector("#featuredDescription").textContent = item.description;
   document.querySelector("#featuredCreator").textContent = item.creator;
