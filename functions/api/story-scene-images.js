@@ -20,6 +20,10 @@ const SCENE_IMAGE_QUALITY = "high";
 const SCENE_IMAGE_ESTIMATED_COST_USD = 0.2;
 const MAX_REFERENCE_IMAGES = 4;
 const SCENE_TOOL = "story_scene_images";
+const IMAGE_PROVIDER = "openai_images";
+const IMAGE_CONCURRENCY = 3;
+const IMAGE_SLOT_LEASE_SECONDS = 240;
+const IMAGE_SLOT_WAIT_MS = 20000;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -110,19 +114,32 @@ export async function onRequestPost({ request, env }) {
   }
 
   let web;
+  let providerSlot = 0;
   try {
+    providerSlot = await acquireProviderSlot(env, jobId);
+    if (!providerSlot) {
+      const error = providerError("Several creators are generating artwork right now. Please wait a moment, then press Try Again.", 429);
+      error.retryAfter = 12;
+      throw error;
+    }
     await markJobProcessing(env, jobId);
     web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
   } catch (error) {
     await markJobFailed(env, jobId, error);
-    const status = isTemporaryProviderError(error) ? 503 : 502;
+    const temporary = isTemporaryProviderError(error);
+    const status = Number(error?.status || 0) === 400 ? 400 : Number(error?.status || 0) === 429 ? 429 : temporary ? 503 : 502;
+    const retryAfter = Number(error?.retryAfter || (status === 429 ? 12 : status === 503 ? 10 : 0));
     return json({
       ok: false,
-      error: status === 503
+      error: status === 429
+        ? error.message
+        : status === 503
         ? "The scene image service is temporarily busy. Press Try Again when you are ready."
-        : error.message || "Scene image generation failed.",
-      retryable: status === 503,
-    }, status, status === 503 ? { "retry-after": "8" } : {});
+        : friendlyProviderError(error),
+      retryable: status === 429 || status === 503,
+    }, status, retryAfter ? { "retry-after": String(retryAfter) } : {});
+  } finally {
+    if (providerSlot) await releaseProviderSlot(env, jobId);
   }
 
   let webImageUrl = "";
@@ -177,23 +194,29 @@ export async function onRequestPost({ request, env }) {
 }
 
 async function generateImage(env, prompt, size, referenceImages = []) {
-  const referenceAttempts = [
-    { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
-  ];
-  const generationAttempts = [
-    { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY },
-  ];
+  const attempts = referenceImages.length
+    ? [
+      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: referenceImages, mode: "reference edit" },
+      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: referenceImages.slice(0, 1), mode: "primary reference fallback" },
+      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "generation fallback", compact: true },
+    ]
+    : [
+      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "generation" },
+      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "compact generation fallback", compact: true },
+    ];
   let lastError;
 
-  for (const attempt of referenceImages.length ? referenceAttempts : generationAttempts) {
+  for (const attempt of attempts) {
+    if (lastError && isSafetyProviderError(lastError)) break;
+    const attemptPrompt = attempt.compact ? compactFallbackPrompt(prompt) : prompt;
     let response;
     try {
-      response = referenceImages.length
-        ? await requestImageEdit(env, prompt, size, attempt, referenceImages)
-        : await requestImageGeneration(env, prompt, size, attempt);
+      response = attempt.references.length
+        ? await requestImageEdit(env, attemptPrompt, size, attempt, attempt.references)
+        : await requestImageGeneration(env, attemptPrompt, size, attempt);
     } catch (error) {
       lastError = providerError(error.message || "Scene image provider request failed.", 503);
-      continue;
+      break;
     }
     let data;
     try {
@@ -206,11 +229,13 @@ async function generateImage(env, prompt, size, referenceImages = []) {
     if (response.ok && b64) {
       return {
         b64,
-        ...attempt,
-        mode: referenceImages.length ? "reference edit" : "generation",
+        model: attempt.model,
+        quality: attempt.quality,
+        mode: attempt.mode,
       };
     }
     lastError = providerError(data.error?.message || `Scene image generation failed with ${attempt.model}.`, response.status);
+    if (response.status !== 400) break;
   }
 
   throw lastError || new Error("Scene image generation failed.");
@@ -243,7 +268,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
+    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -262,7 +287,7 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
     body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 0 });
+  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
 }
 
 function providerError(message, status) {
@@ -274,6 +299,65 @@ function providerError(message, status) {
 function isTemporaryProviderError(error) {
   const status = Number(error?.status || 0);
   return status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
+function isSafetyProviderError(error) {
+  return /safety|content policy|moderation|not allowed|violat/i.test(String(error?.message || ""));
+}
+
+function friendlyProviderError(error) {
+  const message = String(error?.message || "").replace(/\s+/g, " ").trim();
+  if (isSafetyProviderError(error)) {
+    return "This scene could not be illustrated safely. Adjust the scene wording and try again.";
+  }
+  if (Number(error?.status || 0) === 400) {
+    return `The image provider rejected this scene request. ${message.slice(0, 240)}`;
+  }
+  return message || "Scene image generation failed.";
+}
+
+function compactFallbackPrompt(prompt) {
+  const text = String(prompt || "").trim();
+  if (text.length <= 7000) return text;
+  return `${text.slice(0, 2200)}\n\nSCENE-SPECIFIC DETAILS:\n${text.slice(-4600)}`;
+}
+
+async function acquireProviderSlot(env, jobId) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < IMAGE_SLOT_WAIT_MS) {
+    for (let slot = 1; slot <= IMAGE_CONCURRENCY; slot += 1) {
+      const result = await env.OPREALM_DB.prepare(
+        `
+          INSERT INTO provider_generation_slots (provider, slot, job_id, lease_expires_at, updated_at)
+          VALUES (?, ?, ?, unixepoch() + ?, datetime('now'))
+          ON CONFLICT(provider, slot) DO UPDATE SET
+            job_id = excluded.job_id,
+            lease_expires_at = excluded.lease_expires_at,
+            updated_at = datetime('now')
+          WHERE provider_generation_slots.lease_expires_at <= unixepoch()
+             OR provider_generation_slots.job_id = excluded.job_id
+        `,
+      )
+        .bind(IMAGE_PROVIDER, slot, jobId, IMAGE_SLOT_LEASE_SECONDS)
+        .run();
+      if (result.meta?.changes) return slot;
+    }
+    await sleep(1500 + Math.floor(Math.random() * 900));
+  }
+  return 0;
+}
+
+async function releaseProviderSlot(env, jobId) {
+  await env.OPREALM_DB.prepare(
+    "DELETE FROM provider_generation_slots WHERE provider = ? AND job_id = ?",
+  )
+    .bind(IMAGE_PROVIDER, jobId)
+    .run()
+    .catch(() => {});
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function buildScenePrompt(body, format, referenceImages = []) {

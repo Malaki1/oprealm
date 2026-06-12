@@ -2580,12 +2580,14 @@ async function generateStoryboardSceneImage(project, sceneId) {
     }
     const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
     if (!response.ok || !result.ok || !generatedImageSource) {
-      const retryable = Boolean(result.retryable || response.status === 202 || [502, 503, 504].includes(response.status));
+      const retryable = Boolean(result.retryable || response.status === 202 || response.status === 429 || [502, 503, 504].includes(response.status));
       const prefix = response.status === 401
         ? "Please log in before generating scene images."
         : response.status === 402
           ? "Not enough Creator credits for this scene image."
-          : [502, 503, 504].includes(response.status)
+          : response.status === 429
+            ? result.error || "Several creators are generating artwork. Wait a moment, then press Try Again."
+          : [503, 504].includes(response.status)
             ? "The image service is temporarily busy. Press Try Again when you are ready."
             : "";
       const generationError = new Error(prefix || result.error || `Scene image generation failed (${response.status || "network"}).`);
