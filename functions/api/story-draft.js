@@ -388,8 +388,8 @@ export async function generateStorySpine(env, input, seed = "story-spine") {
     schemaName: "oprealm_story_spine",
     instructions: "You are a senior children's adventure novelist designing the emotional spine of a thrilling pick-a-path story.",
     input: prompt,
-    effort: "medium",
-    maxOutputTokens: 4000,
+    effort: "low",
+    maxOutputTokens: 9000,
     seed,
   });
 }
@@ -509,7 +509,13 @@ async function requestStructured(env, { schema, schemaName, instructions, input,
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error?.message || `${schemaName} generation failed.`), { status: 502 });
   const output = extractOutputText(data);
-  if (!output) throw Object.assign(new Error(`${schemaName} returned an empty response.`), { status: 502 });
+  if (!output) {
+    const reason = data.incomplete_details?.reason || data.status;
+    const message = reason === "max_output_tokens"
+      ? `${schemaName} reached its output limit before finishing. Please try again.`
+      : `${schemaName} returned an empty response.`;
+    throw Object.assign(new Error(message), { status: 502 });
+  }
   try {
     return { value: JSON.parse(output), model: data.model || STORY_DRAFT_MODEL };
   } catch {
