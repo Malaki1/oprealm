@@ -174,6 +174,13 @@ test("Best Moments failure has a deterministic legacy fallback", () => {
   assert.match(storyDraftSource, /suppliedMoments\.biggestReveal/);
 });
 
+test("long story stages use background responses instead of open HTTP waits", () => {
+  assert.match(storyDraftSource, /background,\s*\n\s*store: true/);
+  assert.match(storyDraftSource, /retrieveBackgroundResponse/);
+  assert.match(storyDraftSource, /providerResponseId/);
+  assert.match(storyDraftSource, /story_draft_background/);
+});
+
 test("fallback decisions are bounded, specific, and free of old generic wording", () => {
   const plan = decisionEngine.deterministicFallbackPlan(
     Array.from({ length: 16 }, (_, index) => `scene-${index + 1}`),

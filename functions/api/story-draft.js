@@ -1,6 +1,6 @@
 import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
-import { assertRateLimit } from "../_lib/generation-jobs.js";
+import { assertRateLimit, jobResponse, markJobCompleted } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText } from "../_lib/validate.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
@@ -304,6 +304,29 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: false, error: "Please approve a complete story before building scenes." }, 400);
     }
     const creatorBible = { character, cast, world, storyType, endingType, lessonTheme, objects };
+    const providerResponseId = cleanText(body.providerResponseId, 160);
+    if (requestedStage && providerResponseId) {
+      const background = await retrieveBackgroundResponse(env, providerResponseId);
+      if (background.pending) {
+        return json({
+          ok: true,
+          status: background.status,
+          stage: requestedStage,
+          providerResponseId,
+          pollAfterMs: 3500,
+        }, 202, { "retry-after": "4" });
+      }
+      return finishBackgroundStage({
+        env,
+        user,
+        body,
+        creatorBible,
+        stage: requestedStage,
+        providerResponseId,
+        value: background.value,
+        model: background.model,
+      });
+    }
     let draft;
     let models = [];
     if (mode === "split") {
@@ -323,7 +346,8 @@ export async function onRequestPost({ request, env }) {
       });
       models = [split.model];
     } else if (requestedStage === "spine") {
-      const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
+      const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`, true);
+      if (spine.pending) return backgroundStageResponse("spine", spine);
       return json({
         ok: true,
         stage: "spine",
@@ -336,7 +360,8 @@ export async function onRequestPost({ request, env }) {
       if (!storySpine.centralMystery || !storySpine.heroFlaw) {
         return json({ ok: false, error: "The story foundation was incomplete. Please regenerate the story." }, 400);
       }
-      const plan = await generatePickPathPlan(env, storySpine, creatorBible, `${user.id}:logic`);
+      const plan = await generatePickPathPlan(env, storySpine, creatorBible, `${user.id}:logic`, true);
+      if (plan.pending) return backgroundStageResponse("logic", plan);
       return json({
         ok: true,
         stage: "logic",
@@ -351,7 +376,8 @@ export async function onRequestPost({ request, env }) {
       if (!storySpine.centralMystery || logicPlan.decisions.length < 3) {
         return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
       }
-      const moments = await generateBestMomentsPlan(env, storySpine, logicPlan, creatorBible, `${user.id}:moments`);
+      const moments = await generateBestMomentsPlan(env, storySpine, logicPlan, creatorBible, `${user.id}:moments`, true);
+      if (moments.pending) return backgroundStageResponse("moments", moments);
       return json({
         ok: true,
         stage: "moments",
@@ -369,7 +395,11 @@ export async function onRequestPost({ request, env }) {
       if (!storySpine.centralMystery || logicPlan.decisions.length < 3 || logicPlan.clues.length < 3) {
         return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
       }
-      const prose = await generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, `${user.id}:prose`);
+      const prose = await generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, `${user.id}:prose`, true);
+      if (prose.pending) {
+        await ensureBackgroundStoryJob(env, prose.responseId, user.id);
+        return backgroundStageResponse("prose", prose);
+      }
       draft = normalizeDraft(removeFrameworkLanguage({
         ...prose.value,
         storySpine,
@@ -411,7 +441,103 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-export async function generateStorySpine(env, input, seed = "story-spine") {
+async function finishBackgroundStage({ env, user, body, creatorBible, stage, providerResponseId, value, model }) {
+  if (stage === "spine") {
+    return json({
+      ok: true,
+      status: "completed",
+      stage,
+      providerResponseId,
+      storySpine: normalizeStorySpine(value),
+      creditsUsed: 0,
+      model,
+    });
+  }
+  if (stage === "logic") {
+    return json({
+      ok: true,
+      status: "completed",
+      stage,
+      providerResponseId,
+      storySpine: normalizeStorySpine(body.storySpine),
+      logicPlan: normalizeLogicPlan(value),
+      creditsUsed: 0,
+      model,
+    });
+  }
+  if (stage === "moments") {
+    return json({
+      ok: true,
+      status: "completed",
+      stage,
+      providerResponseId,
+      bestMomentsPlan: normalizeBestMomentsPlan(value),
+      creditsUsed: 0,
+      model,
+    });
+  }
+  const storySpine = normalizeStorySpine(body.storySpine);
+  const existingJob = await env.OPREALM_DB.prepare(
+    "SELECT * FROM generation_jobs WHERE id = ? AND web_user_id = ? AND tool = ? LIMIT 1",
+  )
+    .bind(providerResponseId, user.id, "story_draft_background")
+    .first();
+  if (existingJob?.status === "completed") return json(jobResponse(existingJob));
+  const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+  const suppliedMoments = normalizeBestMomentsPlan(body.bestMomentsPlan);
+  const bestMomentsPlan = suppliedMoments.biggestReveal
+    ? suppliedMoments
+    : fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible);
+  const draft = normalizeDraft(removeFrameworkLanguage({
+    ...value,
+    storySpine,
+    logicPlan,
+    bestMomentsPlan,
+    scenes: [],
+  }));
+  draft.quality = validateStoryQuality(draft);
+  draft.payoffQuality = validateStoryPayoffs(draft, bestMomentsPlan, logicPlan.clues, logicPlan.decisions);
+  const charged = await chargeCredits(env, user.id);
+  if (!charged) return json({ ok: false, error: `You need ${STORY_DRAFT_COST} Creator credits to finish this story.` }, 402);
+  const completedResult = {
+    ok: true,
+    status: "completed",
+    stage,
+    providerResponseId,
+    draft,
+    creditsUsed: STORY_DRAFT_COST,
+    model,
+  };
+  if (existingJob) {
+    await markJobCompleted(env, providerResponseId, {
+      result: completedResult,
+      creditsCharged: STORY_DRAFT_COST,
+      model,
+      quality: String(draft.quality?.score ?? ""),
+    });
+  }
+  return json(completedResult);
+}
+
+async function ensureBackgroundStoryJob(env, responseId, userId) {
+  await env.OPREALM_DB.prepare(
+    `INSERT OR IGNORE INTO generation_jobs (
+      id, web_user_id, tool, status, prompt_hash, idempotency_key,
+      credits_reserved, metadata_json, created_at, updated_at
+    ) VALUES (?, ?, 'story_draft_background', 'processing', ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+  )
+    .bind(
+      responseId,
+      userId,
+      responseId,
+      responseId,
+      STORY_DRAFT_COST,
+      JSON.stringify({ providerResponseId: responseId, stage: "prose" }),
+    )
+    .run();
+}
+
+export async function generateStorySpine(env, input, seed = "story-spine", background = false) {
   const prompt = [
     `Creator Bible: ${JSON.stringify(input)}`,
     "Build the emotional and suspense architecture before writing any prose.",
@@ -432,11 +558,12 @@ export async function generateStorySpine(env, input, seed = "story-spine") {
     input: prompt,
     effort: "low",
     maxOutputTokens: 9000,
+    background,
     seed,
   });
 }
 
-export async function generatePickPathPlan(env, storySpine, creatorBible, seed = "pick-path-plan") {
+export async function generatePickPathPlan(env, storySpine, creatorBible, seed = "pick-path-plan", background = false) {
   const prompt = [
     `Story Spine: ${JSON.stringify(storySpine)}`,
     `Creator Bible: ${JSON.stringify(creatorBible)}`,
@@ -462,11 +589,12 @@ export async function generatePickPathPlan(env, storySpine, creatorBible, seed =
     input: prompt,
     effort: "medium",
     maxOutputTokens: 10000,
+    background,
     seed,
   });
 }
 
-export async function generateBestMomentsPlan(env, storySpine, pickPathPlan, creatorBible, seed = "best-moments") {
+export async function generateBestMomentsPlan(env, storySpine, pickPathPlan, creatorBible, seed = "best-moments", background = false) {
   const prompt = [
     `Story Spine: ${JSON.stringify(storySpine)}`,
     `Pick-a-Path Plan: ${JSON.stringify(pickPathPlan)}`,
@@ -487,11 +615,12 @@ export async function generateBestMomentsPlan(env, storySpine, pickPathPlan, cre
     input: prompt,
     effort: "low",
     maxOutputTokens: 5000,
+    background,
     seed,
   });
 }
 
-export async function generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, seed = "full-story") {
+export async function generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, seed = "full-story", background = false) {
   const prompt = [
     `Approved Story Spine: ${JSON.stringify(storySpine)}`,
     `Approved Pick-a-Path Logic Plan: ${JSON.stringify(logicPlan)}`,
@@ -533,6 +662,7 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, bestM
     input: prompt,
     effort: "low",
     maxOutputTokens: 18000,
+    background,
     seed,
   });
 }
@@ -568,7 +698,7 @@ export async function splitStoryIntoScenes(env, input) {
   });
 }
 
-async function requestStructured(env, { schema, schemaName, instructions, input, effort, maxOutputTokens, seed }) {
+async function requestStructured(env, { schema, schemaName, instructions, input, effort, maxOutputTokens, background = false, seed }) {
   const response = await openAiFetch(env, "/v1/responses", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -576,6 +706,8 @@ async function requestStructured(env, { schema, schemaName, instructions, input,
       model: STORY_DRAFT_MODEL,
       reasoning: { effort },
       max_output_tokens: maxOutputTokens,
+      background,
+      store: true,
       instructions,
       input,
       text: { format: { type: "json_schema", name: schemaName, strict: true, schema } },
@@ -583,6 +715,34 @@ async function requestStructured(env, { schema, schemaName, instructions, input,
   }, { seed, retries: 1 });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error?.message || `${schemaName} generation failed.`), { status: 502 });
+  if (background && data.id && data.status !== "completed") {
+    return {
+      pending: true,
+      responseId: data.id,
+      status: data.status || "queued",
+      model: data.model || STORY_DRAFT_MODEL,
+    };
+  }
+  return parseStructuredResponse(data, schemaName);
+}
+
+async function retrieveBackgroundResponse(env, responseId) {
+  const response = await openAiFetch(env, `/v1/responses/${encodeURIComponent(responseId)}`, {
+    method: "GET",
+  }, { seed: responseId, retries: 1 });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(data.error?.message || "The background story request could not be retrieved."), { status: 502 });
+  if (["queued", "in_progress"].includes(data.status)) {
+    return { pending: true, status: data.status, responseId };
+  }
+  if (data.status !== "completed") {
+    const reason = data.error?.message || data.incomplete_details?.reason || data.status || "unknown";
+    throw Object.assign(new Error(`The background story request stopped: ${reason}.`), { status: 502 });
+  }
+  return { ...parseStructuredResponse(data, "oprealm_background_story_stage"), status: data.status };
+}
+
+function parseStructuredResponse(data, schemaName) {
   const output = extractOutputText(data);
   if (!output) {
     const reason = data.incomplete_details?.reason || data.status;
@@ -596,6 +756,16 @@ async function requestStructured(env, { schema, schemaName, instructions, input,
   } catch {
     throw Object.assign(new Error(`${schemaName} returned incomplete structured data. Please try again.`), { status: 502 });
   }
+}
+
+function backgroundStageResponse(stage, result) {
+  return json({
+    ok: true,
+    status: result.status || "queued",
+    stage,
+    providerResponseId: result.responseId,
+    pollAfterMs: 3500,
+  }, 202, { "retry-after": "4" });
 }
 
 function extractOutputText(data) {

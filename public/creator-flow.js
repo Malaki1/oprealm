@@ -887,16 +887,33 @@ async function requestFullStory(project, mode = "write") {
   }
   try {
     const basePayload = storyDraftPayload(project, mode);
+    const saveBackgroundStage = (stageLabel) => (pending) => {
+      project.storyDraft = {
+        ...(project.storyDraft || {}),
+        backgroundGeneration: pending?.providerResponseId ? {
+          stageLabel,
+          providerResponseId: pending.providerResponseId,
+          status: pending.status || "in_progress",
+          updatedAt: new Date().toISOString(),
+        } : null,
+      };
+      writeStoryboardProject(project);
+    };
     let result;
     if (mode === "write") {
       setStoryWritingStage(8, "Building the story foundation...");
-      const spineResult = await requestStoryDraftStage({ ...basePayload, stage: "spine" }, "story foundation");
+      const spineResult = await requestStoryDraftStage(
+        { ...basePayload, stage: "spine" },
+        "story foundation",
+        15 * 60 * 1000,
+        saveBackgroundStage("story foundation"),
+      );
       setStoryWritingStage(34, "Designing clues, choices and possible endings...");
       const logicResult = await requestStoryDraftStage({
         ...basePayload,
         stage: "logic",
         storySpine: spineResult.storySpine,
-      }, "choice plan");
+      }, "choice plan", 15 * 60 * 1000, saveBackgroundStage("choice plan"));
       setStoryWritingStage(52, "Planning the moments readers will remember...");
       let bestMomentsPlan = {};
       try {
@@ -905,7 +922,7 @@ async function requestFullStory(project, mode = "write") {
           stage: "moments",
           storySpine: spineResult.storySpine,
           storyLogicPlan: logicResult.logicPlan,
-        }, "best moments plan");
+        }, "best moments plan", 15 * 60 * 1000, saveBackgroundStage("best moments plan"));
         bestMomentsPlan = momentsResult.bestMomentsPlan || {};
       } catch {
         bestMomentsPlan = {};
@@ -917,7 +934,7 @@ async function requestFullStory(project, mode = "write") {
         storySpine: spineResult.storySpine,
         storyLogicPlan: logicResult.logicPlan,
         bestMomentsPlan,
-      }, "chapter story");
+      }, "chapter story", 20 * 60 * 1000, saveBackgroundStage("chapter story"));
     } else {
       result = await requestStoryDraftStage(basePayload, "scene breakdown", 5 * 60 * 1000);
     }
@@ -941,6 +958,7 @@ async function requestFullStory(project, mode = "write") {
       generationStartedAt: "",
       generationError: "",
       updatedAt: new Date().toISOString(),
+      backgroundGeneration: null,
     };
     project.title = result.draft.title || project.title || "My OPREALM Story";
     if (mode === "split") buildScenesFromApprovedStory(project);
@@ -976,36 +994,49 @@ async function requestFullStory(project, mode = "write") {
   }
 }
 
-async function requestStoryDraftStage(payload, stageLabel, timeoutMs = 3 * 60 * 1000) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-  let response;
-  try {
-    response = await fetch("/api/story-draft", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error(`The ${stageLabel} took too long. Please press Regenerate Story to try again.`);
+async function requestStoryDraftStage(payload, stageLabel, timeoutMs = 15 * 60 * 1000, onPending = null) {
+  const startedAt = Date.now();
+  let requestPayload = { ...payload };
+  while (Date.now() - startedAt < timeoutMs) {
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 45 * 1000);
+    let response;
+    try {
+      response = await fetch("/api/story-draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify(requestPayload),
+      });
+    } catch (error) {
+      if (error.name === "AbortError") {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        continue;
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(requestTimeout);
     }
-    throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
+    const raw = await response.text();
+    let result = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(`The ${stageLabel} connection returned an unreadable response. Please try again.`);
+    }
+    if (response.status === 202 && result.providerResponseId) {
+      requestPayload = { ...payload, providerResponseId: result.providerResponseId };
+      onPending?.(result);
+      await new Promise((resolve) => window.setTimeout(resolve, Number(result.pollAfterMs || 3500)));
+      continue;
+    }
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || `The ${stageLabel} could not be generated.`);
+    }
+    onPending?.(null);
+    return result;
   }
-  const raw = await response.text();
-  let result = {};
-  try {
-    result = raw ? JSON.parse(raw) : {};
-  } catch {
-    throw new Error(`The ${stageLabel} connection closed before it finished. Please try again.`);
-  }
-  if (!response.ok || !result.ok) {
-    throw new Error(result.error || `The ${stageLabel} could not be generated.`);
-  }
-  return result;
+  throw new Error(`The ${stageLabel} is still processing. Your progress has been saved; return shortly to continue.`);
 }
 
 function buildScenesFromApprovedStory(project) {
