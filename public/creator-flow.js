@@ -806,6 +806,7 @@ function storyDraftPayload(project, mode = "write") {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   const settings = storySettings(project);
+  const storyCharacters = currentStoryCharacters(project);
   const payload = {
     mode,
     title: project.storyDraft?.title || project.title || "My OPREALM Story",
@@ -817,7 +818,7 @@ function storyDraftPayload(project, mode = "write") {
       description: character.prompt || character.description || "",
     }),
     cast: JSON.stringify([
-      ...(project.characters || []).map((item) => ({
+      ...storyCharacters.map((item) => ({
         name: item.name,
         role: item.id === project.activeCharacterId ? "hero" : "supporting",
         type: item.characterType || item.type || "character",
@@ -997,7 +998,7 @@ function normalizeSceneScriptForProject(script, hero, project) {
 function projectCharactersForScript(hero, project) {
   return [
     hero?.name,
-    ...(project.characters || []).map((item) => item.name),
+    ...currentStoryCharacters(project).map((item) => item.name),
     ...activeObjects(project)
       .filter((item) => item.kind === "pet" || item.kind === "companion")
       .map(storyObjectName),
@@ -1062,8 +1063,23 @@ function activeWorld(project) {
   return (project.worlds || []).find((world) => world.id === project.activeWorldId) || (project.worlds || [])[0] || {};
 }
 
+function currentStoryCharacters(project) {
+  const characters = Array.isArray(project.characters) ? project.characters : [];
+  const active = activeCharacter(project);
+  const explicitlySelectedIds = new Set(
+    Array.isArray(project.storyCharacterIds) ? project.storyCharacterIds.filter(Boolean) : [],
+  );
+  if (active.id) explicitlySelectedIds.add(active.id);
+  return characters.filter((character) => explicitlySelectedIds.has(character.id));
+}
+
 function activeObjects(project) {
-  return (project.objects || []).filter((item) => item && item.name && item.name !== "None");
+  const selectedCharacterIds = new Set(currentStoryCharacters(project).map((character) => character.id));
+  return (project.objects || []).filter((item) => {
+    if (!item || !item.name || item.name === "None") return false;
+    const sourceCharacterIds = Array.isArray(item.sourceCharacterIds) ? item.sourceCharacterIds.filter(Boolean) : [];
+    return !sourceCharacterIds.length || sourceCharacterIds.some((id) => selectedCharacterIds.has(id));
+  });
 }
 
 function sceneCharacters(project, scene) {
@@ -1078,7 +1094,7 @@ function sceneSelectedObjects(project, scene) {
 }
 
 function projectAgeBand(project) {
-  const ages = (project.characters || [])
+  const ages = currentStoryCharacters(project)
     .map((character) => Number(character.characterAge || character.recipe?.identity?.characterAge))
     .filter((age) => Number.isFinite(age));
   const youngest = ages.length ? Math.min(...ages) : 9;
@@ -1092,7 +1108,7 @@ function updateProjectContinuityBible(project) {
   if (!builder?.createContinuityBible) return project.continuityBible || {};
   project.continuityBible = builder.createContinuityBible({
     world: activeWorld(project),
-    characters: (project.characters || []).filter(Boolean),
+    characters: currentStoryCharacters(project),
     objects: activeObjects(project).map(storyObjectName),
     visualStyle: activeCharacter(project).masterStyle || activeCharacter(project).style || project.globalStyle || "",
     storyType: storySettings(project).storyType,
