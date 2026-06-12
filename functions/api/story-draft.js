@@ -4,6 +4,7 @@ import { assertRateLimit } from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import { assertSafePrompt, cleanText } from "../_lib/validate.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
+import { validateStoryQuality } from "../_lib/story-quality.mjs";
 
 const STORY_DRAFT_COST = CREATOR_CREDIT_COSTS.storyDraft;
 const STORY_DRAFT_MODEL = "gpt-5-mini";
@@ -14,6 +15,7 @@ const SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional"
 const SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 const DECISION_TYPES = ["trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice", "final_fate_choice"];
 const ENDING_TYPES = ["heroic_ending", "wise_ending", "betrayal_ending", "friendship_ending", "chaos_ending", "secret_ending"];
+const CHOICE_TENSIONS = ["trust versus suspicion", "safety versus courage", "loyalty versus mission", "mercy versus victory", "truth versus comfort", "sacrifice versus reward"];
 const SCORE_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -41,7 +43,7 @@ const STORY_CHOICE_SCHEMA = {
 const DECISION_NODE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "sceneId", "title", "setupText", "questionText", "decisionType", "emotionalTone", "choices", "clueReferences", "visualPrompt", "consequenceMode"],
+  required: ["id", "sceneId", "title", "setupText", "questionText", "decisionType", "emotionalTone", "choices", "clueReferences", "visualPrompt", "consequenceMode", "whyChoiceMatters", "whatPlayerKnows", "helpfulClueId", "wrongChoiceConsequence", "wiseChoiceConsequence", "influencesEndingIds"],
   properties: {
     id: { type: "string" },
     sceneId: { type: "string" },
@@ -54,64 +56,93 @@ const DECISION_NODE_SCHEMA = {
     clueReferences: { type: "array", maxItems: 3, items: { type: "string" } },
     visualPrompt: { type: "string" },
     consequenceMode: { type: "string", enum: ["branch_and_converge", "ending"] },
+    whyChoiceMatters: { type: "string" },
+    whatPlayerKnows: { type: "string" },
+    helpfulClueId: { type: "string" },
+    wrongChoiceConsequence: { type: "string" },
+    wiseChoiceConsequence: { type: "string" },
+    influencesEndingIds: { type: "array", minItems: 1, maxItems: 3, items: { type: "string" } },
   },
 };
 
-const storyDraftSchema = {
+const storySpineSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["title", "summary", "logicPlan", "chapters", "scenes"],
+  required: ["heroWant", "heroFear", "heroFlaw", "emotionalNeed", "centralMystery", "mainAntagonisticForce", "keyRelationshipConflict", "majorSecret", "falseBelief", "trueRevelation", "chapterHooks", "toneProfile", "targetFeeling"],
   properties: {
-    title: { type: "string" },
-    summary: { type: "string" },
-    logicPlan: {
-      type: "object",
-      additionalProperties: false,
-      required: ["centralMystery", "heroEmotionalFlaw", "clues", "decisions", "endingRules"],
-      properties: {
-        centralMystery: { type: "string" },
-        heroEmotionalFlaw: { type: "string" },
-        clues: {
-          type: "array",
-          minItems: 3,
-          maxItems: 5,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["id", "introducedInSceneId", "clueText", "visualObject", "linkedDecisionId", "helpsChoiceId", "subtlety"],
-            properties: {
-              id: { type: "string" },
-              introducedInSceneId: { type: "string" },
-              clueText: { type: "string" },
-              visualObject: { type: "string" },
-              linkedDecisionId: { type: "string" },
-              helpsChoiceId: { type: "string" },
-              subtlety: { type: "string", enum: ["subtle", "moderate", "clear"] },
-            },
-          },
-        },
-        decisions: { type: "array", minItems: 3, maxItems: 4, items: DECISION_NODE_SCHEMA },
-        endingRules: {
-          type: "array",
-          minItems: 3,
-          maxItems: 6,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            required: ["id", "endingType", "sceneId", "minimumScores", "requiredFlags", "requiredClueIds", "preferredOutcomeTags"],
-            properties: {
-              id: { type: "string" },
-              endingType: { type: "string", enum: ENDING_TYPES },
-              sceneId: { type: "string" },
-              minimumScores: SCORE_SCHEMA,
-              requiredFlags: { type: "array", maxItems: 5, items: { type: "string" } },
-              requiredClueIds: { type: "array", maxItems: 3, items: { type: "string" } },
-              preferredOutcomeTags: { type: "array", maxItems: 4, items: { type: "string" } },
-            },
-          },
+    heroWant: { type: "string" },
+    heroFear: { type: "string" },
+    heroFlaw: { type: "string" },
+    emotionalNeed: { type: "string" },
+    centralMystery: { type: "string" },
+    mainAntagonisticForce: { type: "string" },
+    keyRelationshipConflict: { type: "string" },
+    majorSecret: { type: "string" },
+    falseBelief: { type: "string" },
+    trueRevelation: { type: "string" },
+    chapterHooks: { type: "array", minItems: 4, maxItems: 8, items: { type: "string" } },
+    toneProfile: { type: "string" },
+    targetFeeling: { type: "string" },
+  },
+};
+
+const logicPlanSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["centralMystery", "heroEmotionalFlaw", "clues", "decisions", "endingRules", "routeMap"],
+  properties: {
+    centralMystery: { type: "string" },
+    heroEmotionalFlaw: { type: "string" },
+    clues: {
+      type: "array",
+      minItems: 3,
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "introducedInSceneId", "clueText", "visualObject", "linkedDecisionId", "helpsChoiceId", "subtlety"],
+        properties: {
+          id: { type: "string" },
+          introducedInSceneId: { type: "string" },
+          clueText: { type: "string" },
+          visualObject: { type: "string" },
+          linkedDecisionId: { type: "string" },
+          helpsChoiceId: { type: "string" },
+          subtlety: { type: "string", enum: ["subtle", "moderate", "clear"] },
         },
       },
     },
+    decisions: { type: "array", minItems: 3, maxItems: 3, items: DECISION_NODE_SCHEMA },
+    endingRules: {
+      type: "array",
+      minItems: 3,
+      maxItems: 3,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "endingType", "sceneId", "minimumScores", "requiredFlags", "requiredClueIds", "preferredOutcomeTags"],
+        properties: {
+          id: { type: "string" },
+          endingType: { type: "string", enum: ENDING_TYPES },
+          sceneId: { type: "string" },
+          minimumScores: SCORE_SCHEMA,
+          requiredFlags: { type: "array", maxItems: 5, items: { type: "string" } },
+          requiredClueIds: { type: "array", maxItems: 3, items: { type: "string" } },
+          preferredOutcomeTags: { type: "array", maxItems: 4, items: { type: "string" } },
+        },
+      },
+    },
+    routeMap: { type: "array", minItems: 3, maxItems: 8, items: { type: "string" } },
+  },
+};
+
+const proseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "summary", "chapters"],
+  properties: {
+    title: { type: "string" },
+    summary: { type: "string" },
     chapters: {
       type: "array",
       minItems: 3,
@@ -132,6 +163,17 @@ const storyDraftSchema = {
         },
       },
     },
+  },
+};
+
+const splitStorySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "logicPlan", "chapters", "scenes"],
+  properties: {
+    summary: { type: "string" },
+    logicPlan: logicPlanSchema,
+    chapters: proseSchema.properties.chapters,
     scenes: {
       type: "array",
       minItems: MIN_SCENE_COUNT,
@@ -194,111 +236,178 @@ export async function onRequestPost({ request, env }) {
     const approvedLogicPlan = mode === "split"
       ? cleanProse(JSON.stringify(body.storyLogicPlan || {}), 12000)
       : "";
+    const approvedStorySpine = mode === "split"
+      ? cleanProse(JSON.stringify(body.storySpine || {}), 10000)
+      : "";
     if (mode === "split" && approvedStory.length < 200) {
       return json({ ok: false, error: "Please approve a complete story before building scenes." }, 400);
     }
-    const input = mode === "split" ? [
-      `Approved story title: ${cleanText(body.title, 100) || "My OPREALM Story"}`,
-      `Approved story text: ${approvedStory}`,
-      `Approved Story Logic Plan: ${approvedLogicPlan || "No prior plan was saved. Build the deterministic fallback plan."}`,
-      `Exact speaking cast and roles: ${cast || "Use only names present in the approved story."}`,
-      `Divide this exact approved story into between ${MIN_SCENE_COUNT} and ${MAX_SCENE_COUNT} visual scenes. Never use fewer than ${MIN_SCENE_COUNT}.`,
-      "Do not rewrite or summarize the canonical approved passages. You may add only the bounded alternate branch scenes and endings already required by the approved Story Logic Plan.",
-      "Preserve the approved clue IDs, decision IDs, choice IDs, flags, score effects and ending rules whenever they remain valid after the user's edits.",
-      "Choose scene boundaries at meaningful changes in location, action, discovery, emotion or consequence.",
-      "Identify the existing chapters and paragraphs. If the edited story has no chapter headings, divide it into naturally titled chapters without changing its events.",
-      "For every chapter, provide one clear sentence describing what happens in that chapter without revealing later chapters.",
-      "Provide a concise spoiler-light summary of the complete approved story.",
-      "Each passage must quote or closely preserve only the matching events from the approved story.",
-      "For every scene, return a play-style script of 1 to 8 short beats in the exact order they occur. Label narration as speaker 'Narrator' with speakerRole 'narrator'. Label hero dialogue with the hero's exact saved name and speakerRole 'hero'. Label every other character with their exact cast name and speakerRole 'supporting'.",
-      "Never assign dialogue to Narrator when a named character speaks it. Never assign a supporting character's line to the hero. Preserve the actual spoken words rather than paraphrasing them as narration.",
-      "Create a bounded Story Logic Plan from the approved events: one central mystery, one emotional flaw, 3 subtle clues, 2 major decisions, 1 final decision, and at least 3 ending rules.",
-      "Use stable scene IDs scene-1, scene-2 and so on. Keep branches limited and convergent; choices must route only to pre-generated scene IDs.",
-      "Store every structured decision only once in logicPlan.decisions and connect it to the matching scene with sceneId. Do not duplicate decisions or choices inside scenes.",
-      "At a decision, provide 2 or 3 structured choices in logicPlan.decisions with concrete labels, visible hints, hidden consequences, score effects and flags.",
-      "Decision visualPrompt must use POV or close-up confrontation, dramatic lighting, emotional expression, a visible dilemma, and any relevant clue object.",
-      "Each visualDirection is a 1-2 sentence concrete visual seed for the scene card. Name the actual character, location, visible action and important object from the approved passage.",
-      "Never write generic substitutes such as 'the hero', 'the story world', 'first landmark', 'mysterious clue', 'strange obstacle' or 'a new part of the world'.",
-      `Choose one scene-specific mood from: ${SCENE_MOODS.join(", ")}.`,
-      `Choose one scene-specific camera from: ${SCENE_CAMERAS.join(", ")}.`,
-      "Vary mood and camera according to the actual scene. Do not assign the same pair to every scene unless the story genuinely requires it.",
-      "Do not include plot explanations, lessons, future events, prompt instructions or story structure in visualDirection.",
-    ].join("\n") : [
-      `Hero: ${character || "An original child-safe hero."}`,
-      `Exact speaking cast and roles: ${cast || "Only the hero is currently available."}`,
-      `World: ${world || "An original child-safe adventure world."}`,
-      `Story type: ${storyType}.`,
-      `Ending type: ${endingType}.`,
-      `Theme to demonstrate through actions, never explain directly: ${lessonTheme}.`,
-      objects.length ? `Optional named story objects: ${objects.join(", ")}. Use only when naturally needed.` : "There are no required story objects. Do not invent a featured prop or magical object.",
-      "Write one complete, exciting story for children aged 7-13, approximately 900-1400 words.",
-      "Organize it into 3 to 8 titled chapters. Each chapter must contain 2 to 8 proper paragraphs, with dialogue and action separated naturally.",
-      "Prioritize concrete events, goals, obstacles, discoveries, plans and consequences. Use symbolism sparingly and never let poetic imagery replace what actually happens.",
-      "Include regular spoken exchanges. Let the hero state plans, ask direct questions and make decisions aloud; let supporting characters answer, disagree, warn, joke, reveal information and change the course of events.",
-      "Avoid vague phrases such as 'as if to say' when a character can simply speak. Do not invent unexplained hybrid creatures, symbolic messengers or magical objects merely to decorate the prose.",
-      "For every chapter, provide one clear sentence describing its main events, goal or discovery without revealing later chapters.",
-      "Also provide a concise spoiler-light summary of the complete story.",
-      "Write every bounded branch scene and ending now as part of the pre-generated story. Nothing should need to be invented during gameplay.",
-      "Before writing prose, design a bounded Story Logic Plan with one central mystery, one hero emotional flaw, 3 subtle clues, 2 major decisions, 1 final decision, at least 3 endings, and an age-appropriate betrayal possibility.",
-      "Use branch-and-converge structure. Choices route only to pre-generated scene IDs. Never create infinite branches.",
-      "Use stable scene IDs in the form scene-1, scene-2 and so on. Store every structured decision only once in logicPlan.decisions and connect it to its scene with sceneId.",
-      "Every decision must have meaningful stakes, distinct emotional hooks, visible hints, hidden consequences, score changes and flags. The final decision must use consequenceMode ending.",
-      "Plant each clue in narration before its linked decision. Include its visualObject naturally in that earlier scene's visualDirection.",
-      "The visible story must contain only narrative prose: concrete action, atmosphere, character reactions, discoveries, dialogue and consequences.",
-      "Within the narrative paragraphs, never discuss story structure, plot twists, themes, lessons, arcs, scenes, the reader, prompts, image generation or what the story is trying to teach.",
-      "Do not summarize future events before they happen. Let mysteries and twists unfold naturally.",
-      "Maintain continuity and escalating stakes. Give supporting characters motives and let choices cause later consequences.",
-      `After writing the full story, decide how many visual scenes are needed to tell it properly. Use between ${MIN_SCENE_COUNT} and ${MAX_SCENE_COUNT} scenes; never use fewer than ${MIN_SCENE_COUNT}.`,
-      "Choose scene boundaries at meaningful changes in location, action, discovery, emotion or consequence. Do not force equal-length chunks.",
-      "Each passage must quote or closely preserve the corresponding story events for internal continuity, narration and subtitles.",
-      "For every scene, return a play-style script of 1 to 8 short beats in story order. Every spoken line must use the exact saved character name. Use speakerRole 'hero' only for the selected hero, 'supporting' for every other named character, and 'narrator' only for visible action or description.",
-      "Never turn a named character's dialogue into Narrator speech. Never give a supporting character's dialogue to the hero. Keep quoted dialogue as dialogue in the script.",
-      "Do not duplicate decisions or choices inside scenes. The server will attach each logicPlan decision to its matching scene after generation.",
-      "Choice labels must be concise concrete actions. visibleHint may suggest the emotional risk, but hiddenConsequence must never be shown to the player.",
-      "Decision visualPrompt must use POV or close-up confrontation, dramatic lighting, emotional expression, a visible dilemma, and any relevant clue object.",
-      "Each visualDirection is a 1-2 sentence concrete visual seed. Name the actual character, location, visible physical action and important object for that exact moment.",
-      "Never write generic substitutes such as 'the hero', 'the story world', 'first landmark', 'mysterious clue', 'strange obstacle' or 'a new part of the world'.",
-      `Choose one scene-specific mood from: ${SCENE_MOODS.join(", ")}.`,
-      `Choose one scene-specific camera from: ${SCENE_CAMERAS.join(", ")}.`,
-      "Vary mood and camera with the action: intimate feelings favor Close Up or Over Shoulder, movement favors Tracking Shot or POV, major reveals favor Wide Shot or Drone Shot, and heroic power moments favor Low Angle.",
-      "Do not include story-planning language in visualDirection. Do not mention plot structure, themes, lessons, prompts or what happens in later scenes.",
-      "No copyrighted characters, graphic violence, romance, personal data, unsafe contact, or frightening realism.",
-    ].join("\n");
-
-    const response = await openAiFetch(env, "/v1/responses", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        model: STORY_DRAFT_MODEL,
-        reasoning: { effort: "low" },
-        instructions: mode === "split"
-          ? "You are OPREALM's storyboard editor. Preserve the approved story exactly and create a faithful visual scene breakdown."
-          : "You are OPREALM's expert children's fiction writer. Write immersive narrative prose, not an outline, synopsis, lesson explanation or production plan.",
-        input,
-        text: {
-          format: {
-            type: "json_schema",
-            name: "oprealm_story_draft",
-            strict: true,
-            schema: storyDraftSchema,
-          },
-        },
-      }),
-    }, { seed: `${user.id}:${character}:${world}:${storyType}:${endingType}:${lessonTheme}`, retries: 1 });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) return json({ ok: false, error: data.error?.message || "Story writing failed." }, 502);
-    const output = extractOutputText(data);
-    if (!output) return json({ ok: false, error: "The story writer returned an empty response." }, 502);
-    const draft = normalizeDraft(JSON.parse(output));
+    const creatorBible = { character, cast, world, storyType, endingType, lessonTheme, objects };
+    let draft;
+    let models = [];
+    if (mode === "split") {
+      const split = await splitStoryIntoScenes(env, {
+        title: cleanText(body.title, 100) || "My OPREALM Story",
+        approvedStory,
+        storySpine: approvedStorySpine,
+        logicPlan: approvedLogicPlan,
+        creatorBible,
+        seed: `${user.id}:split:${approvedStory.slice(0, 500)}`,
+      });
+      draft = normalizeDraft({
+        title: cleanText(body.title, 100),
+        storySpine: body.storySpine || {},
+        ...split.value,
+      });
+      models = [split.model];
+    } else {
+      const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
+      const plan = await generatePickPathPlan(env, spine.value, creatorBible, `${user.id}:logic`);
+      const prose = await generateFullChapterStory(env, spine.value, plan.value, creatorBible, `${user.id}:prose`);
+      draft = normalizeDraft({
+        ...prose.value,
+        storySpine: spine.value,
+        logicPlan: plan.value,
+        scenes: [],
+      });
+      models = [spine.model, plan.model, prose.model];
+    }
+    draft.quality = validateStoryQuality(draft);
 
     if (mode === "write") {
       const charged = await chargeCredits(env, user.id);
       if (!charged) return json({ ok: false, error: `You need ${STORY_DRAFT_COST} Creator credits to finish this story.` }, 402);
     }
-    return json({ ok: true, draft, creditsUsed: mode === "write" ? STORY_DRAFT_COST : 0, model: data.model || STORY_DRAFT_MODEL });
+    return json({ ok: true, draft, creditsUsed: mode === "write" ? STORY_DRAFT_COST : 0, model: models.filter(Boolean).join(", ") || STORY_DRAFT_MODEL });
   } catch (error) {
     return json({ ok: false, error: error.message || "Story writing failed." }, error.status || 500);
   }
+}
+
+export async function generateStorySpine(env, input, seed = "story-spine") {
+  const prompt = [
+    `Creator Bible: ${JSON.stringify(input)}`,
+    "Build the emotional and suspense architecture before writing any prose.",
+    "Make every field specific to the named hero, cast and world. Do not use generic placeholders.",
+    "The hero's want must be concrete. The fear and flaw must actively cause trouble.",
+    "The central mystery and major secret must support surprising but fair discoveries.",
+    "The relationship conflict must involve a named supporting character when one exists.",
+    "Chapter hooks must escalate and must include cliffhangers, dangerous arrivals, betrayal hints, impossible choices, emotional reversals or discoveries that change everything.",
+    "Do not write scenes, chapters, visual prompts or production notes.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: storySpineSchema,
+    schemaName: "oprealm_story_spine",
+    instructions: "You are a senior children's adventure novelist designing the emotional spine of a thrilling pick-a-path story.",
+    input: prompt,
+    effort: "high",
+    seed,
+  });
+}
+
+export async function generatePickPathPlan(env, storySpine, creatorBible, seed = "pick-path-plan") {
+  const prompt = [
+    `Story Spine: ${JSON.stringify(storySpine)}`,
+    `Creator Bible: ${JSON.stringify(creatorBible)}`,
+    "Design exactly three major decisions before prose is written: two branch-and-converge decisions and one final ending decision.",
+    `Use meaningful tensions such as: ${CHOICE_TENSIONS.join("; ")}.`,
+    "Every decision must state why it matters emotionally, what the player knows, the concrete clue that helps, the wrong consequence, the wise consequence and the endings it influences.",
+    "Each decision question must be spoken naturally by a named character to the hero inside the future prose.",
+    "Plant 3-5 concrete visible clues before their decisions. A clue must be a specific object, mark, sound, wound, tool, garment detail, footprint, message or physical contradiction.",
+    "Never use abstract clues such as a feeling, something being wrong, a witness remembering differently or a familiar mark without describing the exact mark.",
+    "Include one false-trust or betrayal possibility when age appropriate.",
+    "Use provisional placement IDs chapter-1, chapter-2 and so on. Scene IDs will be assigned only after story approval.",
+    "Set every decision visualPrompt to an empty string. Visual prompts are forbidden at this stage.",
+    "Create exactly three distinct endings and a bounded branch-and-converge route map.",
+    "Choice labels must name concrete actions, people, places or evidence. Never write generic labels such as Act on the evidence, Take the dangerous route or Choose wisely.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: logicPlanSchema,
+    schemaName: "oprealm_pick_path_plan",
+    instructions: "You are an expert interactive-fiction architect. Make choices emotionally difficult, logically fair and specific to this story.",
+    input: prompt,
+    effort: "high",
+    seed,
+  });
+}
+
+export async function generateFullChapterStory(env, storySpine, logicPlan, creatorBible, seed = "full-story") {
+  const prompt = [
+    `Approved Story Spine: ${JSON.stringify(storySpine)}`,
+    `Approved Pick-a-Path Logic Plan: ${JSON.stringify(logicPlan)}`,
+    `Creator Bible: ${JSON.stringify(creatorBible)}`,
+    "Write only the complete chapter prose, title and spoiler-light summary. Do not create scenes, image prompts, visual directions, metadata or a new logic plan.",
+    "Write a page-turning children's adventure with emotional stakes, vivid action, strong character voices, suspenseful chapter endings, surprising discoveries and meaningful choices.",
+    "Write approximately 1200-1900 words in 4-8 titled chapters with 3-8 substantial paragraphs per chapter.",
+    "Every chapter must contain a clear character want, a problem that complicates that want, dialogue with distinct voices, a sensory world detail, an emotional reaction, a clue/twist/setback/reveal and a reason to keep reading.",
+    "Every non-final chapter must end with a cliffhanger, shocking reveal, dangerous arrival, betrayal hint, impossible choice, emotional reversal or discovery that changes everything.",
+    "Before every planned decision, a named character must directly ask the hero to choose between the concrete options. The choice must feel like the climax of the conversation, never a UI insert.",
+    "Plant every planned clue visibly before it becomes useful. Later dialogue or action must allow the reader to connect that clue to the wiser choice.",
+    "Include real setbacks and costly reversals. Let plans fail, allies disagree and discoveries change what the characters believe.",
+    "Use the lesson through consequences and changed behavior, never by explaining the moral.",
+    "Do not write outline language, future summaries, production language, scene labels, prompts, lessons, arcs or commentary about storytelling.",
+    "Avoid symbolic filler, unexplained magical objects, hybrid messengers and vague emotional gestures when a concrete action or spoken line can tell the story.",
+    "Use only the supplied cast and naturally necessary unnamed background people. Do not import characters from other saved stories.",
+    "Keep all content original, child-safe and suitable for ages 7-13.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: proseSchema,
+    schemaName: "oprealm_full_chapter_story",
+    instructions: "You are a celebrated children's adventure novelist. Write immersive, exciting pick-a-path prose, not a mission log, synopsis or production plan.",
+    input: prompt,
+    effort: "high",
+    seed,
+  });
+}
+
+export async function splitStoryIntoScenes(env, input) {
+  const prompt = [
+    `Approved story title: ${input.title}`,
+    `Approved Story Spine: ${input.storySpine || "{}"}`,
+    `Approved Pick-a-Path Logic Plan: ${input.logicPlan || "{}"}`,
+    `Creator Bible: ${JSON.stringify(input.creatorBible)}`,
+    `Approved chapter prose: ${input.approvedStory}`,
+    `Split this exact approved story into ${MIN_SCENE_COUNT}-${MAX_SCENE_COUNT} visual scenes after the prose has been finalized.`,
+    "Preserve every approved paragraph and spoken line. Scene passages must quote or closely preserve the matching prose and remain in story order.",
+    "Assign stable scene IDs scene-1, scene-2 and so on.",
+    "Remap provisional clue placements, decisions, branch routes and ending routes onto real scene IDs without changing their IDs, meaning, scores, flags or emotional stakes.",
+    "Create bounded pre-generated branch scenes only where required by the approved choice plan, then converge them back into the main story.",
+    "Attach each decision to the scene where a named character directly asks the hero to choose. The question and options must match the approved prose.",
+    "Attach each clue to the earlier scene where its exact visible object or physical detail appears.",
+    "Return 1-8 play-script beats per scene. Preserve named dialogue as dialogue and use Narrator only for visible action or description.",
+    "Now, and only now, create each visualDirection from the exact passage, exact character names, exact location, visible action, relevant clue object, decision type, camera and emotional tone.",
+    "Never write the generic labels the hero, story world, first landmark, mysterious clue or strange obstacle.",
+    `Use scene moods from: ${SCENE_MOODS.join(", ")}.`,
+    `Use cameras from: ${SCENE_CAMERAS.join(", ")}.`,
+    "Vary camera and mood according to the actual event. Do not rewrite the story into production-plan prose.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: splitStorySchema,
+    schemaName: "oprealm_story_scene_split",
+    instructions: "You are OPREALM's precise storyboard editor. Preserve approved prose and convert it into playable visual scenes without rewriting the story.",
+    input: prompt,
+    effort: "low",
+    seed: input.seed,
+  });
+}
+
+async function requestStructured(env, { schema, schemaName, instructions, input, effort, seed }) {
+  const response = await openAiFetch(env, "/v1/responses", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model: STORY_DRAFT_MODEL,
+      reasoning: { effort },
+      instructions,
+      input,
+      text: { format: { type: "json_schema", name: schemaName, strict: true, schema } },
+    }),
+  }, { seed, retries: 1 });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw Object.assign(new Error(data.error?.message || `${schemaName} generation failed.`), { status: 502 });
+  const output = extractOutputText(data);
+  if (!output) throw Object.assign(new Error(`${schemaName} returned an empty response.`), { status: 502 });
+  return { value: JSON.parse(output), model: data.model || STORY_DRAFT_MODEL };
 }
 
 function extractOutputText(data) {
@@ -312,6 +421,7 @@ function extractOutputText(data) {
 }
 
 function normalizeDraft(value) {
+  const storySpine = normalizeStorySpine(value.storySpine);
   const chapters = (value.chapters || []).slice(0, 8).map((chapter, index) => ({
     title: cleanText(chapter.title, 100) || `Chapter ${index + 1}`,
     description: cleanText(chapter.description, 420) || chapterDescriptionFromParagraphs(chapter.paragraphs, index),
@@ -332,10 +442,15 @@ function normalizeDraft(value) {
     choices: normalizeChoices(scene.choices, `scene-${index + 1}`),
     decisionNode: normalizeDecisionNode(scene.decisionNode, cleanId(scene.id) || `scene-${index + 1}`),
   }));
-  const logicPlan = ensurePlayableLogicPlan(normalizeLogicPlan(value.logicPlan), scenes);
+  const logicPlan = ensurePlayableLogicPlan(normalizeLogicPlan(value.logicPlan), scenes, {
+    storySpine,
+    title: cleanText(value.title, 100),
+    chapters,
+  });
   return {
     title: cleanText(value.title, 100) || "My OPREALM Story",
     summary: cleanProse(value.summary, 1800),
+    storySpine,
     logicPlan,
     chapters,
     story: formattedStory,
@@ -343,22 +458,35 @@ function normalizeDraft(value) {
   };
 }
 
-function ensurePlayableLogicPlan(plan, scenes) {
+function ensurePlayableLogicPlan(plan, scenes, context = {}) {
   if (plan.decisions.length >= 3 && plan.endingRules.length >= 3 && plan.clues.length >= 3) return plan;
   const sceneIdAt = (ratio) => scenes[Math.min(scenes.length - 1, Math.max(0, Math.floor((scenes.length - 1) * ratio)))]?.id || "";
+  const spine = context.storySpine || {};
+  const mystery = spine.centralMystery || plan.centralMystery || "the central mystery";
+  const force = spine.mainAntagonisticForce || "the force threatening the realm";
+  const secret = spine.majorSecret || "the hidden truth";
+  const clueObjects = [
+    `${cleanText(force, 70)}'s broken seal`,
+    `a map marked with the route to ${cleanText(secret, 70)}`,
+    `a message contradicting ${cleanText(mystery, 80)}`,
+  ];
   const decisions = [
-    fallbackDecision("decision-trust", sceneIdAt(.3), "trust_choice", sceneIdAt(.39), sceneIdAt(.44), "Who has earned the hero's trust?"),
-    fallbackDecision("decision-courage", sceneIdAt(.62), "courage_choice", sceneIdAt(.7), sceneIdAt(.75), "Which risk is worth taking now?"),
-    fallbackDecision("decision-fate", sceneIdAt(.84), "final_fate_choice", sceneIdAt(.93), sceneIdAt(.96), "What must the hero protect in the final moment?", "ending"),
+    fallbackDecision("decision-trust", sceneIdAt(.3), "trust_choice", sceneIdAt(.39), sceneIdAt(.44), `The evidence about ${mystery} points toward two allies. Which person's account matches ${clueObjects[0]}?`, clueObjects[0]),
+    fallbackDecision("decision-courage", sceneIdAt(.62), "courage_choice", sceneIdAt(.7), sceneIdAt(.75), `${force} is closing in. Should the group follow the marked route on ${clueObjects[1]}, or protect the ally who discovered it?`, clueObjects[1]),
+    fallbackDecision("decision-fate", sceneIdAt(.84), "final_fate_choice", sceneIdAt(.93), sceneIdAt(.96), `The truth about ${secret} can stop ${force}, but revealing it will cost the promised reward. Which promise should be kept?`, clueObjects[2], "ending"),
   ];
   return {
-    centralMystery: plan.centralMystery || "Someone's account of the danger does not match the evidence found during the journey.",
-    heroEmotionalFlaw: plan.heroEmotionalFlaw || "The hero tries to solve every problem without trusting anyone else.",
+    centralMystery: plan.centralMystery || mystery,
+    heroEmotionalFlaw: plan.heroEmotionalFlaw || spine.heroFlaw || "The protagonist tries to solve every problem without trusting anyone else.",
     clues: plan.clues.length >= 3 ? plan.clues : decisions.map((decision, index) => ({
       id: `clue-${index + 1}`,
       introducedInSceneId: sceneIdAt(.12 + index * .2),
-      clueText: ["A witness remembers one important detail differently.", "A familiar mark appears where it should not.", "An ally knows something they were never told."][index],
-      visualObject: ["damaged map", "matching insignia", "sealed message"][index],
+      clueText: [
+        `${clueObjects[0]} carries a fresh cut that matches the tool marks found at the first attack.`,
+        `${clueObjects[1]} includes one safe crossing that the supposed guide claimed did not exist.`,
+        `${clueObjects[2]} bears the same date as the warning everyone believed was ancient.`,
+      ][index],
+      visualObject: clueObjects[index],
       linkedDecisionId: decision.id,
       helpsChoiceId: decision.choices[0].id,
       subtlety: "subtle",
@@ -369,6 +497,7 @@ function ensurePlayableLogicPlan(plan, scenes) {
       fallbackEnding("ending-wise", "wise_ending", scenes.at(-1)?.id, { wisdom: 2 }, ["wise"]),
       fallbackEnding("ending-friendship", "friendship_ending", scenes.at(-1)?.id, { trust: 1, loyalty: 1 }, ["loyal"]),
     ],
+    routeMap: plan.routeMap.length ? plan.routeMap : decisions.map((decision) => `${decision.sceneId} branches through ${decision.choices.map((choice) => choice.nextSceneId).join(" or ")} and later reconverges.`),
   };
 }
 
@@ -380,21 +509,27 @@ function attachPlanDecisions(scenes, plan) {
   });
 }
 
-function fallbackDecision(id, sceneId, decisionType, firstNext, secondNext, questionText, consequenceMode = "branch_and_converge") {
+function fallbackDecision(id, sceneId, decisionType, firstNext, secondNext, questionText, clueObject, consequenceMode = "branch_and_converge") {
   return normalizeDecisionNode({
     id,
     sceneId,
     title: consequenceMode === "ending" ? "The Final Choice" : "The Story Turns",
-    setupText: "The danger closes in, and each possible action carries a real cost.",
+    setupText: `${clueObject} changes what the group believed, and each possible action now carries a different cost.`,
     questionText,
     decisionType,
     emotionalTone: "urgent",
-    clueReferences: [],
-    visualPrompt: "POV close-up confrontation with dramatic lighting, readable emotional expressions and two visibly different paths.",
+    clueReferences: [`clue-${id.includes("trust") ? 1 : id.includes("courage") ? 2 : 3}`],
+    visualPrompt: "",
     consequenceMode,
+    whyChoiceMatters: `The decision tests whether the protagonist can act on the truth revealed by ${clueObject}.`,
+    whatPlayerKnows: `${clueObject} contradicts the safest-looking explanation.`,
+    helpfulClueId: `clue-${id.includes("trust") ? 1 : id.includes("courage") ? 2 : 3}`,
+    wrongChoiceConsequence: "The antagonistic force gains time and an ally's trust is damaged.",
+    wiseChoiceConsequence: "The group acts on the concrete clue and reaches the next danger prepared.",
+    influencesEndingIds: ["ending-heroic", "ending-wise", "ending-friendship"],
     choices: [
-      fallbackChoice(`${id}-evidence`, "Act on the evidence", "Follow what the clues reveal.", firstNext, "A careful risk", "wise", { wisdom: 2, trust: 1 }, [`${id}-evidence`]),
-      fallbackChoice(`${id}-bold`, "Take the dangerous route", "Move before the chance disappears.", secondNext, "A bold risk", "brave", { courage: 2, danger: 1 }, [`${id}-bold`]),
+      fallbackChoice(`${id}-evidence`, `Follow the proof on ${clueObject}`, `Use the physical clue to challenge the safest-looking account.`, firstNext, "Trust the visible contradiction", "wise", { wisdom: 2, trust: 1 }, [`${id}-evidence`]),
+      fallbackChoice(`${id}-protect`, `Protect the ally targeted by ${clueObject}`, "Put the threatened relationship ahead of the quickest route.", secondNext, "Risk time to preserve loyalty", "loyal", { courage: 1, loyalty: 2 }, [`${id}-protect`]),
     ],
   }, sceneId);
 }
@@ -449,6 +584,7 @@ function normalizeLogicPlan(value) {
       requiredClueIds: cleanStringArray(rule?.requiredClueIds, 3),
       preferredOutcomeTags: cleanStringArray(rule?.preferredOutcomeTags, 4),
     })),
+    routeMap: cleanStringArray(source.routeMap, 8),
   };
 }
 
@@ -461,13 +597,38 @@ function normalizeDecisionNode(value, sceneId) {
     sceneId,
     title: cleanText(value.title, 120) || "A Difficult Choice",
     setupText: cleanProse(value.setupText, 700),
-    questionText: cleanProse(value.questionText, 400) || "What should happen next?",
+    questionText: cleanProse(value.questionText, 400) || "Which concrete action answers the evidence already discovered?",
     decisionType: DECISION_TYPES.includes(value.decisionType) ? value.decisionType : "courage_choice",
     emotionalTone: cleanText(value.emotionalTone, 80) || "tense",
     choices,
     clueReferences: cleanStringArray(value.clueReferences, 3).map(cleanId).filter(Boolean),
     visualPrompt: cleanProse(value.visualPrompt, 1200),
     consequenceMode: value.consequenceMode === "ending" ? "ending" : "branch_and_converge",
+    whyChoiceMatters: cleanProse(value.whyChoiceMatters, 500),
+    whatPlayerKnows: cleanProse(value.whatPlayerKnows, 500),
+    helpfulClueId: cleanId(value.helpfulClueId),
+    wrongChoiceConsequence: cleanProse(value.wrongChoiceConsequence, 500),
+    wiseChoiceConsequence: cleanProse(value.wiseChoiceConsequence, 500),
+    influencesEndingIds: cleanStringArray(value.influencesEndingIds, 3).map(cleanId).filter(Boolean),
+  };
+}
+
+function normalizeStorySpine(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    heroWant: cleanProse(source.heroWant, 500),
+    heroFear: cleanProse(source.heroFear, 500),
+    heroFlaw: cleanProse(source.heroFlaw, 500),
+    emotionalNeed: cleanProse(source.emotionalNeed, 500),
+    centralMystery: cleanProse(source.centralMystery, 700),
+    mainAntagonisticForce: cleanProse(source.mainAntagonisticForce, 700),
+    keyRelationshipConflict: cleanProse(source.keyRelationshipConflict, 700),
+    majorSecret: cleanProse(source.majorSecret, 700),
+    falseBelief: cleanProse(source.falseBelief, 500),
+    trueRevelation: cleanProse(source.trueRevelation, 500),
+    chapterHooks: cleanStringArray(source.chapterHooks, 8),
+    toneProfile: cleanText(source.toneProfile, 200),
+    targetFeeling: cleanText(source.targetFeeling, 200),
   };
 }
 

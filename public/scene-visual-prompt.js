@@ -201,6 +201,10 @@
     const objectDirection = objects.length
       ? `Clearly show these story-critical objects exactly where the action requires them: ${objects.join(", ")}.`
       : "Do not invent a glowing crystal, orb, clue, portal, weapon or featured prop unless the approved story explicitly names it in this beat.";
+    const decision = scene.decisionNode && typeof scene.decisionNode === "object" ? scene.decisionNode : null;
+    const decisionDirection = decision
+      ? `Decision moment: show the physical dilemma for ${clean(decision.decisionType, "a difficult choice")} through visible action and opposing routes or actions. Relevant evidence: ${truncateWords(decision.whatPlayerKnows || decision.setupText || decision.questionText, 28)}.`
+      : "";
     const lighting = lightingDirection(mood, sceneText);
     const prompt = [
       `Cinematic animated adventure scene in ${style}.`,
@@ -212,6 +216,7 @@
       `Safety: suitable for ${clean(input.ageBand, "ages 7-13")}; exciting danger without graphic violence or frightening realism. No text, UI, watermarks or logos.`,
       `Visible action: ${truncateWords(action, 34)}`,
       objectDirection,
+      decisionDirection,
       supporting,
     ].join(" ");
     return limitWords(prompt);

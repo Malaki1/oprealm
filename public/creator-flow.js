@@ -812,7 +812,7 @@ function storyDraftPayload(project, mode = "write") {
     title: project.storyDraft?.title || project.title || "My OPREALM Story",
     approvedStory: mode === "split" ? preserveStoryFormatting(project.storyDraft?.story) : "",
     character: JSON.stringify({
-      name: character.name || "The hero",
+      name: character.name || "The protagonist",
       type: character.characterType || character.type || "original hero",
       traits: character.traits || [],
       description: character.prompt || character.description || "",
@@ -836,7 +836,7 @@ function storyDraftPayload(project, mode = "write") {
         })),
     ].filter((item) => item.name)),
     world: JSON.stringify({
-      name: world.name || "the story world",
+      name: world.name || "the selected realm",
       description: world.description || world.prompt || world.hook || "",
       mood: world.mood || [],
     }),
@@ -847,6 +847,9 @@ function storyDraftPayload(project, mode = "write") {
   };
   if (mode === "split" && project.storyDraft?.logicPlan) {
     payload.storyLogicPlan = project.storyDraft.logicPlan;
+  }
+  if (mode === "split" && project.storyDraft?.storySpine) {
+    payload.storySpine = project.storyDraft.storySpine;
   }
   return payload;
 }
@@ -874,7 +877,10 @@ async function requestFullStory(project, mode = "write") {
   }
   try {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 4 * 60 * 1000);
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      (mode === "write" ? 8 : 5) * 60 * 1000,
+    );
     const response = await fetch("/api/story-draft", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -888,7 +894,9 @@ async function requestFullStory(project, mode = "write") {
     project.storyDraft = {
       title: result.draft.title,
       summary: result.draft.summary || previousDraft.summary || "",
+      storySpine: result.draft.storySpine || previousDraft.storySpine || null,
       logicPlan: result.draft.logicPlan || previousDraft.logicPlan || null,
+      quality: result.draft.quality || previousDraft.quality || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],
@@ -967,7 +975,7 @@ function buildScenesFromApprovedStory(project) {
     };
     if (scene.decisionNode && window.OPREALMStoryDecisionEngine) {
       scene.decisionNode = window.OPREALMStoryDecisionEngine.normalizeDecisionNode(scene.decisionNode, scene.id);
-      scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the hero");
+      scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the protagonist");
       scene.userVisualDirection = scene.visualDirection;
     }
     refreshSceneVisualPrompts(project, scene, index);
