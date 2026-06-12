@@ -5,6 +5,7 @@ const LOGIN_LIMIT = 5;
 const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-character-image", 180],
   ["/api/story-scene-images", 180],
+  ["/api/internal-scene-image-worker", 180],
   ["/api/story-scene-video", 90],
   ["/api/story-world-image", 180],
   ["/api/story-game-cover", 120],

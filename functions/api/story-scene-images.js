@@ -3,6 +3,7 @@ import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
 import {
   assertRateLimit,
   createGenerationJob,
+  enqueueGenerationJob,
   findIdempotentJob,
   jobResponse,
   markJobCompleted,
@@ -50,7 +51,8 @@ export async function onRequestPost({ request, env }) {
   if (existingJob?.status === "completed") return json(jobResponse(existingJob));
   if (existingJob?.status === "processing" || existingJob?.status === "queued") {
     const updatedAt = Date.parse(`${existingJob.updated_at || existingJob.created_at || ""}Z`);
-    const stale = !Number.isFinite(updatedAt) || Date.now() - updatedAt > 4 * 60 * 1000;
+    const staleAfterMs = existingJob.status === "processing" ? 12 * 60 * 1000 : 30 * 60 * 1000;
+    const stale = !Number.isFinite(updatedAt) || Date.now() - updatedAt > staleAfterMs;
     if (stale) {
       await markJobFailed(env, existingJob.id, new Error("The previous image request was interrupted."));
       existingJob = { ...existingJob, status: "failed" };
@@ -113,6 +115,80 @@ export async function onRequestPost({ request, env }) {
     });
   }
 
+  if (env.OPREALM_GENERATION_QUEUE?.send && env.OPREALM_ASSETS) {
+    const payloadKey = `story-scene-image-requests/${user.id}/${jobId}.json`;
+    await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
+      httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
+      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120) },
+    });
+    await env.OPREALM_DB.prepare(
+      "UPDATE generation_jobs SET status = 'queued', metadata_json = ?, error = NULL, updated_at = datetime('now') WHERE id = ?",
+    )
+      .bind(JSON.stringify({ source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), payloadKey }), jobId)
+      .run();
+    await enqueueGenerationJob(env, jobId, {
+      tool: SCENE_TOOL,
+      userId: user.id,
+      metadata: { payloadKey },
+    });
+    return json({
+      ok: false,
+      jobId,
+      status: "queued",
+      retryable: true,
+      error: "Scene artwork is queued and will continue in the background.",
+    }, 202, { "retry-after": "6" });
+  }
+
+  try {
+    const result = await processSceneImageJob(env, { jobId, user, body });
+    return json({ ok: true, jobId, ...result });
+  } catch (error) {
+    return sceneImageErrorResponse(error);
+  }
+}
+
+export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = false } = {}) {
+  const job = await env.OPREALM_DB.prepare(
+    "SELECT * FROM generation_jobs WHERE id = ? AND tool = ? LIMIT 1",
+  )
+    .bind(jobId, SCENE_TOOL)
+    .first();
+  if (!job) throw providerError("Queued scene image job was not found.", 404);
+  if (job.status === "completed") return jobResponse(job);
+
+  const metadata = safeJson(job.metadata_json) || {};
+  const payloadKey = cleanText(metadata.payloadKey || "", 500);
+  const payloadObject = payloadKey ? await env.OPREALM_ASSETS?.get(payloadKey) : null;
+  if (!payloadObject) throw providerError("Queued scene image request data was not found.", 404);
+  const body = await payloadObject.json();
+  const user = await env.OPREALM_DB.prepare("SELECT * FROM web_users WHERE id = ? LIMIT 1")
+    .bind(job.web_user_id)
+    .first();
+  if (!user) throw providerError("The creator account for this image job was not found.", 404);
+
+  try {
+    const result = await processSceneImageJob(env, { jobId, user, body });
+    await env.OPREALM_ASSETS.delete(payloadKey);
+    return { ok: true, jobId, ...result };
+  } catch (error) {
+    if (isTemporaryProviderError(error) && !finalAttempt) {
+      await env.OPREALM_DB.prepare(
+        "UPDATE generation_jobs SET status = 'queued', error = ?, updated_at = datetime('now') WHERE id = ?",
+      )
+        .bind(String(error.message || "Temporary image provider error.").slice(0, 1000), jobId)
+        .run();
+      throw error;
+    }
+    await markJobFailed(env, jobId, error);
+    await env.OPREALM_ASSETS.delete(payloadKey);
+    throw error;
+  }
+}
+
+async function processSceneImageJob(env, { jobId, user, body }) {
+  const referenceImages = normalizeReferenceImages(body.referenceImages);
+  const webPrompt = buildScenePrompt(body, "web", referenceImages);
   let web;
   let providerSlot = 0;
   try {
@@ -125,19 +201,7 @@ export async function onRequestPost({ request, env }) {
     await markJobProcessing(env, jobId);
     web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
   } catch (error) {
-    await markJobFailed(env, jobId, error);
-    const temporary = isTemporaryProviderError(error);
-    const status = Number(error?.status || 0) === 400 ? 400 : Number(error?.status || 0) === 429 ? 429 : temporary ? 503 : 502;
-    const retryAfter = Number(error?.retryAfter || (status === 429 ? 12 : status === 503 ? 10 : 0));
-    return json({
-      ok: false,
-      error: status === 429
-        ? error.message
-        : status === 503
-        ? "The scene image service is temporarily busy. Press Try Again when you are ready."
-        : friendlyProviderError(error),
-      retryable: status === 429 || status === 503,
-    }, status, retryAfter ? { "retry-after": String(retryAfter) } : {});
+    throw error;
   } finally {
     if (providerSlot) await releaseProviderSlot(env, jobId);
   }
@@ -165,7 +229,7 @@ export async function onRequestPost({ request, env }) {
   if (!creditUpdate.meta?.changes) {
     const error = Object.assign(new Error(`You need ${SCENE_IMAGE_COST} Creator credits to finish this scene image.`), { status: 402 });
     await markJobFailed(env, jobId, error);
-    return json({ ok: false, error: error.message }, 402);
+    throw error;
   }
 
   await logAiUsage(env, user, webPrompt, web);
@@ -186,11 +250,7 @@ export async function onRequestPost({ request, env }) {
     quality: web.quality,
   });
 
-  return json({
-    ok: true,
-    jobId,
-    ...storedResult,
-  });
+  return storedResult;
 }
 
 async function generateImage(env, prompt, size, referenceImages = []) {
@@ -314,6 +374,21 @@ function friendlyProviderError(error) {
     return `The image provider rejected this scene request. ${message.slice(0, 240)}`;
   }
   return message || "Scene image generation failed.";
+}
+
+function sceneImageErrorResponse(error) {
+  const temporary = isTemporaryProviderError(error);
+  const status = Number(error?.status || 0) === 400 ? 400 : Number(error?.status || 0) === 429 ? 429 : temporary ? 503 : Number(error?.status || 0) || 502;
+  const retryAfter = Number(error?.retryAfter || (status === 429 ? 12 : status === 503 ? 10 : 0));
+  return json({
+    ok: false,
+    error: status === 429
+      ? error.message
+      : status === 503
+        ? "The scene image service is temporarily busy. Press Try Again when you are ready."
+        : friendlyProviderError(error),
+    retryable: status === 429 || status === 503,
+  }, status, retryAfter ? { "retry-after": String(retryAfter) } : {});
 }
 
 function compactFallbackPrompt(prompt) {
@@ -503,4 +578,12 @@ function json(data, status = 200, extraHeaders = {}) {
       ...extraHeaders,
     },
   });
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value || "{}");
+  } catch {
+    return {};
+  }
 }

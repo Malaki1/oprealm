@@ -2646,7 +2646,7 @@ async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", s
   const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
   if (statusTarget) statusTarget.textContent = "Image created. Saving it safely...";
   const startedAt = Date.now();
-  while (Date.now() - startedAt < 3 * 60 * 1000) {
+  while (Date.now() - startedAt < 12 * 60 * 1000) {
     const query = jobId
       ? `id=${encodeURIComponent(jobId)}`
       : `tool=story_scene_images&idempotencyKey=${encodeURIComponent(idempotencyKey)}`;
@@ -2661,7 +2661,7 @@ async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", s
     }
     await sleep(5000);
   }
-  throw new Error("The image is still processing. Wait a moment, then press Try Again to check it.");
+  throw new Error("The image is still queued in the background. You can return to this page later to check it.");
 }
 
 function queueStoryboardSceneImage(sceneId) {

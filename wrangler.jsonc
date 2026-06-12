@@ -47,5 +47,13 @@
 			"binding": "OPREALM_ASSETS",
 			"bucket_name": "oprealm-assets"
 		}
-	]
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "OPREALM_GENERATION_QUEUE",
+				"queue": "oprealm-image-generation"
+			}
+		]
+	}
 }

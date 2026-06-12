@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "oprealm-image-queue-consumer",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-12",
+  "vars": {
+    "OPREALM_INTERNAL_IMAGE_URL": "https://oprealm.com/api/internal-scene-image-worker"
+  },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "oprealm-image-generation",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "max_concurrency": 3,
+        "retry_delay": 15
+      }
+    ]
+  }
+}
