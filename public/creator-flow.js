@@ -802,6 +802,13 @@ function finishStoryWritingLoading() {
   });
 }
 
+function setStoryWritingStage(percent, message = "") {
+  storyWritingProgressValue = Math.max(storyWritingProgressValue, Math.min(94, Number(percent) || 0));
+  renderStoryWritingProgress();
+  const status = document.querySelector("#fullStoryStatus");
+  if (status && message) status.textContent = message;
+}
+
 function storyDraftPayload(project, mode = "write") {
   const character = activeCharacter(project);
   const world = activeWorld(project);
@@ -876,19 +883,28 @@ async function requestFullStory(project, mode = "write") {
     setStoryWritingLoading(true);
   }
   try {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      (mode === "write" ? 8 : 5) * 60 * 1000,
-    );
-    const response = await fetch("/api/story-draft", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify(storyDraftPayload(project, mode)),
-    }).finally(() => window.clearTimeout(timeoutId));
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.draft?.story) {
+    const basePayload = storyDraftPayload(project, mode);
+    let result;
+    if (mode === "write") {
+      setStoryWritingStage(8, "Building the story foundation...");
+      const spineResult = await requestStoryDraftStage({ ...basePayload, stage: "spine" }, "story foundation");
+      setStoryWritingStage(34, "Designing clues, choices and possible endings...");
+      const logicResult = await requestStoryDraftStage({
+        ...basePayload,
+        stage: "logic",
+        storySpine: spineResult.storySpine,
+      }, "choice plan");
+      setStoryWritingStage(62, "Writing the complete chapter story...");
+      result = await requestStoryDraftStage({
+        ...basePayload,
+        stage: "prose",
+        storySpine: spineResult.storySpine,
+        storyLogicPlan: logicResult.logicPlan,
+      }, "chapter story");
+    } else {
+      result = await requestStoryDraftStage(basePayload, "scene breakdown", 5 * 60 * 1000);
+    }
+    if (!result.ok || !result.draft?.story) {
       throw new Error(result.error || "Story writing failed.");
     }
     project.storyDraft = {
@@ -939,6 +955,38 @@ async function requestFullStory(project, mode = "write") {
     const currentStatus = document.querySelector("#fullStoryStatus") || status;
     if (currentStatus) currentStatus.textContent = message;
   }
+}
+
+async function requestStoryDraftStage(payload, stageLabel, timeoutMs = 3 * 60 * 1000) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch("/api/story-draft", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`The ${stageLabel} took too long. Please press Regenerate Story to try again.`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+  const raw = await response.text();
+  let result = {};
+  try {
+    result = raw ? JSON.parse(raw) : {};
+  } catch {
+    throw new Error(`The ${stageLabel} connection closed before it finished. Please try again.`);
+  }
+  if (!response.ok || !result.ok) {
+    throw new Error(result.error || `The ${stageLabel} could not be generated.`);
+  }
+  return result;
 }
 
 function buildScenesFromApprovedStory(project) {

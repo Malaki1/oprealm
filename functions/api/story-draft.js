@@ -217,6 +217,9 @@ export async function onRequestPost({ request, env }) {
     const user = await requireUser(request, env);
     const body = await readJson(request, "Invalid story request.");
     const mode = body.mode === "split" ? "split" : "write";
+    const requestedStage = mode === "write" && ["spine", "logic", "prose"].includes(body.stage)
+      ? body.stage
+      : "";
     if (mode === "write" && Number(user.credits_remaining || 0) < STORY_DRAFT_COST) {
       return json({ ok: false, error: `You need ${STORY_DRAFT_COST} Creator credits to write this story.` }, 402);
     }
@@ -260,6 +263,43 @@ export async function onRequestPost({ request, env }) {
         ...split.value,
       });
       models = [split.model];
+    } else if (requestedStage === "spine") {
+      const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
+      return json({
+        ok: true,
+        stage: "spine",
+        storySpine: normalizeStorySpine(spine.value),
+        creditsUsed: 0,
+        model: spine.model,
+      });
+    } else if (requestedStage === "logic") {
+      const storySpine = normalizeStorySpine(body.storySpine);
+      if (!storySpine.centralMystery || !storySpine.heroFlaw) {
+        return json({ ok: false, error: "The story foundation was incomplete. Please regenerate the story." }, 400);
+      }
+      const plan = await generatePickPathPlan(env, storySpine, creatorBible, `${user.id}:logic`);
+      return json({
+        ok: true,
+        stage: "logic",
+        storySpine,
+        logicPlan: normalizeLogicPlan(plan.value),
+        creditsUsed: 0,
+        model: plan.model,
+      });
+    } else if (requestedStage === "prose") {
+      const storySpine = normalizeStorySpine(body.storySpine);
+      const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+      if (!storySpine.centralMystery || logicPlan.decisions.length < 3 || logicPlan.clues.length < 3) {
+        return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
+      }
+      const prose = await generateFullChapterStory(env, storySpine, logicPlan, creatorBible, `${user.id}:prose`);
+      draft = normalizeDraft({
+        ...prose.value,
+        storySpine,
+        logicPlan,
+        scenes: [],
+      });
+      models = [prose.model];
     } else {
       const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
       const plan = await generatePickPathPlan(env, spine.value, creatorBible, `${user.id}:logic`);
@@ -300,7 +340,8 @@ export async function generateStorySpine(env, input, seed = "story-spine") {
     schemaName: "oprealm_story_spine",
     instructions: "You are a senior children's adventure novelist designing the emotional spine of a thrilling pick-a-path story.",
     input: prompt,
-    effort: "high",
+    effort: "medium",
+    maxOutputTokens: 4000,
     seed,
   });
 }
@@ -326,7 +367,8 @@ export async function generatePickPathPlan(env, storySpine, creatorBible, seed =
     schemaName: "oprealm_pick_path_plan",
     instructions: "You are an expert interactive-fiction architect. Make choices emotionally difficult, logically fair and specific to this story.",
     input: prompt,
-    effort: "high",
+    effort: "medium",
+    maxOutputTokens: 10000,
     seed,
   });
 }
@@ -355,7 +397,8 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, creat
     schemaName: "oprealm_full_chapter_story",
     instructions: "You are a celebrated children's adventure novelist. Write immersive, exciting pick-a-path prose, not a mission log, synopsis or production plan.",
     input: prompt,
-    effort: "high",
+    effort: "medium",
+    maxOutputTokens: 18000,
     seed,
   });
 }
@@ -391,13 +434,14 @@ export async function splitStoryIntoScenes(env, input) {
   });
 }
 
-async function requestStructured(env, { schema, schemaName, instructions, input, effort, seed }) {
+async function requestStructured(env, { schema, schemaName, instructions, input, effort, maxOutputTokens, seed }) {
   const response = await openAiFetch(env, "/v1/responses", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model: STORY_DRAFT_MODEL,
       reasoning: { effort },
+      max_output_tokens: maxOutputTokens,
       instructions,
       input,
       text: { format: { type: "json_schema", name: schemaName, strict: true, schema } },
@@ -407,7 +451,11 @@ async function requestStructured(env, { schema, schemaName, instructions, input,
   if (!response.ok) throw Object.assign(new Error(data.error?.message || `${schemaName} generation failed.`), { status: 502 });
   const output = extractOutputText(data);
   if (!output) throw Object.assign(new Error(`${schemaName} returned an empty response.`), { status: 502 });
-  return { value: JSON.parse(output), model: data.model || STORY_DRAFT_MODEL };
+  try {
+    return { value: JSON.parse(output), model: data.model || STORY_DRAFT_MODEL };
+  } catch {
+    throw Object.assign(new Error(`${schemaName} returned incomplete structured data. Please try again.`), { status: 502 });
+  }
 }
 
 function extractOutputText(data) {
