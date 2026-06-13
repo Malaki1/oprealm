@@ -781,6 +781,7 @@ function setStorySetupLoading(isLoading, message = "") {
   const loading = document.querySelector("#storySetupLoading");
   const actions = document.querySelector("#storySetupErrorActions");
   const heading = document.querySelector("#storySetupHeading");
+  const detail = document.querySelector("#storySetupErrorDetail");
   if (!loading) return;
   window.clearInterval(storySetupProgressTimer);
   storySetupProgressTimer = null;
@@ -789,6 +790,7 @@ function setStorySetupLoading(isLoading, message = "") {
   if (!isLoading) return;
   loading.classList.remove("has-error");
   if (actions) actions.hidden = true;
+  if (detail) detail.hidden = true;
   if (heading) heading.textContent = "Preparing Story Scenes...";
   storySetupStartedAt = Date.now();
   storySetupProgressValue = 4;
@@ -819,11 +821,31 @@ function showStorySetupError(message = "") {
   document.body.classList.add("is-story-setup-loading");
   if (heading) heading.textContent = "Scene preparation paused";
   if (messageNode) {
-    messageNode.textContent = /too many requests|rate limit/i.test(message)
+    const friendlyMessage = /too many requests|rate limit/i.test(message)
       ? "OPREALM needs a short moment before preparing the scenes. Your approved story is safe."
-      : "OPREALM could not finish preparing the scenes. Your approved story is safe and ready to try again.";
+      : /request body is too large|input is too large/i.test(message)
+        ? "This story needs to be prepared in smaller sections. Your approved story is safe."
+        : /sign in|log in|session/i.test(message)
+          ? "Your session needs refreshing before OPREALM can prepare the scenes. Your approved story is safe."
+          : "OPREALM could not finish preparing the scenes. Your approved story is safe and ready to try again.";
+    messageNode.textContent = friendlyMessage;
+  }
+  const detailNode = document.querySelector("#storySetupErrorDetail");
+  if (detailNode) {
+    detailNode.textContent = cleanStorySetupError(message);
+    detailNode.hidden = false;
   }
   if (actions) actions.hidden = false;
+}
+
+function cleanStorySetupError(message = "") {
+  const value = String(message || "").replace(/\s+/g, " ").trim();
+  if (!value) return "No additional details were returned.";
+  if (/too many requests|rate limit/i.test(value)) return "The preparation service is briefly busy. Wait a few seconds, then press Try Again.";
+  if (/request body is too large|input is too large/i.test(value)) return "The approved story will be prepared in smaller sections on the next attempt.";
+  if (/sign in|log in|session|unauthor/i.test(value)) return "Refresh your session, then press Try Again.";
+  if (/database|not connected|configuration/i.test(value)) return "A required OPREALM service is temporarily unavailable.";
+  return value.slice(0, 220);
 }
 
 async function finishStorySetupLoading() {

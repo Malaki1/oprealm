@@ -12,7 +12,7 @@
     <script src="/storyboard-account.js?v=5" defer></script>
     <script src="/scene-visual-prompt.js?v=3" defer></script>
     <script src="/story-decision-engine.js?v=1" defer></script>
-    <script src="/creator-flow.js?v=94" defer></script>
+    <script src="/creator-flow.js?v=95" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -387,6 +387,7 @@
         <p id="storySetupLoadingMessage">Reading your approved story and preparing the adventure...</p>
         <div class="story-setup-progress-track" aria-hidden="true"><span></span></div>
         <small>Your approved story is safe while OPREALM prepares the next step.</small>
+        <p class="story-setup-error-detail" id="storySetupErrorDetail" hidden></p>
         <div class="story-setup-error-actions" id="storySetupErrorActions" hidden>
           <button class="scene-action primary" id="retryStorySetupButton" type="button">Try Again</button>
           <button class="scene-action" id="backFromStorySetupButton" type="button">Back to Story</button>

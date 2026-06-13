@@ -364,10 +364,12 @@ const splitStorySchema = {
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
-    if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm story writer is not connected yet." }, 500);
     const user = await requireUser(request, env);
     const body = await readJson(request, "Invalid story request.");
     const mode = body.mode === "split" ? "split" : "write";
+    if (mode === "write" && !hasOpenAiKey(env)) {
+      return json({ ok: false, error: "The OPRealm story writer is not connected yet." }, 500);
+    }
     const requestedStage = mode === "write" && ["spine", "logic", "moments", "signature", "prose"].includes(body.stage)
       ? body.stage
       : "";
@@ -383,7 +385,9 @@ export async function onRequestPost({ request, env }) {
     const objects = Array.isArray(body.objects)
       ? body.objects.map((item) => cleanText(item, 120)).filter((item) => item && !/^custom (pet|object)$/i.test(item)).slice(0, 6)
       : [];
-    assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
+    if (mode === "write") {
+      assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
+    }
     await assertRateLimit(
       env,
       user.id,
