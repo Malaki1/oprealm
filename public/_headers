@@ -19,3 +19,18 @@
 
 /account-nav.js
   Cache-Control: no-store
+
+/storyboard.html
+  Cache-Control: no-store
+
+/storyboard
+  Cache-Control: no-store
+
+/storyboard-scenes.html
+  Cache-Control: no-store
+
+/storyboard-scenes
+  Cache-Control: no-store
+
+/creator-flow.js
+  Cache-Control: no-cache, must-revalidate
