@@ -2974,10 +2974,10 @@ async function processSceneImageQueue() {
 
 function resumeQueuedSceneImages(project) {
   [...(project.scenes || [])]
-    .filter((scene) => scene.status === "image_queued" && !scene.generatedImageUrl)
+    .filter((scene) => ["image_queued", "generating"].includes(scene.status) && !scene.generatedImageUrl && scene.imageRequestId)
     .sort((a, b) => {
-      const aQueuedAt = Date.parse(a.imageQueuedAt || "");
-      const bQueuedAt = Date.parse(b.imageQueuedAt || "");
+      const aQueuedAt = Date.parse(a.imageQueuedAt || a.imageGenerationStartedAt || "");
+      const bQueuedAt = Date.parse(b.imageQueuedAt || b.imageGenerationStartedAt || "");
       if (Number.isFinite(aQueuedAt) && Number.isFinite(bQueuedAt) && aQueuedAt !== bQueuedAt) return aQueuedAt - bQueuedAt;
       if (Number.isFinite(aQueuedAt) !== Number.isFinite(bQueuedAt)) return Number.isFinite(aQueuedAt) ? -1 : 1;
       return Number(a.order || 0) - Number(b.order || 0);
