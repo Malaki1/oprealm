@@ -12,7 +12,7 @@
     <script src="/storyboard-account.js?v=5" defer></script>
     <script src="/scene-visual-prompt.js?v=3" defer></script>
     <script src="/story-decision-engine.js?v=1" defer></script>
-    <script src="/creator-flow.js?v=93" defer></script>
+    <script src="/creator-flow.js?v=94" defer></script>
   </head>
   <body class="storyboard-body storyboard-scenes-body">
     <header class="storyboard-topbar">
@@ -286,10 +286,14 @@
           <strong id="storySetupPercent">4%</strong>
         </div>
         <p class="spark-eyebrow">Story approved</p>
-        <h2>Preparing Story Scenes...</h2>
+        <h2 id="storySetupHeading">Preparing Story Scenes...</h2>
         <p id="storySetupLoadingMessage">Reading your approved story and preparing the adventure...</p>
         <div class="story-setup-progress-track" aria-hidden="true"><span></span></div>
         <small>Your approved story is safe while OPREALM prepares the next step.</small>
+        <div class="story-setup-error-actions" id="storySetupErrorActions" hidden>
+          <button class="scene-action primary" id="retryStorySetupButton" type="button">Try Again</button>
+          <button class="scene-action" id="backFromStorySetupButton" type="button">Back to Story</button>
+        </div>
       </div>
     </div>
 

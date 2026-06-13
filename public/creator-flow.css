@@ -4285,6 +4285,26 @@ body.is-story-setup-loading {
   line-height: 1.45;
 }
 
+.story-setup-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.story-setup-error-actions[hidden] {
+  display: none;
+}
+
+.story-setup-loading.has-error .story-setup-progress-ring {
+  background: conic-gradient(#ff6f91 0deg, #ffb45e var(--story-setup-progress), rgba(255, 255, 255, 0.09) var(--story-setup-progress) 360deg);
+}
+
+.story-setup-loading.has-error .story-setup-progress-track {
+  opacity: 0.45;
+}
+
 .story-direction-head {
   display: flex;
   justify-content: space-between;

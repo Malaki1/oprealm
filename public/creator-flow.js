@@ -779,12 +779,17 @@ function renderStorySetupProgress(message = "") {
 
 function setStorySetupLoading(isLoading, message = "") {
   const loading = document.querySelector("#storySetupLoading");
+  const actions = document.querySelector("#storySetupErrorActions");
+  const heading = document.querySelector("#storySetupHeading");
   if (!loading) return;
   window.clearInterval(storySetupProgressTimer);
   storySetupProgressTimer = null;
   loading.hidden = !isLoading;
   document.body.classList.toggle("is-story-setup-loading", isLoading);
   if (!isLoading) return;
+  loading.classList.remove("has-error");
+  if (actions) actions.hidden = true;
+  if (heading) heading.textContent = "Preparing Story Scenes...";
   storySetupStartedAt = Date.now();
   storySetupProgressValue = 4;
   renderStorySetupProgress(message);
@@ -799,6 +804,26 @@ function setStorySetupLoading(isLoading, message = "") {
       storySetupProgressTimer = null;
     }
   }, 420);
+}
+
+function showStorySetupError(message = "") {
+  const loading = document.querySelector("#storySetupLoading");
+  const actions = document.querySelector("#storySetupErrorActions");
+  const heading = document.querySelector("#storySetupHeading");
+  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  if (!loading) return;
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
+  loading.hidden = false;
+  loading.classList.add("has-error");
+  document.body.classList.add("is-story-setup-loading");
+  if (heading) heading.textContent = "Scene preparation paused";
+  if (messageNode) {
+    messageNode.textContent = /too many requests|rate limit/i.test(message)
+      ? "OPREALM needs a short moment before preparing the scenes. Your approved story is safe."
+      : "OPREALM could not finish preparing the scenes. Your approved story is safe and ready to try again.";
+  }
+  if (actions) actions.hidden = false;
 }
 
 async function finishStorySetupLoading() {
@@ -922,17 +947,8 @@ function storyDraftPayload(project, mode = "write") {
   if (mode === "split" && project.storyDraft?.storySpine) {
     payload.storySpine = project.storyDraft.storySpine;
   }
-  if (mode === "split" && project.storyDraft?.bestMomentsPlan) {
-    payload.bestMomentsPlan = project.storyDraft.bestMomentsPlan;
-  }
   if (mode === "split" && project.storyDraft?.signatureMomentsPlan) {
     payload.signatureMomentsPlan = project.storyDraft.signatureMomentsPlan;
-  }
-  if (mode === "split" && project.storyDraft?.emotionalRhythmPlan) {
-    payload.emotionalRhythmPlan = project.storyDraft.emotionalRhythmPlan;
-  }
-  if (mode === "split" && project.storyDraft?.storyLocations) {
-    payload.storyLocations = project.storyDraft.storyLocations;
   }
   return payload;
 }
@@ -1073,7 +1089,8 @@ async function requestFullStory(project, mode = "write") {
       return;
     }
   } catch (error) {
-    setStorySetupLoading(false);
+    if (mode === "split") showStorySetupError(error.message);
+    else setStorySetupLoading(false);
     setStoryWritingLoading(false);
     const message = error.name === "AbortError"
       ? "Story writing took too long and was stopped. Please press Regenerate Story to try again."
@@ -4050,6 +4067,12 @@ async function hydrateStoryboardPage() {
   storyReaderAudio?.addEventListener("ended", updateStoryReaderTime);
   document.querySelector("#approveFullStoryButton")?.addEventListener("click", () => {
     requestFullStory(project, "split");
+  });
+  document.querySelector("#retryStorySetupButton")?.addEventListener("click", () => {
+    requestFullStory(project, "split");
+  });
+  document.querySelector("#backFromStorySetupButton")?.addEventListener("click", () => {
+    setStorySetupLoading(false);
   });
   document.querySelector("#clearStoryboardButton")?.addEventListener("click", () => {
     openClearScenesModal();

@@ -384,7 +384,14 @@ export async function onRequestPost({ request, env }) {
       ? body.objects.map((item) => cleanText(item, 120)).filter((item) => item && !/^custom (pet|object)$/i.test(item)).slice(0, 6)
       : [];
     assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
-    await assertRateLimit(env, user.id, STORY_DRAFT_TOOL, { limit: 4, windowSeconds: 60 });
+    await assertRateLimit(
+      env,
+      user.id,
+      mode === "split" ? `${STORY_DRAFT_TOOL}_scene_build` : STORY_DRAFT_TOOL,
+      mode === "split"
+        ? { limit: 12, windowSeconds: 60 }
+        : { limit: 8, windowSeconds: 60 },
+    );
 
     const approvedStory = cleanProse(body.approvedStory, 100000);
     if (mode === "split" && approvedStory.length < 200) {
