@@ -97,6 +97,11 @@ async function enforceRateLimits(request, env) {
     ? GENERAL_LIMIT
     : ROUTE_MUTATION_LIMITS.get(url.pathname) || MUTATION_LIMIT;
 
+  if (request.method === "GET" && url.pathname === "/api/generation-job") {
+    routeKey = `${request.method}:${url.pathname}:poll`;
+    generalLimit = 1800;
+  }
+
   if (request.method === "POST" && url.pathname === "/api/story-draft") {
     const body = await safeJson(request);
     if (String(body.providerResponseId || "").trim()) {
