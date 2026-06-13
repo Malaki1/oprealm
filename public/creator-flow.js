@@ -239,6 +239,12 @@ const STORYBOARD_MOVIE_STORE = "movie_previews";
 const MIN_STORY_SCENES = 1;
 const FALLBACK_STORY_SCENES = 16;
 const STORY_SCENES_PAGE = /\/storyboard-scenes(?:\.html)?$/i.test(window.location.pathname);
+const STORY_IMAGE_MODE_KEY = "oprealm_story_image_mode_v1";
+const STORY_IMAGE_MODES = {
+  mock: { label: "Mock", credits: 0, cost: "$0.000", button: "Create Mock Image (free)" },
+  draft: { label: "Draft", credits: 1, cost: "~$0.006", button: "Generate Draft (1 credit)" },
+  final: { label: "Final", credits: 24, cost: "~$0.20", button: "Generate Final (24 credits)" },
+};
 const STORY_DIRECTION_DEFAULTS = {
   storyType: "epic-quest",
   endingType: "happy",
@@ -261,6 +267,32 @@ let sceneImageQueueActive = false;
 let sceneImageStatusMonitor = 0;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
+
+function storyImageMode() {
+  const value = localStorage.getItem(STORY_IMAGE_MODE_KEY) || "draft";
+  return STORY_IMAGE_MODES[value] ? value : "draft";
+}
+
+function setStoryImageMode(value) {
+  localStorage.setItem(STORY_IMAGE_MODE_KEY, STORY_IMAGE_MODES[value] ? value : "draft");
+}
+
+function createMockSceneImage(scene, sceneIndex) {
+  const title = escapeHtml(scene.title || `Scene ${sceneIndex + 1}`);
+  const summary = escapeHtml(String(scene.prompt || "Scene layout placeholder").slice(0, 100));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10295f"/><stop offset="1" stop-color="#431d72"/></linearGradient></defs>
+    <rect width="1536" height="1024" fill="url(#g)"/>
+    <circle cx="1260" cy="180" r="240" fill="#25d9ff" opacity=".14"/>
+    <circle cx="230" cy="850" r="300" fill="#ff3cc7" opacity=".12"/>
+    <rect x="118" y="122" width="1300" height="780" rx="42" fill="none" stroke="#8ff0ff" stroke-width="8" stroke-dasharray="24 20" opacity=".75"/>
+    <text x="768" y="410" text-anchor="middle" fill="#8ff0ff" font-family="Arial,sans-serif" font-size="42" font-weight="700">FREE TEST PLACEHOLDER</text>
+    <text x="768" y="505" text-anchor="middle" fill="#ffffff" font-family="Arial,sans-serif" font-size="72" font-weight="800">${title}</text>
+    <foreignObject x="300" y="570" width="936" height="180"><div xmlns="http://www.w3.org/1999/xhtml" style="color:#dce9ff;font:32px/1.4 Arial,sans-serif;text-align:center">${summary}</div></foreignObject>
+    <text x="768" y="840" text-anchor="middle" fill="#b9cae9" font-family="Arial,sans-serif" font-size="28">No API call or Creator credits used</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -537,6 +569,8 @@ function renderStoryboardScenes(project) {
     });
   const queuePositionById = new Map(queuedScenes.map((scene, index) => [scene.id, index + 1]));
   const queuedTotal = queuedScenes.length;
+  const imageMode = storyImageMode();
+  const imageModePolicy = STORY_IMAGE_MODES[imageMode];
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   const worldById = new Map((project.worlds || []).map((world) => [world.id, world]));
   if (!orderedScenes.length) {
@@ -659,7 +693,7 @@ function renderStoryboardScenes(project) {
             <textarea class="scene-prompt-input" data-scene-prompt="${escapeHtml(scene.id)}" placeholder="Describe what the image or video should show.">${escapeHtml(scene.prompt || "")}</textarea>
             <div class="scene-chip-row">${chips.map((chip, chipIndex) => `<span class="scene-chip ${chipIndex === 0 ? "is-active" : ""}">${escapeHtml(chip)}</span>`).join("")}</div>
             <div class="scene-image-tools">
-              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? "Try Again (24 credits)" : "Generate Image (24 credits)"}</button>
+              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? `Try Again: ${imageModePolicy.button}` : imageModePolicy.button}</button>
               <button class="scene-action scene-video-button" data-bring-scene-to-life="${escapeHtml(scene.id)}" type="button" ${!hasImage || videoStatus === "generating" ? "disabled" : ""}>${videoButtonText}</button>
               <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "queued" ? `${escapeHtml(queueLabel)}: Scene ${index + 1} will generate automatically.` : status === "needs-image" ? "Ready for artwork." : status === "image-error" ? escapeHtml(scene.imageError || "Image generation failed. Press Try Again to retry manually.") : ""}</span>
               <span class="scene-video-status" data-scene-video-status="${escapeHtml(scene.id)}">${videoStatus === "generating" ? escapeHtml(scene.videoMessage || "Creating video...") : videoStatus === "complete" ? "Scene video ready." : videoStatus === "video_ready" ? "Scene video canvas is ready." : videoStatus === "video_error" ? escapeHtml(scene.videoError || "Video setup failed. Try again.") : ""}</span>
@@ -2762,6 +2796,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
   const prompt = String(scene.prompt || "").trim() || storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
   const storyContext = cleanStoryText(scene.storyExcerpt, prompt);
+  const imageMode = storyImageMode();
 
   scene.prompt = prompt;
   refreshSceneVisualPrompts(project, scene, sceneIndex);
@@ -2791,6 +2826,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   try {
     const requestBody = JSON.stringify({
         sceneId,
+        imageMode,
         idempotencyKey: scene.imageRequestId || "",
         prompt: storyContext,
         visualPrompt: scene.imagePromptInternal,
@@ -2886,6 +2922,8 @@ async function generateStoryboardSceneImage(project, sceneId) {
     latestScene.generatedImageUrl = result.webImageUrl
       ? result.webImageUrl
       : await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+    latestScene.imageMode = result.imageMode || imageMode;
+    latestScene.imageWasCached = Boolean(result.cached);
     stopSceneImageProgress(sceneId);
     latestScene.imageProgress = 100;
     latestScene.imageGenerationStartedAt = "";
@@ -2960,6 +2998,27 @@ function queueStoryboardSceneImage(sceneId) {
   const project = ensureSceneList(readStoryboardProject());
   const scene = (project.scenes || []).find((item) => item.id === sceneId);
   if (!scene || scene.status === "generating" || scene.status === "image_queued") return;
+  const imageMode = storyImageMode();
+  if (imageMode === "mock") {
+    const sceneIndex = (project.scenes || []).findIndex((item) => item.id === sceneId);
+    scene.generatedImageUrl = createMockSceneImage(scene, sceneIndex);
+    scene.imageMode = "mock";
+    scene.imageWasCached = false;
+    scene.status = "complete";
+    scene.completed = true;
+    scene.imageProgress = 100;
+    scene.imageError = "";
+    scene.imageRequestId = "";
+    scene.imageJobId = "";
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    return;
+  }
+  if (scene.requestedImageMode !== imageMode) {
+    scene.imageRequestId = "";
+    scene.imageJobId = "";
+  }
+  scene.requestedImageMode = imageMode;
   scene.status = "image_queued";
   scene.imageQueuedAt = new Date().toISOString();
   scene.imageRetryCount = 0;
@@ -3900,6 +3959,28 @@ function bindStoryboardTitle(project) {
 
 function bindStoryboardSceneControls(project) {
   let draggedSceneId = "";
+  const imageModeSelect = document.querySelector("#storyImageMode");
+  const imageModeDescription = document.querySelector("#artworkModeDescription");
+  if (imageModeSelect) {
+    imageModeSelect.value = storyImageMode();
+    const updateDescription = () => {
+      const descriptions = {
+        mock: "Creates an instant local placeholder. No API request, provider charge or Creator credits.",
+        draft: "Uses GPT Image 1 Mini at low quality with character references. Estimated provider cost: $0.006 per image.",
+        final: "Uses GPT Image 1.5 at high quality. Estimated provider cost: $0.20 per image and confirmation is required.",
+      };
+      if (imageModeDescription) imageModeDescription.textContent = descriptions[storyImageMode()];
+    };
+    updateDescription();
+    if (!imageModeSelect.dataset.modeBound) {
+      imageModeSelect.dataset.modeBound = "true";
+      imageModeSelect.addEventListener("change", () => {
+        setStoryImageMode(imageModeSelect.value);
+        updateDescription();
+        rerenderStoryboard(readStoryboardProject());
+      });
+    }
+  }
 
   document.querySelectorAll(".scene-card").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
@@ -4103,6 +4184,9 @@ function bindStoryboardSceneControls(project) {
 
   document.querySelectorAll("[data-generate-scene-image]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (storyImageMode() === "final" && !window.confirm(
+        "Generate final-quality artwork?\n\nEstimated provider cost: about $0.20 per image\nCreator credits: 24\n\nUse Draft for prompt testing at about $0.006.",
+      )) return;
       queueStoryboardSceneImage(button.dataset.generateSceneImage);
     });
   });

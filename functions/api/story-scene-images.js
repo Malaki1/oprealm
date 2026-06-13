@@ -4,6 +4,7 @@ import {
   assertRateLimit,
   createGenerationJob,
   enqueueGenerationJob,
+  findCachedJob,
   findIdempotentJob,
   jobResponse,
   markJobCompleted,
@@ -12,13 +13,9 @@ import {
   sha256Text,
 } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
-import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
+import { sceneImageMode } from "../_lib/image-generation-policy.js";
 import { checkPromptSafety } from "../_lib/validate.js";
 
-const SCENE_IMAGE_COST = CREATOR_CREDIT_COSTS.sceneImage;
-const SCENE_IMAGE_MODEL = "gpt-image-1.5";
-const SCENE_IMAGE_QUALITY = "high";
-const SCENE_IMAGE_ESTIMATED_COST_USD = 0.2;
 const MAX_REFERENCE_IMAGES = 4;
 const SCENE_TOOL = "story_scene_images";
 const IMAGE_PROVIDER = "openai_images";
@@ -28,7 +25,6 @@ const IMAGE_SLOT_WAIT_MS = 20000;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
-  if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm scene image generator is not connected yet." }, 500);
 
   let user;
   try {
@@ -36,36 +32,13 @@ export async function onRequestPost({ request, env }) {
   } catch (error) {
     return json({ ok: false, error: error.message || "Please log in before generating scene images." }, error.status || 401);
   }
-  if (Number(user.credits_remaining || 0) < SCENE_IMAGE_COST) {
-    return json({ ok: false, error: `You need ${SCENE_IMAGE_COST} Creator credits to generate scene images.` }, 402);
-  }
-  const providerState = await env.OPREALM_DB.prepare(
-    `
-      SELECT status, reason, blocked_until
-      FROM generation_provider_state
-      WHERE provider = ?
-        AND status = 'paused'
-        AND blocked_until > unixepoch()
-      LIMIT 1
-    `,
-  )
-    .bind(IMAGE_PROVIDER)
-    .first()
-    .catch(() => null);
-  if (providerState) {
-    return json({
-      ok: false,
-      error: providerState.reason || "Image generation is temporarily unavailable while OPRealm restores provider capacity.",
-      retryable: false,
-    }, 503, { "retry-after": String(Math.max(30, Number(providerState.blocked_until || 0) - Math.floor(Date.now() / 1000))) });
-  }
-
   let body;
   try {
     body = await readJson(request, "Invalid scene image request.", 14 * 1024 * 1024);
   } catch {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
   }
+  const imageMode = sceneImageMode(body.imageMode);
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
   let existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
   if (existingJob?.status === "completed") return json(jobResponse(existingJob));
@@ -129,7 +102,38 @@ export async function onRequestPost({ request, env }) {
 
   const referenceImages = normalizeReferenceImages(body.referenceImages);
   const webPrompt = buildScenePrompt(body, "web", referenceImages);
-  const promptHash = await sha256Text(`${SCENE_TOOL}:${SCENE_IMAGE_MODEL}:${SCENE_IMAGE_QUALITY}:${webPrompt}`);
+  const promptHash = await sha256Text(`${SCENE_TOOL}:${imageMode.model}:${imageMode.quality}:${imageMode.size}:${webPrompt}`);
+  const cachedJob = await findCachedJob(env, user.id, SCENE_TOOL, promptHash);
+  if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
+
+  if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm scene image generator is not connected yet." }, 500);
+  if (Number(user.credits_remaining || 0) < imageMode.credits) {
+    return json({
+      ok: false,
+      error: `You need ${imageMode.credits} Creator credit${imageMode.credits === 1 ? "" : "s"} for a ${imageMode.label.toLowerCase()} scene image.`,
+    }, 402);
+  }
+  const providerState = await env.OPREALM_DB.prepare(
+    `
+      SELECT status, reason, blocked_until
+      FROM generation_provider_state
+      WHERE provider = ?
+        AND status = 'paused'
+        AND blocked_until > unixepoch()
+      LIMIT 1
+    `,
+  )
+    .bind(IMAGE_PROVIDER)
+    .first()
+    .catch(() => null);
+  if (providerState) {
+    return json({
+      ok: false,
+      error: providerState.reason || "Image generation is temporarily unavailable while OPRealm restores provider capacity.",
+      retryable: false,
+    }, 503, { "retry-after": String(Math.max(30, Number(providerState.blocked_until || 0) - Math.floor(Date.now() / 1000))) });
+  }
+
   const jobId = existingJob?.id || crypto.randomUUID();
   if (!existingJob) {
     await createGenerationJob(env, {
@@ -138,8 +142,8 @@ export async function onRequestPost({ request, env }) {
       tool: SCENE_TOOL,
       promptHash,
       idempotencyKey,
-      creditsReserved: SCENE_IMAGE_COST,
-      metadata: { source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120) },
+      creditsReserved: imageMode.credits,
+      metadata: { source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id },
     });
   }
 
@@ -147,12 +151,12 @@ export async function onRequestPost({ request, env }) {
     const payloadKey = `story-scene-image-requests/${user.id}/${jobId}.json`;
     await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
       httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
-      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120) },
+      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id },
     });
     await env.OPREALM_DB.prepare(
       "UPDATE generation_jobs SET status = 'queued', metadata_json = ?, error = NULL, updated_at = datetime('now') WHERE id = ?",
     )
-      .bind(JSON.stringify({ source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), payloadKey }), jobId)
+      .bind(JSON.stringify({ source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id, payloadKey }), jobId)
       .run();
     await enqueueGenerationJob(env, jobId, {
       tool: SCENE_TOOL,
@@ -224,6 +228,7 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
 }
 
 async function processSceneImageJob(env, { jobId, user, body }) {
+  const imageMode = sceneImageMode(body.imageMode);
   const referenceImages = normalizeReferenceImages(body.referenceImages);
   const webPrompt = buildScenePrompt(body, "web", referenceImages);
   let web;
@@ -236,7 +241,7 @@ async function processSceneImageJob(env, { jobId, user, body }) {
       throw error;
     }
     await markJobProcessing(env, jobId);
-    web = await generateImage(env, webPrompt, "1536x1024", referenceImages);
+    web = await generateImage(env, webPrompt, imageMode, referenceImages);
   } catch (error) {
     throw error;
   } finally {
@@ -251,7 +256,7 @@ async function processSceneImageJob(env, { jobId, user, body }) {
     const bytes = Uint8Array.from(atob(web.b64), (char) => char.charCodeAt(0));
     await env.OPREALM_ASSETS.put(r2Key, bytes, {
       httpMetadata: { contentType: "image/png", cacheControl: "private, max-age=31536000, immutable" },
-      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120) },
+      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id },
     });
     webImageUrl = `/api/story-scene-image-file?jobId=${encodeURIComponent(jobId)}`;
   } else {
@@ -261,28 +266,30 @@ async function processSceneImageJob(env, { jobId, user, body }) {
   const creditUpdate = await env.OPREALM_DB.prepare(
     "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ? AND credits_remaining >= ?",
   )
-    .bind(SCENE_IMAGE_COST, user.id, SCENE_IMAGE_COST)
+    .bind(imageMode.credits, user.id, imageMode.credits)
     .run();
   if (!creditUpdate.meta?.changes) {
-    const error = Object.assign(new Error(`You need ${SCENE_IMAGE_COST} Creator credits to finish this scene image.`), { status: 402 });
+    const error = Object.assign(new Error(`You need ${imageMode.credits} Creator credit${imageMode.credits === 1 ? "" : "s"} to finish this scene image.`), { status: 402 });
     await markJobFailed(env, jobId, error);
     throw error;
   }
 
-  await logAiUsage(env, user, webPrompt, web);
+  await logAiUsage(env, user, webPrompt, web, imageMode);
   const storedResult = {
     webImageUrl,
     webImageDataUrl,
-    creditsUsed: SCENE_IMAGE_COST,
+    creditsUsed: imageMode.credits,
     model: web.model,
     quality: web.quality,
     generationMode: web.mode,
     referenceCount: referenceImages.length,
+    imageMode: imageMode.id,
+    estimatedCostUsd: imageMode.estimatedCostUsd,
     r2Key,
   };
   await markJobCompleted(env, jobId, {
     result: storedResult,
-    creditsCharged: SCENE_IMAGE_COST,
+    creditsCharged: imageMode.credits,
     model: web.model,
     quality: web.quality,
   });
@@ -290,16 +297,17 @@ async function processSceneImageJob(env, { jobId, user, body }) {
   return storedResult;
 }
 
-async function generateImage(env, prompt, size, referenceImages = []) {
+async function generateImage(env, prompt, imageMode, referenceImages = []) {
+  const { model, quality, size } = imageMode;
   const attempts = referenceImages.length
     ? [
-      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: referenceImages, mode: "reference edit" },
-      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: referenceImages.slice(0, 1), mode: "primary reference fallback" },
-      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "generation fallback", compact: true },
+      { model, quality, references: referenceImages, mode: "reference edit" },
+      { model, quality, references: referenceImages.slice(0, 1), mode: "primary reference fallback" },
+      { model, quality, references: [], mode: "generation fallback", compact: true },
     ]
     : [
-      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "generation" },
-      { model: SCENE_IMAGE_MODEL, quality: SCENE_IMAGE_QUALITY, references: [], mode: "compact generation fallback", compact: true },
+      { model, quality, references: [], mode: "generation" },
+      { model, quality, references: [], mode: "compact generation fallback", compact: true },
     ];
   let lastError;
 
@@ -576,7 +584,7 @@ function dataUrlToFile(dataUrl, filename) {
   return new File([bytes], filename, { type: match[1] });
 }
 
-async function logAiUsage(env, user, prompt, web) {
+async function logAiUsage(env, user, prompt, web, imageMode) {
   try {
     await env.OPREALM_DB.prepare(
       `
@@ -602,13 +610,18 @@ async function logAiUsage(env, user, prompt, web) {
         "web-studio",
         "story_scene_images",
         prompt.slice(0, 1500),
-        SCENE_IMAGE_COST,
+        imageMode.credits,
         "openai",
-        web?.model || SCENE_IMAGE_MODEL,
-        web?.quality || SCENE_IMAGE_QUALITY,
+        web?.model || imageMode.model,
+        web?.quality || imageMode.quality,
         1,
-        SCENE_IMAGE_ESTIMATED_COST_USD,
-        JSON.stringify({ source: "ai_story_game_creator", webUserId: user.id, generationMode: web?.mode || "generation" }).slice(0, 1500),
+        imageMode.estimatedCostUsd,
+        JSON.stringify({
+          source: "ai_story_game_creator",
+          webUserId: user.id,
+          generationMode: web?.mode || "generation",
+          imageMode: imageMode.id,
+        }).slice(0, 1500),
       )
       .run();
   } catch (error) {

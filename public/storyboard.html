@@ -252,6 +252,22 @@
           </div>
         </div>
 
+        <section class="artwork-test-mode" aria-labelledby="artworkModeTitle">
+          <div>
+            <p class="spark-eyebrow">Low-cost testing</p>
+            <h3 id="artworkModeTitle">Artwork generation mode</h3>
+            <p id="artworkModeDescription">Draft is the default: character references stay enabled while generation costs about $0.006 per image.</p>
+          </div>
+          <label>
+            <span>Mode</span>
+            <select id="storyImageMode">
+              <option value="mock">Mock - free placeholder</option>
+              <option value="draft">Draft - ~$0.006 / 1 credit</option>
+              <option value="final">Final - ~$0.20 / 24 credits</option>
+            </select>
+          </label>
+        </section>
+
         <div class="scene-list" id="scenes">
           <div id="storyboardSceneList">
           <article class="scene-card">

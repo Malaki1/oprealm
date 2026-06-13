@@ -155,11 +155,11 @@ export function jobResponse(job, extra = {}) {
     jobId: job.id,
     status: job.status,
     tool: job.tool,
+    ...result,
     cached,
     creditsUsed: cached ? 0 : chargedCredits,
     creditsSaved: cached ? chargedCredits : 0,
     error: job.error || "",
-    ...result,
   };
 }
 
