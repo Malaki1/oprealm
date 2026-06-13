@@ -1082,10 +1082,11 @@ function buildScenesFromApprovedStory(project) {
   const generatedCameras = new Set(plan.map((beat) => String(beat.camera || "").trim().toLowerCase()).filter(Boolean));
   const repeatedMood = plan.length > 2 && generatedMoods.size <= 1;
   const repeatedCamera = plan.length > 2 && generatedCameras.size <= 1;
+  const allowExactArtworkReuse = Number(project.storyDraft?.cinematicExtractionVersion || 0) >= 2;
   updateProjectContinuityBible(project);
   project.scenes = plan.map((beat, index) => {
     const sourcePassage = cleanStoryText(beat.sourcePassage || beat.passage);
-    const existing = existingScenes.find((scene) =>
+    const existing = allowExactArtworkReuse && existingScenes.find((scene) =>
       sourcePassage
       && cleanStoryText(scene.sourcePassage || scene.storyExcerpt) === sourcePassage
     ) || {};
@@ -1140,6 +1141,7 @@ function buildScenesFromApprovedStory(project) {
   project.storyDraft.sceneCount = project.scenes.length;
   project.storyDraft.approved = true;
   project.storyDraft.cinematicSettingsVersion = 2;
+  project.storyDraft.cinematicExtractionVersion = 2;
 }
 
 function normalizeSceneScriptForProject(script, hero, project) {
