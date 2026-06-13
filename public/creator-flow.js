@@ -325,6 +325,7 @@ function sanitizeStoryboardProject(project = {}) {
   project.scenes = (project.scenes || []).map((scene) => {
     const generationStartedAt = Date.parse(scene.imageGenerationStartedAt || "");
     const generationIsStale = scene.status === "generating"
+      && !scene.imageRequestId
       && (!Number.isFinite(generationStartedAt) || Date.now() - generationStartedAt > 3 * 60 * 1000);
     const savedRecoveryQueue = scene.status === "image_queued" && Boolean(scene.imageNextRetryAt);
     return {
@@ -2990,6 +2991,55 @@ function resumeQueuedSceneImages(project) {
   processSceneImageQueue();
 }
 
+async function recoverExistingSceneImageJobs(project) {
+  const candidates = (project.scenes || []).filter((scene) => (
+    scene.status === "image_error"
+    && !scene.generatedImageUrl
+    && scene.imageRequestId
+  ));
+  if (!candidates.length) return project;
+
+  const recoveredProject = ensureSceneList(readStoryboardProject());
+  let changed = false;
+  await Promise.all(candidates.map(async (candidate) => {
+    try {
+      const response = await fetch(
+        `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
+        { cache: "no-store" },
+      );
+      const result = await response.json().catch(() => ({}));
+      const scene = (recoveredProject.scenes || []).find((item) => item.id === candidate.id);
+      if (!scene || !response.ok) return;
+
+      if (result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) {
+        scene.generatedImageUrl = result.webImageUrl
+          || await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+        scene.status = "complete";
+        scene.completed = true;
+        scene.imageProgress = 100;
+        scene.imageGenerationStartedAt = "";
+        scene.imageQueuedAt = "";
+        scene.imageError = "";
+        scene.imageRequestId = "";
+        changed = true;
+      } else if (["queued", "processing"].includes(result.status)) {
+        scene.status = "generating";
+        scene.imageGenerationStartedAt = scene.imageGenerationStartedAt || new Date().toISOString();
+        scene.imageError = "";
+        changed = true;
+      }
+    } catch (error) {
+      console.warn("Could not recover existing scene image job", error);
+    }
+  }));
+
+  if (changed) {
+    writeStoryboardProject(recoveredProject);
+    rerenderStoryboard(recoveredProject);
+  }
+  return recoveredProject;
+}
+
 function quickPopulateStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
@@ -4025,8 +4075,9 @@ async function hydrateStoryboardPage() {
   }
   bindStoryboardTitle(project);
   rerenderStoryboard(project);
-  resumeQueuedSceneImages(project);
-  resumeStoryboardVideoJobs(project);
+  const recoveredProject = await recoverExistingSceneImageJobs(project);
+  resumeQueuedSceneImages(recoveredProject);
+  resumeStoryboardVideoJobs(recoveredProject);
   bindStoryDirectionControls(project);
   bindStoryboardMovieControls(project);
   restoreSavedStoryboardMovie(project);
