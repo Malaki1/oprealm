@@ -34,3 +34,6 @@
 
 /creator-flow.js
   Cache-Control: no-cache, must-revalidate
+
+/creator-flow.css
+  Cache-Control: no-cache, must-revalidate

@@ -8,11 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=47" />
+    <link rel="stylesheet" href="/creator-flow.css?v=48" />
     <script src="/storyboard-account.js?v=5" defer></script>
     <script src="/scene-visual-prompt.js?v=3" defer></script>
     <script src="/story-decision-engine.js?v=1" defer></script>
-    <script src="/creator-flow.js?v=91" defer></script>
+    <script src="/creator-flow.js?v=92" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -378,11 +378,15 @@
         <span class="image-loader-dotfield"></span>
         <span class="image-loader-dotfield is-second"></span>
         <span class="image-loader-wave"></span>
-        <img src="/assets/homepage/mascot/orbit.png" alt="" />
+        <div class="story-setup-progress-ring" id="storySetupProgress" style="--story-setup-progress: 14deg;" aria-hidden="true">
+          <img src="/assets/homepage/mascot/orbit.png" alt="" />
+          <strong id="storySetupPercent">4%</strong>
+        </div>
         <p class="spark-eyebrow">Story approved</p>
-        <h2>Building your scenes...</h2>
-        <p id="storySetupLoadingMessage">Orbit is reading the story, finding the best scene breaks and preparing cinematic visual prompts.</p>
-        <div class="story-setup-progress" aria-hidden="true"><span></span></div>
+        <h2>Preparing Story Scenes...</h2>
+        <p id="storySetupLoadingMessage">Reading your approved story and preparing the adventure...</p>
+        <div class="story-setup-progress-track" aria-hidden="true"><span></span></div>
+        <small>Your approved story is safe while OPREALM prepares the next step.</small>
       </div>
     </div>
 

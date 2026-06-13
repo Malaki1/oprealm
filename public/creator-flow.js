@@ -750,13 +750,65 @@ function chapterSummarySentence(value, index) {
   return sentence.length > 240 ? `${sentence.slice(0, 237).trim()}...` : sentence;
 }
 
+let storySetupProgressValue = 0;
+let storySetupProgressTimer = null;
+let storySetupStartedAt = 0;
+
+const STORY_SETUP_PHASES = [
+  { at: 4, message: "Reading your approved story and preparing the adventure..." },
+  { at: 24, message: "Finding the moments that deserve their own scene..." },
+  { at: 48, message: "Arranging the story in a clear visual sequence..." },
+  { at: 70, message: "Matching each moment with a mood and camera view..." },
+  { at: 88, message: "Checking the scene order and character continuity..." },
+  { at: 100, message: "Your scenes are ready. Opening Story Scenes..." },
+];
+
+function renderStorySetupProgress(message = "") {
+  const progress = document.querySelector("#storySetupProgress");
+  const percent = document.querySelector("#storySetupPercent");
+  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  const safePercent = Math.max(0, Math.min(100, Math.round(storySetupProgressValue)));
+  const phase = [...STORY_SETUP_PHASES].reverse().find((item) => safePercent >= item.at);
+  if (progress) {
+    progress.style.setProperty("--story-setup-progress", `${safePercent * 3.6}deg`);
+    progress.style.setProperty("--story-setup-width", `${safePercent}%`);
+  }
+  if (percent) percent.textContent = `${safePercent}%`;
+  if (messageNode) messageNode.textContent = message || phase?.message || STORY_SETUP_PHASES[0].message;
+}
+
 function setStorySetupLoading(isLoading, message = "") {
   const loading = document.querySelector("#storySetupLoading");
-  const messageNode = document.querySelector("#storySetupLoadingMessage");
   if (!loading) return;
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
   loading.hidden = !isLoading;
   document.body.classList.toggle("is-story-setup-loading", isLoading);
-  if (messageNode && message) messageNode.textContent = message;
+  if (!isLoading) return;
+  storySetupStartedAt = Date.now();
+  storySetupProgressValue = 4;
+  renderStorySetupProgress(message);
+  storySetupProgressTimer = window.setInterval(() => {
+    storySetupProgressValue = Math.min(
+      92,
+      storySetupProgressValue + Math.max(1, Math.ceil((92 - storySetupProgressValue) * 0.08)),
+    );
+    renderStorySetupProgress();
+    if (storySetupProgressValue >= 92) {
+      window.clearInterval(storySetupProgressTimer);
+      storySetupProgressTimer = null;
+    }
+  }, 420);
+}
+
+async function finishStorySetupLoading() {
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
+  storySetupProgressValue = 100;
+  renderStorySetupProgress();
+  const minimumDisplayMs = 3200;
+  const remaining = Math.max(500, minimumDisplayMs - (Date.now() - storySetupStartedAt));
+  await new Promise((resolve) => window.setTimeout(resolve, remaining));
 }
 
 let storyWritingProgressValue = 0;
@@ -891,7 +943,7 @@ async function requestFullStory(project, mode = "write") {
     ? "Reading the approved story and choosing scene boundaries..."
     : "Writing the complete story...";
   if (mode === "split") {
-    setStorySetupLoading(true, "Orbit is reading the approved story, choosing the strongest scene breaks and preparing cinematic visual prompts.");
+    setStorySetupLoading(true, "Reading your approved story and preparing the adventure...");
   } else {
     setStoryWritingLoading(true);
   }
@@ -999,6 +1051,7 @@ async function requestFullStory(project, mode = "write") {
     writeStoryboardProject(project);
     if (mode === "write") await finishStoryWritingLoading();
     rerenderStoryboard(project);
+    if (mode === "split") await finishStorySetupLoading();
     setStorySetupLoading(false);
     const currentStatus = document.querySelector("#fullStoryStatus") || status;
     if (currentStatus) currentStatus.textContent = mode === "split"
