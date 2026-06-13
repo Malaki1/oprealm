@@ -78,6 +78,18 @@
         justify-content: flex-end;
       }
 
+      .comparison-link {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: var(--text);
+        padding: 0 14px;
+        text-decoration: none;
+        font-weight: 800;
+      }
+
       input,
       select,
       button {
@@ -336,6 +348,7 @@
           </p>
         </div>
         <form class="controls" id="controls">
+          <a class="comparison-link" href="/admin-image-comparison.html">Image Comparison Lab</a>
           <input id="secret" type="password" autocomplete="off" placeholder="Admin secret" />
           <select id="days" aria-label="Date range">
             <option value="7">Last 7 days</option>
