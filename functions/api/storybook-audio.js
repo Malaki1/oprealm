@@ -4,13 +4,15 @@ import { json } from "../_lib/http.js";
 export async function onRequestGet({ request, env }) {
   try {
     const user = await requireUser(request, env);
-    const id = String(new URL(request.url).searchParams.get("id") || "").trim().slice(0, 120);
-    if (!id) return json({ ok: false, error: "Audio file not found." }, 404);
+    const url = new URL(request.url);
+    const id = String(url.searchParams.get("id") || "").trim().slice(0, 120);
+    const storybookId = String(url.searchParams.get("storybookId") || "").trim().slice(0, 120);
+    if (!id || !storybookId) return json({ ok: false, error: "Audio file not found." }, 404);
     const record = await env.OPREALM_DB.prepare(`
       SELECT r2_key FROM storybook_audio_beats
-      WHERE id = ? AND web_user_id = ? AND status = 'ready'
+      WHERE id = ? AND web_user_id = ? AND storybook_id = ? AND status = 'ready'
       LIMIT 1
-    `).bind(id, user.id).first();
+    `).bind(id, user.id, storybookId).first();
     if (!record?.r2_key || !env.OPREALM_ASSETS) return json({ ok: false, error: "Audio file not found." }, 404);
     const object = await env.OPREALM_ASSETS.get(record.r2_key);
     if (!object) return json({ ok: false, error: "Audio file not found." }, 404);

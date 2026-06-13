@@ -3273,18 +3273,42 @@ function renderStoryOutputChooser(project) {
 function launchAiStoryBook(project) {
   const scenes = project.scenes || [];
   if (scenes.length < MIN_STORY_SCENES || scenes.some((scene) => !scene.generatedImageUrl)) return;
-  if (!project.storybookId) {
-    project.storybookId = `storybook-${project.id || Date.now()}`;
-  }
+  const storyIdentity = storybookIdentity(project);
+  project.storybookId = `storybook-${project.id || "local"}-${storyIdentity}`;
+  project.storybookIdentity = storyIdentity;
   project.storybookAudioStatus = project.storybookAudioStatus || "pending";
   writeStoryboardProject(project);
   localStorage.setItem("oprealm_ai_storybook_source", JSON.stringify({
     projectId: project.id || "",
     storybookId: project.storybookId,
+    storybookIdentity: storyIdentity,
     createdAt: new Date().toISOString(),
   }));
   window.OPREALMRefreshCreatorSteps?.();
   window.location.href = "/ai-storybook.html";
+}
+
+function storybookIdentity(project) {
+  const source = JSON.stringify({
+    projectId: project.id || "",
+    title: project.storyDraft?.title || project.title || "",
+    characters: (project.characters || []).map((character) => ({
+      id: character.id || "",
+      name: character.name || "",
+      type: character.characterType || character.type || "",
+    })),
+    scenes: (project.scenes || []).map((scene) => ({
+      id: scene.id || "",
+      title: scene.title || "",
+      text: scene.storyExcerpt || scene.passage || scene.prompt || "",
+    })),
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function bindStoryboardMovieControls(project) {
