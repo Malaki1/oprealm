@@ -106,6 +106,9 @@ function retryMessage(message) {
 }
 
 function isRetryable(error) {
+  if (/billing hard limit|billing limit|insufficient[_\s-]*quota|exceeded.*quota|quota.*exceeded|check your plan and billing/i.test(
+    String(error?.message || error?.providerError || ""),
+  )) return false;
   const status = Number(error?.status || 0);
   return status === 408 || status === 409 || status === 429 || status >= 500;
 }

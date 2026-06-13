@@ -368,14 +368,25 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
 }
 
 function providerError(message, status) {
-  const error = new Error(message || "Scene image generation failed.");
-  error.status = Number(status) || 502;
+  const providerMessage = String(message || "Scene image generation failed.");
+  const billingLimit = isBillingLimitMessage(providerMessage);
+  const error = new Error(billingLimit
+    ? "Image generation is paused because the OPRealm image provider billing limit has been reached."
+    : providerMessage);
+  error.status = billingLimit ? 402 : Number(status) || 502;
+  error.providerError = providerMessage;
   return error;
 }
 
 function isTemporaryProviderError(error) {
+  if (isBillingLimitMessage(error?.message) || isBillingLimitMessage(error?.providerError)) return false;
   const status = Number(error?.status || 0);
   return status === 408 || status === 409 || status === 429 || status >= 500;
+}
+
+function isBillingLimitMessage(message) {
+  return /billing hard limit|billing limit|insufficient[_\s-]*quota|exceeded.*quota|quota.*exceeded|check your plan and billing/i
+    .test(String(message || ""));
 }
 
 function isSafetyProviderError(error) {
@@ -384,6 +395,9 @@ function isSafetyProviderError(error) {
 
 function friendlyProviderError(error) {
   const message = String(error?.message || "").replace(/\s+/g, " ").trim();
+  if (isBillingLimitMessage(message) || isBillingLimitMessage(error?.providerError)) {
+    return "Image generation is temporarily unavailable while OPRealm restores provider capacity. Your scene is safe; try again later.";
+  }
   if (isSafetyProviderError(error)) {
     return "This scene could not be illustrated safely. Adjust the scene wording and try again.";
   }
