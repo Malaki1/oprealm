@@ -804,11 +804,22 @@ function setStorySetupLoading(isLoading, message = "") {
 async function finishStorySetupLoading() {
   window.clearInterval(storySetupProgressTimer);
   storySetupProgressTimer = null;
-  storySetupProgressValue = 100;
-  renderStorySetupProgress();
   const minimumDisplayMs = 3200;
-  const remaining = Math.max(500, minimumDisplayMs - (Date.now() - storySetupStartedAt));
-  await new Promise((resolve) => window.setTimeout(resolve, remaining));
+  const elapsed = Date.now() - storySetupStartedAt;
+  const remaining = Math.max(700, minimumDisplayMs - elapsed);
+  const completionStages = [
+    { percent: 28, message: STORY_SETUP_PHASES[1].message },
+    { percent: 52, message: STORY_SETUP_PHASES[2].message },
+    { percent: 74, message: STORY_SETUP_PHASES[3].message },
+    { percent: 91, message: STORY_SETUP_PHASES[4].message },
+    { percent: 100, message: STORY_SETUP_PHASES[5].message },
+  ].filter((stage) => stage.percent > storySetupProgressValue);
+  const stageDelay = Math.max(140, Math.floor(remaining / Math.max(1, completionStages.length)));
+  for (const stage of completionStages) {
+    storySetupProgressValue = stage.percent;
+    renderStorySetupProgress(stage.message);
+    await new Promise((resolve) => window.setTimeout(resolve, stageDelay));
+  }
 }
 
 let storyWritingProgressValue = 0;
