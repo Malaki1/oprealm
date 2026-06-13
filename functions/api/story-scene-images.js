@@ -336,7 +336,7 @@ async function requestImageGeneration(env, prompt, size, attempt) {
         quality: attempt.quality,
         n: 1,
       }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 1, timeoutMs: 150000 });
 }
 
 async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
@@ -355,7 +355,7 @@ async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
   return openAiFetch(env, "/v1/images/edits", {
     method: "POST",
     body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 2 });
+  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 1, timeoutMs: 150000 });
 }
 
 function providerError(message, status) {

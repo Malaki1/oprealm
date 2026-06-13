@@ -12,15 +12,19 @@ export async function openAiFetch(env, path, init = {}, options = {}) {
 
   const url = path.startsWith("http") ? path : `https://api.openai.com${path}`;
   const retries = Math.max(0, Math.min(3, Number(options.retries ?? 2)));
+  const timeoutMs = Math.max(5000, Math.min(240000, Number(options.timeoutMs || 120000)));
   const start = Date.now();
   let lastResponse;
   let lastError;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     const key = keys[(stableNumber(options.seed) + attempt) % keys.length];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(url, {
         ...init,
+        signal: controller.signal,
         headers: {
           ...(init.headers || {}),
           authorization: `Bearer ${key}`,
@@ -39,9 +43,13 @@ export async function openAiFetch(env, path, init = {}, options = {}) {
       }
       await sleep(retryDelayMs(attempt));
     } catch (error) {
-      lastError = error;
+      lastError = error?.name === "AbortError"
+        ? Object.assign(new Error("The AI provider took too long to respond."), { status: 504 })
+        : error;
       if (attempt === retries) break;
       await sleep(retryDelayMs(attempt));
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

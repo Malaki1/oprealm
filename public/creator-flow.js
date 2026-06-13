@@ -2916,7 +2916,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
 
 async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", sceneId = "" } = {}) {
   const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
-  if (statusTarget) statusTarget.textContent = "Image created. Saving it safely...";
+  if (statusTarget) statusTarget.textContent = "Waiting in the artwork queue...";
   const startedAt = Date.now();
   while (Date.now() - startedAt < 12 * 60 * 1000) {
     const query = jobId
@@ -2925,6 +2925,11 @@ async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", s
     const response = await fetch(`/api/generation-job?${query}`, { cache: "no-store" });
     const result = await response.json().catch(() => ({}));
     if (response.ok && result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) return result;
+    if (response.ok && statusTarget) {
+      statusTarget.textContent = result.status === "processing"
+        ? "Creating scene artwork..."
+        : "Waiting in the artwork queue...";
+    }
     if (response.ok && result.status === "failed") {
       throw new Error(result.error || "Scene image generation failed. Press Try Again.");
     }
