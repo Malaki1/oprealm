@@ -332,3 +332,13 @@ test("scene splitting instructions preserve approved prose", () => {
   assert.match(storyDraftSource, /Copy sourcePassage and passage exactly from each selected passage/);
   assert.match(storyDraftSource, /sourcePassage: source\.sourcePassage/);
 });
+
+test("story approval builds cinematic scenes without waiting for another model response", () => {
+  assert.match(storyDraftSource, /buildDeterministicCinematicSplit/);
+  assert.match(storyDraftSource, /models = \["deterministic-cinematic-extractor"\]/);
+  const splitBranch = storyDraftSource.slice(
+    storyDraftSource.indexOf('if (mode === "split")'),
+    storyDraftSource.indexOf('} else if (requestedStage === "spine")'),
+  );
+  assert.doesNotMatch(splitBranch, /await splitStoryIntoScenes|retrieveBackgroundResponse/);
+});

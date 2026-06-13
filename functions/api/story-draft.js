@@ -420,47 +420,15 @@ export async function onRequestPost({ request, env }) {
       const splitStorySpine = normalizeStorySpine(body.storySpine);
       const splitLogicPlan = normalizeLogicPlan(body.storyLogicPlan);
       const splitSignatureMoments = normalizeSignatureMomentsPlan(body.signatureMomentsPlan);
-      const splitInput = {
+      const split = buildDeterministicCinematicSplit({
         title: cleanText(body.title, 100) || "My OPREALM Story",
         approvedStory,
         storySpine: splitStorySpine,
         logicPlan: splitLogicPlan,
         signatureMomentsPlan: splitSignatureMoments,
         creatorBible,
-        seed: `${user.id}:split:${approvedStory.slice(0, 500)}`,
-      };
-      let split;
-      if (providerResponseId) {
-        const background = await retrieveBackgroundResponse(env, providerResponseId);
-        if (background.pending) {
-          return json({
-            ok: true,
-            status: background.status,
-            stage: "split",
-            providerResponseId,
-            pollAfterMs: 3500,
-          }, 202, { "retry-after": "4" });
-        }
-        split = {
-          value: background.value,
-          model: background.model,
-          extractedScenes: extractCinematicScenes(
-            approvedStory,
-            splitStorySpine,
-            splitLogicPlan,
-            splitSignatureMoments,
-            { creatorBible, storyType },
-          ),
-        };
-      } else {
-        split = await splitStoryIntoScenes(env, splitInput, true);
-        if (split.pending) return backgroundStageResponse("split", split);
-      }
-      const cinematicScenes = mergeCinematicSceneExtraction(
-        split.value?.scenes,
-        split.extractedScenes,
-        splitLogicPlan,
-      );
+        storyType,
+      });
       draft = normalizeDraft({
         title: cleanText(body.title, 100),
         storySpine: body.storySpine || {},
@@ -468,11 +436,10 @@ export async function onRequestPost({ request, env }) {
         signatureMomentsPlan: body.signatureMomentsPlan || {},
         emotionalRhythmPlan: body.emotionalRhythmPlan || [],
         storyLocations: body.storyLocations || [],
-        ...split.value,
-        scenes: cinematicScenes,
+        ...split,
       });
       draft.sceneSetQuality = validateCinematicSceneSet(draft.scenes);
-      models = [split.model];
+      models = ["deterministic-cinematic-extractor"];
     } else if (requestedStage === "spine") {
       const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`, true);
       if (spine.pending) return backgroundStageResponse("spine", spine);
@@ -992,6 +959,120 @@ export async function splitStoryIntoScenes(env, input, background = false) {
   });
   if (result.pending) return result;
   return { ...result, extractedScenes };
+}
+
+function buildDeterministicCinematicSplit(input) {
+  const chapters = parseApprovedStoryChapters(input.approvedStory);
+  const extractedScenes = extractCinematicScenes(
+    chapters,
+    input.storySpine,
+    input.logicPlan,
+    input.signatureMomentsPlan,
+    { creatorBible: input.creatorBible, storyType: input.storyType },
+  );
+  const logicPlan = remapLogicPlanToCinematicScenes(input.logicPlan, extractedScenes);
+  const decisions = new Map(logicPlan.decisions.map((decision) => [decision.id, decision]));
+  const scenes = extractedScenes.map((scene, index) => {
+    const decisionNode = scene.decisionNodeId ? decisions.get(scene.decisionNodeId) || null : null;
+    const visualDirection = buildDeterministicVisualDirection(scene);
+    return {
+      ...scene,
+      passage: scene.sourcePassage,
+      script: [{ speaker: "Narrator", speakerRole: "narrator", text: scene.sourcePassage }],
+      mood: moodForCinematicType(scene.sceneType),
+      camera: enumSceneValue(scene.cameraDirection, SCENE_CAMERAS, "Wide Shot"),
+      visualDirection,
+      visualPromptSummary: visualDirection,
+      visualPromptFull: "",
+      decisionNode,
+      choices: decisionNode?.choices || [],
+    };
+  });
+  return {
+    summary: chapterDescriptionFromParagraphs(chapters[0]?.paragraphs, 0),
+    logicPlan,
+    chapters,
+    scenes,
+  };
+}
+
+function parseApprovedStoryChapters(story) {
+  const parts = String(story || "").split(/(?=^Chapter\s+\d+\s*:)/gim).map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return [{ title: "The Adventure", description: "", paragraphs: [cleanProse(story, 100000)].filter(Boolean) }];
+  return parts.map((part, index) => {
+    const lines = part.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const heading = lines.shift() || `Chapter ${index + 1}`;
+    const title = heading.replace(/^Chapter\s+\d+\s*:\s*/i, "").trim() || `Chapter ${index + 1}`;
+    const paragraphs = lines.map((paragraph) => cleanProse(paragraph, 5000)).filter(Boolean);
+    return {
+      title,
+      description: chapterDescriptionFromParagraphs(paragraphs, index),
+      paragraphs,
+    };
+  }).filter((chapter) => chapter.paragraphs.length);
+}
+
+function remapLogicPlanToCinematicScenes(value, scenes) {
+  const plan = normalizeLogicPlan(value);
+  const sceneByDecision = new Map();
+  const sceneByClue = new Map();
+  scenes.forEach((scene) => {
+    if (scene.decisionNodeId) sceneByDecision.set(scene.decisionNodeId, scene.id);
+    scene.clueIds.forEach((clueId) => sceneByClue.set(clueId, scene.id));
+  });
+  const sceneIndex = new Map(scenes.map((scene, index) => [scene.id, index]));
+  const decisions = plan.decisions.map((decision) => {
+    const mappedSceneId = sceneByDecision.get(decision.id)
+      || nearestSceneForPlacement(decision.sceneId, scenes)
+      || decision.sceneId;
+    const currentIndex = sceneIndex.get(mappedSceneId) ?? 0;
+    return {
+      ...decision,
+      sceneId: mappedSceneId,
+      choices: decision.choices.map((choice, choiceIndex) => ({
+        ...choice,
+        nextSceneId: scenes[Math.min(scenes.length - 1, currentIndex + choiceIndex + 1)]?.id || mappedSceneId,
+      })),
+    };
+  });
+  return {
+    ...plan,
+    clues: plan.clues.map((clue) => ({
+      ...clue,
+      introducedInSceneId: sceneByClue.get(clue.id)
+        || nearestSceneForPlacement(clue.introducedInSceneId, scenes)
+        || clue.introducedInSceneId,
+    })),
+    decisions,
+    endingRules: plan.endingRules.map((rule) => ({
+      ...rule,
+      sceneId: nearestSceneForPlacement(rule.sceneId, scenes) || scenes.at(-1)?.id || rule.sceneId,
+    })),
+  };
+}
+
+function nearestSceneForPlacement(placementId, scenes) {
+  const chapterMatch = String(placementId || "").match(/chapter-(\d+)/i);
+  if (chapterMatch) {
+    const chapterNumber = Number(chapterMatch[1]);
+    return scenes.find((scene) => scene.chapterNumber === chapterNumber)?.id || "";
+  }
+  return scenes.find((scene) => scene.id === placementId)?.id || "";
+}
+
+function buildDeterministicVisualDirection(scene) {
+  const names = scene.charactersPresent.length ? scene.charactersPresent.join(" and ") : "the named characters";
+  const object = scene.keyObject ? ` with ${scene.keyObject} visible but naturally placed` : "";
+  return `${names} perform the exact action from the approved passage in ${scene.location || "the named story location"}${object}; ${scene.cameraDirection}, ${scene.lightingMood}.`;
+}
+
+function moodForCinematicType(type) {
+  if (["action_chase"].includes(type)) return "Action";
+  if (["final_spectacle", "creature_reveal"].includes(type)) return "Epic";
+  if (["clue_discovery", "betrayal_reveal", "choice_setup"].includes(type)) return "Mystery";
+  if (["trust_conflict", "darkest_moment", "final_choice"].includes(type)) return "Tense";
+  if (["emotional_turning_point", "resolution"].includes(type)) return "Emotional";
+  return "Wonder";
 }
 
 async function requestStructured(env, { schema, schemaName, instructions, input, effort, maxOutputTokens, background = false, seed }) {
