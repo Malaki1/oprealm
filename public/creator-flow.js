@@ -258,6 +258,7 @@ let storyReaderGenerationToken = 0;
 const sceneImageProgressTimers = new Map();
 const sceneImageGenerationQueue = [];
 let sceneImageQueueActive = false;
+let sceneImageStatusMonitor = 0;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
@@ -2848,8 +2849,19 @@ async function generateStoryboardSceneImage(project, sceneId) {
       window.clearTimeout(timeout);
     }
     if (response.status === 202 && result.jobId) {
-      result = await waitForExistingSceneImageJob({ jobId: result.jobId, sceneId });
-      response = { ok: Boolean(result?.ok && result?.status === "completed"), status: result?.status === "completed" ? 200 : 202 };
+      const queuedProject = ensureSceneList(readStoryboardProject());
+      const queuedScene = (queuedProject.scenes || []).find((item) => item.id === sceneId);
+      if (!queuedScene) return;
+      stopSceneImageProgress(sceneId);
+      queuedScene.status = result.status === "processing" ? "generating" : "image_queued";
+      queuedScene.imageJobId = result.jobId;
+      queuedScene.imageQueuedAt = queuedScene.imageQueuedAt || new Date().toISOString();
+      queuedScene.imageProgress = result.status === "processing" ? Math.max(8, Number(queuedScene.imageProgress || 0)) : 3;
+      queuedScene.imageError = "";
+      writeStoryboardProject(queuedProject);
+      rerenderStoryboard(queuedProject);
+      startSceneImageStatusMonitor();
+      return;
     }
     const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
     if (!response.ok || !result.ok || !generatedImageSource) {
@@ -2881,6 +2893,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
     latestScene.imageRetryCount = 0;
     latestScene.imageNextRetryAt = "";
     latestScene.imageRequestId = "";
+    latestScene.imageJobId = "";
     setSceneImageProgress(sceneId, 100);
     await sleep(350);
     latestScene.status = "complete";
@@ -2968,7 +2981,7 @@ async function processSceneImageQueue() {
     await generateStoryboardSceneImage(readStoryboardProject(), sceneId);
   } finally {
     sceneImageQueueActive = false;
-    if (sceneImageGenerationQueue.length) await sleep(2500);
+    if (sceneImageGenerationQueue.length) await sleep(120);
     processSceneImageQueue();
   }
 }
@@ -2993,9 +3006,9 @@ function resumeQueuedSceneImages(project) {
 
 async function recoverExistingSceneImageJobs(project) {
   const candidates = (project.scenes || []).filter((scene) => (
-    scene.status === "image_error"
+    ["image_error", "image_queued", "generating"].includes(scene.status)
     && !scene.generatedImageUrl
-    && scene.imageRequestId
+    && (scene.imageJobId || scene.imageRequestId)
   ));
   if (!candidates.length) return project;
 
@@ -3004,7 +3017,9 @@ async function recoverExistingSceneImageJobs(project) {
   await Promise.all(candidates.map(async (candidate) => {
     try {
       const response = await fetch(
-        `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
+        candidate.imageJobId
+          ? `/api/generation-job?id=${encodeURIComponent(candidate.imageJobId)}`
+          : `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
         { cache: "no-store" },
       );
       const result = await response.json().catch(() => ({}));
@@ -3021,11 +3036,27 @@ async function recoverExistingSceneImageJobs(project) {
         scene.imageQueuedAt = "";
         scene.imageError = "";
         scene.imageRequestId = "";
+        scene.imageJobId = "";
         changed = true;
-      } else if (["queued", "processing"].includes(result.status)) {
-        scene.status = "generating";
-        scene.imageGenerationStartedAt = scene.imageGenerationStartedAt || new Date().toISOString();
+      } else if (result.status === "queued") {
+        scene.status = "image_queued";
+        scene.imageJobId = result.jobId || scene.imageJobId;
         scene.imageError = "";
+        changed = true;
+      } else if (result.status === "processing") {
+        scene.status = "generating";
+        scene.imageJobId = result.jobId || scene.imageJobId;
+        scene.imageGenerationStartedAt = scene.imageGenerationStartedAt || new Date().toISOString();
+        scene.imageProgress = Math.max(8, Number(scene.imageProgress || 0));
+        scene.imageError = "";
+        changed = true;
+      } else if (result.status === "failed") {
+        scene.status = "image_error";
+        scene.imageProgress = 0;
+        scene.imageGenerationStartedAt = "";
+        scene.imageQueuedAt = "";
+        scene.imageError = result.error || "Image generation stopped. Press Try Again when you are ready.";
+        scene.imageJobId = "";
         changed = true;
       }
     } catch (error) {
@@ -3038,6 +3069,25 @@ async function recoverExistingSceneImageJobs(project) {
     rerenderStoryboard(recoveredProject);
   }
   return recoveredProject;
+}
+
+function startSceneImageStatusMonitor() {
+  if (sceneImageStatusMonitor) return;
+  const check = async () => {
+    const project = ensureSceneList(readStoryboardProject());
+    const hasActiveJobs = (project.scenes || []).some((scene) => (
+      ["image_queued", "generating"].includes(scene.status)
+      && !scene.generatedImageUrl
+      && (scene.imageJobId || scene.imageRequestId)
+    ));
+    if (!hasActiveJobs) {
+      window.clearInterval(sceneImageStatusMonitor);
+      sceneImageStatusMonitor = 0;
+      return;
+    }
+    await recoverExistingSceneImageJobs(project);
+  };
+  sceneImageStatusMonitor = window.setInterval(check, 6000);
 }
 
 function quickPopulateStory(project) {
@@ -4077,6 +4127,7 @@ async function hydrateStoryboardPage() {
   rerenderStoryboard(project);
   const recoveredProject = await recoverExistingSceneImageJobs(project);
   resumeQueuedSceneImages(recoveredProject);
+  startSceneImageStatusMonitor();
   resumeStoryboardVideoJobs(recoveredProject);
   bindStoryDirectionControls(project);
   bindStoryboardMovieControls(project);
