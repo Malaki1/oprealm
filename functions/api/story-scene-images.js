@@ -39,6 +39,26 @@ export async function onRequestPost({ request, env }) {
   if (Number(user.credits_remaining || 0) < SCENE_IMAGE_COST) {
     return json({ ok: false, error: `You need ${SCENE_IMAGE_COST} Creator credits to generate scene images.` }, 402);
   }
+  const providerState = await env.OPREALM_DB.prepare(
+    `
+      SELECT status, reason, blocked_until
+      FROM generation_provider_state
+      WHERE provider = ?
+        AND status = 'paused'
+        AND blocked_until > unixepoch()
+      LIMIT 1
+    `,
+  )
+    .bind(IMAGE_PROVIDER)
+    .first()
+    .catch(() => null);
+  if (providerState) {
+    return json({
+      ok: false,
+      error: providerState.reason || "Image generation is temporarily unavailable while OPRealm restores provider capacity.",
+      retryable: false,
+    }, 503, { "retry-after": String(Math.max(30, Number(providerState.blocked_until || 0) - Math.floor(Date.now() / 1000))) });
+  }
 
   let body;
   try {
