@@ -328,6 +328,7 @@ test("scene visuals use exact decision evidence without generic labels", () => {
 });
 
 test("scene splitting instructions preserve approved prose", () => {
-  assert.match(storyDraftSource, /Preserve every approved paragraph and spoken line/);
-  assert.match(storyDraftSource, /Scene passages must quote or closely preserve the matching prose/);
+  assert.match(storyDraftSource, /Do not choose a different passage, combine passages, compress the story, or invent a replacement event/);
+  assert.match(storyDraftSource, /Copy sourcePassage and passage exactly from each selected passage/);
+  assert.match(storyDraftSource, /sourcePassage: source\.sourcePassage/);
 });

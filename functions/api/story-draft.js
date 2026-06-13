@@ -12,12 +12,18 @@ import {
   naturalizeDecisionSetup,
   validateSignatureMoments,
 } from "../_lib/story-signature.mjs";
+import {
+  CINEMATIC_SCENE_TYPES,
+  extractCinematicScenes,
+  validateCinematicSceneSet,
+  validateSceneVisualPrompt,
+} from "../_lib/cinematic-scenes.mjs";
 
 const STORY_DRAFT_COST = CREATOR_CREDIT_COSTS.storyDraft;
 const STORY_DRAFT_MODEL = "gpt-5-mini";
 const STORY_DRAFT_TOOL = "story_draft";
-const MIN_SCENE_COUNT = 16;
-const MAX_SCENE_COUNT = 32;
+const MIN_SCENE_COUNT = 1;
+const MAX_SCENE_COUNT = 64;
 const SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 const DECISION_TYPES = ["trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice", "moral_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice", "power_choice", "final_fate_choice"];
@@ -304,10 +310,32 @@ const splitStorySchema = {
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["id", "title", "passage", "script", "mood", "camera", "visualDirection"],
+        required: [
+          "id", "chapterNumber", "sceneNumber", "title", "sceneType", "sourcePassage",
+          "emotionalPurpose", "storyImportance", "charactersPresent", "location", "keyObject",
+          "decisionNodeId", "clueIds", "visualPromptFull", "visualPromptSummary",
+          "cameraDirection", "lightingMood", "continuityNotes", "script", "mood", "camera",
+          "visualDirection", "passage",
+        ],
         properties: {
           id: { type: "string" },
+          chapterNumber: { type: "integer", minimum: 1, maximum: 8 },
+          sceneNumber: { type: "integer", minimum: 1, maximum: MAX_SCENE_COUNT },
           title: { type: "string" },
+          sceneType: { type: "string", enum: CINEMATIC_SCENE_TYPES },
+          sourcePassage: { type: "string" },
+          emotionalPurpose: { type: "string" },
+          storyImportance: { type: "integer", minimum: 0, maximum: 100 },
+          charactersPresent: { type: "array", maxItems: 8, items: { type: "string" } },
+          location: { type: "string" },
+          keyObject: { type: "string" },
+          decisionNodeId: { type: "string" },
+          clueIds: { type: "array", maxItems: 5, items: { type: "string" } },
+          visualPromptFull: { type: "string" },
+          visualPromptSummary: { type: "string" },
+          cameraDirection: { type: "string" },
+          lightingMood: { type: "string" },
+          continuityNotes: { type: "string" },
           passage: { type: "string" },
           script: {
             type: "array",
@@ -358,13 +386,7 @@ export async function onRequestPost({ request, env }) {
     assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
     await assertRateLimit(env, user.id, STORY_DRAFT_TOOL, { limit: 4, windowSeconds: 60 });
 
-    const approvedStory = cleanProse(body.approvedStory, 16000);
-    const approvedLogicPlan = mode === "split"
-      ? cleanProse(JSON.stringify(body.storyLogicPlan || {}), 12000)
-      : "";
-    const approvedStorySpine = mode === "split"
-      ? cleanProse(JSON.stringify(body.storySpine || {}), 10000)
-      : "";
+    const approvedStory = cleanProse(body.approvedStory, 40000);
     if (mode === "split" && approvedStory.length < 200) {
       return json({ ok: false, error: "Please approve a complete story before building scenes." }, 400);
     }
@@ -395,14 +417,50 @@ export async function onRequestPost({ request, env }) {
     let draft;
     let models = [];
     if (mode === "split") {
-      const split = await splitStoryIntoScenes(env, {
+      const splitStorySpine = normalizeStorySpine(body.storySpine);
+      const splitLogicPlan = normalizeLogicPlan(body.storyLogicPlan);
+      const splitSignatureMoments = normalizeSignatureMomentsPlan(body.signatureMomentsPlan);
+      const splitInput = {
         title: cleanText(body.title, 100) || "My OPREALM Story",
         approvedStory,
-        storySpine: approvedStorySpine,
-        logicPlan: approvedLogicPlan,
+        storySpine: splitStorySpine,
+        logicPlan: splitLogicPlan,
+        signatureMomentsPlan: splitSignatureMoments,
         creatorBible,
         seed: `${user.id}:split:${approvedStory.slice(0, 500)}`,
-      });
+      };
+      let split;
+      if (providerResponseId) {
+        const background = await retrieveBackgroundResponse(env, providerResponseId);
+        if (background.pending) {
+          return json({
+            ok: true,
+            status: background.status,
+            stage: "split",
+            providerResponseId,
+            pollAfterMs: 3500,
+          }, 202, { "retry-after": "4" });
+        }
+        split = {
+          value: background.value,
+          model: background.model,
+          extractedScenes: extractCinematicScenes(
+            approvedStory,
+            splitStorySpine,
+            splitLogicPlan,
+            splitSignatureMoments,
+            { creatorBible, storyType },
+          ),
+        };
+      } else {
+        split = await splitStoryIntoScenes(env, splitInput, true);
+        if (split.pending) return backgroundStageResponse("split", split);
+      }
+      const cinematicScenes = mergeCinematicSceneExtraction(
+        split.value?.scenes,
+        split.extractedScenes,
+        splitLogicPlan,
+      );
       draft = normalizeDraft({
         title: cleanText(body.title, 100),
         storySpine: body.storySpine || {},
@@ -411,7 +469,9 @@ export async function onRequestPost({ request, env }) {
         emotionalRhythmPlan: body.emotionalRhythmPlan || [],
         storyLocations: body.storyLocations || [],
         ...split.value,
+        scenes: cinematicScenes,
       });
+      draft.sceneSetQuality = validateCinematicSceneSet(draft.scenes);
       models = [split.model];
     } else if (requestedStage === "spine") {
       const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`, true);
@@ -883,35 +943,55 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, bestM
   });
 }
 
-export async function splitStoryIntoScenes(env, input) {
+export async function splitStoryIntoScenes(env, input, background = false) {
+  const extractedScenes = extractCinematicScenes(
+    input.approvedStory,
+    input.storySpine,
+    input.logicPlan,
+    input.signatureMomentsPlan,
+    { creatorBible: input.creatorBible, storyType: input.creatorBible?.storyType },
+  );
   const prompt = [
     `Approved story title: ${input.title}`,
-    `Approved Story Spine: ${input.storySpine || "{}"}`,
-    `Approved Pick-a-Path Logic Plan: ${input.logicPlan || "{}"}`,
+    `Approved Story Spine: ${JSON.stringify(input.storySpine || {})}`,
+    `Approved Pick-a-Path Logic Plan: ${JSON.stringify(input.logicPlan || {})}`,
+    `Approved Signature Moments Plan: ${JSON.stringify(input.signatureMomentsPlan || {})}`,
     `Creator Bible: ${JSON.stringify(input.creatorBible)}`,
     `Approved chapter prose: ${input.approvedStory}`,
-    `Split this exact approved story into ${MIN_SCENE_COUNT}-${MAX_SCENE_COUNT} visual scenes after the prose has been finalized.`,
-    "Preserve every approved paragraph and spoken line. Scene passages must quote or closely preserve the matching prose and remain in story order.",
+    `Cinematic passages already selected from the approved prose: ${JSON.stringify(extractedScenes)}`,
+    `Create exactly ${extractedScenes.length} enriched scene records, one for each selected passage, in the supplied order.`,
+    "Do not choose a different passage, combine passages, compress the story, or invent a replacement event.",
+    "Copy sourcePassage and passage exactly from each selected passage. Preserve its wording and punctuation.",
     "Assign stable scene IDs scene-1, scene-2 and so on.",
     "Remap provisional clue placements, decisions, branch routes and ending routes onto real scene IDs without changing their IDs, meaning, scores, flags or emotional stakes.",
     "Create bounded pre-generated branch scenes only where required by the approved choice plan, then converge them back into the main story.",
     "Attach each decision to the scene where a named character directly asks the hero to choose. The question and options must match the approved prose.",
     "Attach each clue to the earlier scene where its exact visible object or physical detail appears.",
     "Return 1-8 play-script beats per scene. Preserve named dialogue as dialogue and use Narrator only for visible action or description.",
-    "Now, and only now, create each visualDirection from the exact passage, exact character names, exact location, visible action, relevant clue object, decision type, camera and emotional tone.",
+    "For each selected passage, create visualPromptSummary, visualPromptFull and visualDirection from the exact named characters, location, visible action, key object, emotional expression, camera and lighting.",
+    "Keep visualDirection to one concrete sentence describing the visible composition. visualPromptFull contains the complete production prompt.",
+    "Decision scenes must show the named person applying pressure, the hero reacting, the visible stakes, conflicting actions and relevant clue object. Prefer POV, close-up or over-the-shoulder composition.",
+    "Clue scenes must show the exact clue object partially hidden in its real location and the named character noticing it without making it cartoonishly obvious.",
+    "Action scenes must show dynamic movement, directional composition, debris, sparks or environmental reaction where the passage supports them.",
+    "The final spectacle must show huge scale, an impossible location, object or entity, dramatic lighting and small characters against the event.",
+    "Every full prompt must include these exact continuity instructions: same character design as previous scenes; same outfit unless story explicitly changes it; consistent world aesthetic.",
     "Never write the generic labels the hero, story world, first landmark, mysterious clue or strange obstacle.",
     `Use scene moods from: ${SCENE_MOODS.join(", ")}.`,
     `Use cameras from: ${SCENE_CAMERAS.join(", ")}.`,
     "Vary camera and mood according to the actual event. Do not rewrite the story into production-plan prose.",
   ].join("\n");
-  return requestStructured(env, {
+  const result = await requestStructured(env, {
     schema: splitStorySchema,
     schemaName: "oprealm_story_scene_split",
     instructions: "You are OPREALM's precise storyboard editor. Preserve approved prose and convert it into playable visual scenes without rewriting the story.",
     input: prompt,
     effort: "low",
+    maxOutputTokens: 24000,
+    background,
     seed: input.seed,
   });
+  if (result.pending) return result;
+  return { ...result, extractedScenes };
 }
 
 async function requestStructured(env, { schema, schemaName, instructions, input, effort, maxOutputTokens, background = false, seed }) {
@@ -1011,12 +1091,30 @@ function normalizeDraft(value) {
   const formattedStory = formatChapters(chapters);
   const scenes = (value.scenes || []).slice(0, MAX_SCENE_COUNT).map((scene, index) => ({
     id: cleanId(scene.id) || `scene-${index + 1}`,
+    chapterNumber: Math.max(1, Math.min(8, Number(scene.chapterNumber) || 1)),
+    sceneNumber: index + 1,
     title: cleanText(scene.title, 100) || `Scene ${index + 1}`,
-    passage: cleanText(scene.passage, 1800),
+    sceneType: CINEMATIC_SCENE_TYPES.includes(scene.sceneType) ? scene.sceneType : "world_reveal",
+    cinematicSceneType: CINEMATIC_SCENE_TYPES.includes(scene.sceneType) ? scene.sceneType : "world_reveal",
+    sourcePassage: cleanProse(scene.sourcePassage || scene.passage, 4000),
+    passage: cleanProse(scene.sourcePassage || scene.passage, 4000),
+    emotionalPurpose: cleanProse(scene.emotionalPurpose, 700),
+    storyImportance: Math.max(0, Math.min(100, Number(scene.storyImportance) || 0)),
+    charactersPresent: cleanStringArray(scene.charactersPresent, 8),
+    location: cleanText(scene.location, 180),
+    keyObject: cleanText(scene.keyObject, 180),
+    decisionNodeId: cleanId(scene.decisionNodeId),
+    clueIds: cleanStringArray(scene.clueIds, 5).map(cleanId).filter(Boolean),
+    visualPromptFull: cleanProse(scene.visualPromptFull || scene.visualDirection, 5000),
+    visualPromptSummary: cleanProse(scene.visualPromptSummary || scene.visualDirection, 700),
+    cameraDirection: cleanText(scene.cameraDirection || scene.camera, 100),
+    lightingMood: cleanProse(scene.lightingMood, 500),
+    continuityNotes: cleanProse(scene.continuityNotes, 700),
+    promptQuality: scene.promptQuality && typeof scene.promptQuality === "object" ? scene.promptQuality : null,
     script: normalizeSceneScript(scene.script),
     mood: enumSceneValue(scene.mood, SCENE_MOODS, "Wonder"),
     camera: enumSceneValue(scene.camera, SCENE_CAMERAS, "Wide Shot"),
-    visualDirection: cleanText(scene.visualDirection, 1800),
+    visualDirection: cleanProse(scene.visualDirection || scene.visualPromptFull, 1200),
     choices: normalizeChoices(scene.choices, `scene-${index + 1}`),
     decisionNode: normalizeDecisionNode(scene.decisionNode, cleanId(scene.id) || `scene-${index + 1}`),
   }));
@@ -1038,6 +1136,47 @@ function normalizeDraft(value) {
     story: formattedStory,
     scenes: attachPlanDecisions(scenes, logicPlan),
   };
+}
+
+function mergeCinematicSceneExtraction(generatedScenes, extractedScenes, logicPlan) {
+  const generated = Array.isArray(generatedScenes) ? generatedScenes : [];
+  const extracted = Array.isArray(extractedScenes) ? extractedScenes : [];
+  const decisions = new Map((logicPlan?.decisions || []).map((decision) => [decision.id, decision]));
+  return extracted.map((source, index) => {
+    const enriched = generated[index] || {};
+    const decision = source.decisionNodeId ? decisions.get(source.decisionNodeId) : null;
+    const visualPromptFull = cleanProse(enriched.visualPromptFull || enriched.visualDirection, 5000);
+    const merged = {
+      ...enriched,
+      id: `scene-${index + 1}`,
+      chapterNumber: source.chapterNumber,
+      sceneNumber: index + 1,
+      title: cleanText(enriched.title, 100) || cleanText(source.title, 100) || `Scene ${index + 1}`,
+      sceneType: source.sceneType,
+      sourcePassage: source.sourcePassage,
+      passage: source.sourcePassage,
+      emotionalPurpose: cleanProse(enriched.emotionalPurpose, 700) || source.emotionalPurpose,
+      storyImportance: source.storyImportance,
+      charactersPresent: source.charactersPresent,
+      location: cleanText(enriched.location, 180),
+      keyObject: source.keyObject || cleanText(enriched.keyObject, 180),
+      decisionNodeId: source.decisionNodeId,
+      clueIds: source.clueIds,
+      visualPromptFull,
+      visualPromptSummary: cleanProse(enriched.visualPromptSummary, 700),
+      cameraDirection: cleanText(enriched.cameraDirection || source.cameraDirection, 100),
+      lightingMood: cleanProse(enriched.lightingMood || source.lightingMood, 500),
+      continuityNotes: source.continuityNotes,
+      script: Array.isArray(enriched.script) && enriched.script.length
+        ? enriched.script
+        : [{ speaker: "Narrator", speakerRole: "narrator", text: source.sourcePassage }],
+      camera: enumSceneValue(enriched.camera || source.cameraDirection, SCENE_CAMERAS, "Wide Shot"),
+      visualDirection: cleanProse(enriched.visualDirection, 1200) || source.sourcePassage,
+      decisionNode: decision || null,
+    };
+    merged.promptQuality = validateSceneVisualPrompt(visualPromptFull, merged);
+    return merged;
+  });
 }
 
 function finalizeStoryDraft(value) {

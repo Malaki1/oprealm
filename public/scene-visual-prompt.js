@@ -156,12 +156,38 @@
 
   function namedObjects(input, sceneText) {
     const all = [
+      clean(input.scene?.keyObject),
       ...list(input.continuityBible?.recurringObjects),
       ...list(input.scene?.objects),
       ...list(input.scene?.selectedObjects),
     ];
     const found = all.filter((item) => new RegExp(`\\b${escapeRegExp(item)}\\b`, "i").test(sceneText));
     return [...new Set(found)].slice(0, 5);
+  }
+
+  function sceneTypeDirection(scene, heroName) {
+    const type = clean(scene.cinematicSceneType || scene.sceneType);
+    const keyObject = clean(scene.keyObject);
+    const location = clean(scene.location);
+    if (type === "choice_setup" || type === "final_choice") {
+      return `Decision pressure: show the named person confronting ${heroName}, ${heroName}'s visible reaction, the physical stakes and two conflicting possible actions in the same composition${keyObject ? `, with ${keyObject} clearly relevant` : ""}. Use split focus, POV, close-up or over-the-shoulder tension.`;
+    }
+    if (type === "clue_discovery") {
+      return `Clue staging: show ${keyObject || "the exact evidence named in the passage"} partially hidden where the story places it, with the named character noticing a specific detail while the background danger remains active.`;
+    }
+    if (type === "action_chase") {
+      return "Action staging: show directional movement, reacting fabric and environment, dynamic body mechanics, foreground obstacles, debris or sparks only where supported by the passage, and a readable pursuit or escape route.";
+    }
+    if (type === "creature_reveal") {
+      return "Creature reveal: preserve the entity's story function and distinctive silhouette, use scale contrast and show the characters reacting to what it physically does.";
+    }
+    if (type === "final_spectacle" || type === "world_reveal") {
+      return `Spectacle staging: use huge scale and strong depth, with the characters small against ${location || "the impossible named setting"} and the central event dominating the frame without losing readable faces or action.`;
+    }
+    if (["trust_conflict", "betrayal_reveal", "emotional_turning_point", "darkest_moment"].includes(type)) {
+      return "Character drama: prioritize expressive posture, eye lines, hands, distance between characters and the concrete action that changes their relationship; avoid symbolic filler.";
+    }
+    return "";
   }
 
   function escapeRegExp(value) {
@@ -190,13 +216,17 @@
     const heroName = clean(hero.name || hero.recipe?.identity?.name, "OPREALM protagonist");
     const worldName = clean(input.world?.name, "the selected OPREALM location");
     const style = clean(input.visualStyle || bible.styleGuide, "premium cinematic kids story-game art style");
-    const sceneText = clean(scene.userVisualDirection || scene.storyExcerpt || scene.passage || scene.prompt);
+    const sceneText = clean(scene.userVisualDirection || scene.sourcePassage || scene.storyExcerpt || scene.passage || scene.prompt);
     const mood = clean(scene.mood, "Wonder");
-    const camera = clean(scene.camera, "Wide Shot");
+    const camera = clean(scene.cameraDirection || scene.camera, "Wide Shot");
     const action = visibleAction(sceneText, heroName, worldName);
     const objects = namedObjects(input, sceneText);
-    const supporting = bible.supportingCharacterDescriptions?.length
-      ? `Named supporting characters visible in this beat: ${bible.supportingCharacterDescriptions.join(" | ")}.`
+    const presentNames = list(scene.charactersPresent);
+    const presentSupporting = (bible.supportingCharacterDescriptions || []).filter((description) =>
+      !presentNames.length || presentNames.some((name) => new RegExp(`^${escapeRegExp(name)}\\b`, "i").test(description)),
+    );
+    const supporting = presentSupporting.length
+      ? `Named supporting characters visible in this beat: ${presentSupporting.join(" | ")}.`
       : "Do not add random extra characters; include only people or creatures explicitly named in this scene.";
     const objectDirection = objects.length
       ? `Clearly show these story-critical objects exactly where the action requires them: ${objects.join(", ")}.`
@@ -206,15 +236,18 @@
       ? `Decision moment: show the physical dilemma for ${clean(decision.decisionType, "a difficult choice")} through visible action and opposing routes or actions. Relevant evidence: ${truncateWords(decision.whatPlayerKnows || decision.setupText || decision.questionText, 28)}.`
       : "";
     const lighting = lightingDirection(mood, sceneText);
+    const exactLocation = clean(scene.location);
+    const typeDirection = sceneTypeDirection(scene, heroName);
     const prompt = [
       `Cinematic animated adventure scene in ${style}.`,
       `Main character: ${truncateWords(bible.heroVisualDescription, 38)}. Show ${mood.toLowerCase()} through the face, hands and posture, never explanatory text.`,
-      `Setting: ${truncateWords(bible.worldVisualDescription, 32)}. Scene ${Number(input.sceneIndex || 0) + 1} of "${clean(input.storyTitle, "the approved story")}"; preserve its biome, era and architecture.`,
-      "Continuity lock: use the same character design as previous scenes, the same outfit unless the approved story explicitly changes it, and the same world aesthetic. Preserve face, hair, body proportions, outfit colors, accessories and left-right placement.",
+      `Setting: ${exactLocation ? `${exactLocation} inside ` : ""}${truncateWords(bible.worldVisualDescription, 32)}. Scene ${Number(input.sceneIndex || 0) + 1} of "${clean(input.storyTitle, "the approved story")}"; preserve its biome, era and architecture.`,
+      "Continuity lock: use the same character design as previous scenes, the same outfit unless the approved story explicitly changes it, and a consistent world aesthetic. Preserve face, hair, body proportions, outfit colors, accessories and left-right placement.",
       `Camera direction: ${camera}, cinematic composition with a clear focal action, readable faces and strong depth.`,
+      `Visible action: ${truncateWords(action, 34)}`,
+      typeDirection,
       `Lighting and atmosphere: ${lighting}; effects support the action rather than hide it.`,
       `Safety: suitable for ${clean(input.ageBand, "ages 7-13")}; exciting danger without graphic violence or frightening realism. No text, UI, watermarks or logos.`,
-      `Visible action: ${truncateWords(action, 34)}`,
       objectDirection,
       decisionDirection,
       supporting,
@@ -231,14 +264,31 @@
     const characters = Array.isArray(input.characters) ? input.characters : [];
     const heroName = clean(characters[0]?.name || characters[0]?.recipe?.identity?.name, "OPREALM protagonist");
     const worldName = clean(input.world?.name, "the selected location");
-    const action = stripGeneric(firstSentences(scene.userVisualDirection || scene.storyExcerpt || scene.passage || scene.prompt, 2), heroName, worldName);
+    const action = stripGeneric(firstSentences(scene.userVisualDirection || scene.sourcePassage || scene.storyExcerpt || scene.passage || scene.prompt, 2), heroName, worldName);
     return sentence(action || `${heroName} performs the scene's central visible action in ${worldName}`);
+  }
+
+  function validateSceneVisualPrompt(prompt, input = {}) {
+    const text = clean(prompt);
+    const scene = input.scene || {};
+    const characters = Array.isArray(input.characters) ? input.characters : [];
+    const names = list(scene.charactersPresent).concat(characters.map((character) => clean(character.name)).filter(Boolean));
+    const warnings = [];
+    if (/\bthe hero\b|\bstory world\b/i.test(text)) warnings.push("generic placeholder");
+    if (/\bmysterious clue\b/i.test(text) && !clean(scene.keyObject)) warnings.push("unnamed clue");
+    if (names.length && !names.some((name) => new RegExp(`\\b${escapeRegExp(name)}\\b`, "i").test(text))) warnings.push("missing named character");
+    if (!/(?:holds?|grabs?|runs?|kneels?|raises?|opens?|strikes?|pulls?|pushes?|climbs?|jumps?|turns?|points?|shields?|carries?|reaches?)/i.test(text)) warnings.push("missing visible action");
+    if (!/(?:wide|close-up|close up|over-the-shoulder|over shoulder|low angle|high angle|POV|tracking|dutch angle|drone|medium shot)/i.test(text)) warnings.push("missing camera");
+    if (!/(?:light|lighting|moonlit|sunset|firelight|torchlight|neon|fog|rain|glow|shadow|aurora)/i.test(text)) warnings.push("missing lighting");
+    if (!/same character design as previous scenes/i.test(text) || !/same outfit unless/i.test(text) || !/same world aesthetic|consistent world aesthetic/i.test(text)) warnings.push("missing continuity lock");
+    return { passed: warnings.length === 0, warnings };
   }
 
   const api = {
     buildSceneVisualPrompt,
     buildSceneVisualPromptSummary,
     createContinuityBible,
+    validateSceneVisualPrompt,
   };
 
   globalScope.OPREALMSceneVisualPrompt = api;

@@ -236,7 +236,8 @@ if (creatorFlowParams.get("voice") === "1") {
 const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
 const STORYBOARD_MOVIE_DB = "oprealm_storyboard_movie_v1";
 const STORYBOARD_MOVIE_STORE = "movie_previews";
-const MIN_STORY_SCENES = 16;
+const MIN_STORY_SCENES = 1;
+const FALLBACK_STORY_SCENES = 16;
 const STORY_SCENES_PAGE = /\/storyboard-scenes(?:\.html)?$/i.test(window.location.pathname);
 const STORY_DIRECTION_DEFAULTS = {
   storyType: "epic-quest",
@@ -981,6 +982,7 @@ async function requestFullStory(project, mode = "write") {
       quality: result.draft.quality || previousDraft.quality || null,
       payoffQuality: result.draft.payoffQuality || previousDraft.payoffQuality || null,
       signatureQuality: result.draft.signatureQuality || previousDraft.signatureQuality || null,
+      sceneSetQuality: result.draft.sceneSetQuality || previousDraft.sceneSetQuality || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],
@@ -1088,15 +1090,35 @@ function buildScenesFromApprovedStory(project) {
       id: beat.id || existing.id || uid("scene"),
       order: index + 1,
       title: beat.title || `Scene ${index + 1}`,
-      storyExcerpt: beat.passage || "",
+      chapterNumber: beat.chapterNumber || 1,
+      sceneNumber: beat.sceneNumber || index + 1,
+      cinematicSceneType: beat.cinematicSceneType || beat.sceneType || "",
+      sceneType: beat.sceneType || beat.cinematicSceneType || "",
+      sourcePassage: beat.sourcePassage || beat.passage || "",
+      storyExcerpt: beat.sourcePassage || beat.passage || "",
+      emotionalPurpose: beat.emotionalPurpose || "",
+      storyImportance: Number(beat.storyImportance || 0),
+      charactersPresent: Array.isArray(beat.charactersPresent) ? beat.charactersPresent : [],
+      location: beat.location || "",
+      keyObject: beat.keyObject || "",
+      decisionNodeId: beat.decisionNodeId || "",
+      clueIds: Array.isArray(beat.clueIds) ? beat.clueIds : [],
+      lightingMood: beat.lightingMood || "",
+      continuityNotes: beat.continuityNotes || "",
       script: normalizeSceneScriptForProject(beat.script, character, project),
-      visualDirection: beat.visualDirection || "",
-      userVisualDirection: beat.visualDirection || "",
+      visualDirection: beat.visualPromptFull || beat.visualDirection || "",
+      userVisualDirection: beat.visualDirection || beat.sourcePassage || beat.passage || "",
+      visualPromptSummary: beat.visualPromptSummary || "",
+      visualPromptFull: beat.visualPromptFull || "",
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
       decisionNode: beat.decisionNode || null,
       mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
-      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
-      selectedCharacterIds: character.id ? [character.id] : [],
+      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera || beat.cameraDirection, `${beat.sourcePassage || beat.passage || ""} ${beat.visualDirection || ""}`, index),
+      selectedCharacterIds: currentStoryCharacters(project)
+        .filter((item) => (beat.charactersPresent || []).some((name) => cleanStoryText(name).toLowerCase() === cleanStoryText(item.name).toLowerCase()))
+        .map((item) => item.id)
+        .concat(character.id && !(beat.charactersPresent || []).length ? [character.id] : [])
+        .filter(Boolean),
       selectedWorldId: world.id || "",
       selectedObjectIds: activeObjects(project)
         .filter((item) => new RegExp(`\\b${escapeRegExp(storyObjectName(item))}\\b`, "i").test(beat.passage || ""))
@@ -1108,7 +1130,7 @@ function buildScenesFromApprovedStory(project) {
       scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the protagonist");
       scene.userVisualDirection = scene.visualDirection;
     }
-    refreshSceneVisualPrompts(project, scene, index);
+    refreshSceneVisualPrompts(project, scene, index, { preserveSummary: true });
     return scene;
   });
   project.storyDraft.sceneCount = project.scenes.length;
@@ -1294,6 +1316,9 @@ function refreshSceneVisualPrompts(project, scene, sceneIndex, { preserveSummary
   scene.prompt = scene.visualPromptSummary;
   scene.visualPrompt = scene.visualPromptFull;
   scene.imagePromptInternal = scene.visualPromptFull;
+  scene.promptQuality = builder?.validateSceneVisualPrompt
+    ? builder.validateSceneVisualPrompt(scene.visualPromptFull, sceneVisualPromptInput(project, scene, sceneIndex))
+    : scene.promptQuality || null;
   return scene;
 }
 
@@ -1850,7 +1875,7 @@ function storyMoralForCharacter(character = {}) {
 }
 
 function storyArcForCount(count) {
-  const safeCount = Math.max(MIN_STORY_SCENES, Number(count) || MIN_STORY_SCENES);
+  const safeCount = Math.max(5, Number(count) || FALLBACK_STORY_SCENES);
   if (safeCount === 5) return ["Intro", "Chapter 1", "Chapter 2", "Climax", "Ending"];
   const middleCount = safeCount - 3;
   return [
@@ -1957,7 +1982,7 @@ function storyPlanForCount(project, count) {
 }
 
 function storyPromptForIndex(project, index, previousPrompt = "") {
-  const count = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || MIN_STORY_SCENES);
+  const count = Math.max(5, (project.scenes || []).length || FALLBACK_STORY_SCENES);
   const plan = storyPlanForCount(project, count)[index] || storyPlanForCount(project, index + 1)[index];
   if (!previousPrompt || !plan?.prompt) return plan?.prompt || "";
   return `After the previous moment, ${plan.prompt.charAt(0).toLowerCase()}${plan.prompt.slice(1)}`;
@@ -2855,7 +2880,7 @@ function quickPopulateStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   project.storySettings = storySettings(project);
-  const targetCount = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || 0);
+  const targetCount = Math.max(5, (project.scenes || []).length || FALLBACK_STORY_SCENES);
   const plan = storyPlanForCount(project, targetCount);
   const existingScenes = [...(project.scenes || [])].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   project.scenes = plan.map((beat, index) => {
