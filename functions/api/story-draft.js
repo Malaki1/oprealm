@@ -386,7 +386,7 @@ export async function onRequestPost({ request, env }) {
     assertSafePrompt([character, cast, world, storyType, endingType, lessonTheme, ...objects].join(" "));
     await assertRateLimit(env, user.id, STORY_DRAFT_TOOL, { limit: 4, windowSeconds: 60 });
 
-    const approvedStory = cleanProse(body.approvedStory, 40000);
+    const approvedStory = cleanProse(body.approvedStory, 100000);
     if (mode === "split" && approvedStory.length < 200) {
       return json({ ok: false, error: "Please approve a complete story before building scenes." }, 400);
     }

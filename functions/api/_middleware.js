@@ -213,7 +213,8 @@ function validateSafeString(value, { label, maxLength, dataUrlCount }) {
 
 function stringLimit(value, path = "") {
   if (isDataImage(value)) return 8 * 1024 * 1024;
-  if (path === "body.approvedStory" || path === "body.text") return 40000;
+  if (path === "body.approvedStory") return 100000;
+  if (path === "body.text") return 40000;
   if (path === "body.storyLogicPlan") return 12000;
   return 5000;
 }
