@@ -1084,7 +1084,11 @@ function buildScenesFromApprovedStory(project) {
   const repeatedCamera = plan.length > 2 && generatedCameras.size <= 1;
   updateProjectContinuityBible(project);
   project.scenes = plan.map((beat, index) => {
-    const existing = existingScenes[index] || {};
+    const sourcePassage = cleanStoryText(beat.sourcePassage || beat.passage);
+    const existing = existingScenes.find((scene) =>
+      sourcePassage
+      && cleanStoryText(scene.sourcePassage || scene.storyExcerpt) === sourcePassage
+    ) || {};
     const scene = {
       ...existing,
       id: beat.id || existing.id || uid("scene"),
@@ -1094,8 +1098,8 @@ function buildScenesFromApprovedStory(project) {
       sceneNumber: beat.sceneNumber || index + 1,
       cinematicSceneType: beat.cinematicSceneType || beat.sceneType || "",
       sceneType: beat.sceneType || beat.cinematicSceneType || "",
-      sourcePassage: beat.sourcePassage || beat.passage || "",
-      storyExcerpt: beat.sourcePassage || beat.passage || "",
+      sourcePassage,
+      storyExcerpt: sourcePassage,
       emotionalPurpose: beat.emotionalPurpose || "",
       storyImportance: Number(beat.storyImportance || 0),
       charactersPresent: Array.isArray(beat.charactersPresent) ? beat.charactersPresent : [],
@@ -1107,7 +1111,7 @@ function buildScenesFromApprovedStory(project) {
       continuityNotes: beat.continuityNotes || "",
       script: normalizeSceneScriptForProject(beat.script, character, project),
       visualDirection: beat.visualPromptFull || beat.visualDirection || "",
-      userVisualDirection: beat.visualDirection || beat.sourcePassage || beat.passage || "",
+      userVisualDirection: sourcePassage,
       visualPromptSummary: beat.visualPromptSummary || "",
       visualPromptFull: beat.visualPromptFull || "",
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),

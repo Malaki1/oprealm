@@ -974,15 +974,14 @@ function buildDeterministicCinematicSplit(input) {
   const decisions = new Map(logicPlan.decisions.map((decision) => [decision.id, decision]));
   const scenes = extractedScenes.map((scene, index) => {
     const decisionNode = scene.decisionNodeId ? decisions.get(scene.decisionNodeId) || null : null;
-    const visualDirection = buildDeterministicVisualDirection(scene);
     return {
       ...scene,
       passage: scene.sourcePassage,
       script: [{ speaker: "Narrator", speakerRole: "narrator", text: scene.sourcePassage }],
       mood: moodForCinematicType(scene.sceneType),
       camera: enumSceneValue(scene.cameraDirection, SCENE_CAMERAS, "Wide Shot"),
-      visualDirection,
-      visualPromptSummary: visualDirection,
+      visualDirection: scene.sourcePassage,
+      visualPromptSummary: scene.sourcePassage,
       visualPromptFull: "",
       decisionNode,
       choices: decisionNode?.choices || [],
@@ -1058,12 +1057,6 @@ function nearestSceneForPlacement(placementId, scenes) {
     return scenes.find((scene) => scene.chapterNumber === chapterNumber)?.id || "";
   }
   return scenes.find((scene) => scene.id === placementId)?.id || "";
-}
-
-function buildDeterministicVisualDirection(scene) {
-  const names = scene.charactersPresent.length ? scene.charactersPresent.join(" and ") : "the named characters";
-  const object = scene.keyObject ? ` with ${scene.keyObject} visible but naturally placed` : "";
-  return `${names} perform the exact action from the approved passage in ${scene.location || "the named story location"}${object}; ${scene.cameraDirection}, ${scene.lightingMood}.`;
 }
 
 function moodForCinematicType(type) {
