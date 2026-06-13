@@ -861,6 +861,15 @@ function storyDraftPayload(project, mode = "write") {
   if (mode === "split" && project.storyDraft?.bestMomentsPlan) {
     payload.bestMomentsPlan = project.storyDraft.bestMomentsPlan;
   }
+  if (mode === "split" && project.storyDraft?.signatureMomentsPlan) {
+    payload.signatureMomentsPlan = project.storyDraft.signatureMomentsPlan;
+  }
+  if (mode === "split" && project.storyDraft?.emotionalRhythmPlan) {
+    payload.emotionalRhythmPlan = project.storyDraft.emotionalRhythmPlan;
+  }
+  if (mode === "split" && project.storyDraft?.storyLocations) {
+    payload.storyLocations = project.storyDraft.storyLocations;
+  }
   return payload;
 }
 
@@ -927,13 +936,32 @@ async function requestFullStory(project, mode = "write") {
       } catch {
         bestMomentsPlan = {};
       }
-      setStoryWritingStage(68, "Writing the complete chapter story...");
+      setStoryWritingStage(64, "Designing signature moments and impossible locations...");
+      let signaturePlanning = {};
+      try {
+        const signatureResult = await requestStoryDraftStage({
+          ...basePayload,
+          stage: "signature",
+          storySpine: spineResult.storySpine,
+          storyLogicPlan: logicResult.logicPlan,
+          bestMomentsPlan,
+        }, "signature moments plan", 15 * 60 * 1000, saveBackgroundStage("signature moments plan"));
+        signaturePlanning = {
+          signatureMomentsPlan: signatureResult.signatureMomentsPlan || {},
+          emotionalRhythmPlan: signatureResult.emotionalRhythmPlan || [],
+          storyLocations: signatureResult.storyLocations || [],
+        };
+      } catch {
+        signaturePlanning = {};
+      }
+      setStoryWritingStage(76, "Writing the complete chapter story...");
       result = await requestStoryDraftStage({
         ...basePayload,
         stage: "prose",
         storySpine: spineResult.storySpine,
         storyLogicPlan: logicResult.logicPlan,
         bestMomentsPlan,
+        ...signaturePlanning,
       }, "chapter story", 20 * 60 * 1000, saveBackgroundStage("chapter story"));
     } else {
       result = await requestStoryDraftStage(basePayload, "scene breakdown", 5 * 60 * 1000);
@@ -946,9 +974,13 @@ async function requestFullStory(project, mode = "write") {
       summary: result.draft.summary || previousDraft.summary || "",
       storySpine: result.draft.storySpine || previousDraft.storySpine || null,
       bestMomentsPlan: result.draft.bestMomentsPlan || previousDraft.bestMomentsPlan || null,
+      signatureMomentsPlan: result.draft.signatureMomentsPlan || previousDraft.signatureMomentsPlan || null,
+      emotionalRhythmPlan: result.draft.emotionalRhythmPlan || previousDraft.emotionalRhythmPlan || [],
+      storyLocations: result.draft.storyLocations || previousDraft.storyLocations || [],
       logicPlan: result.draft.logicPlan || previousDraft.logicPlan || null,
       quality: result.draft.quality || previousDraft.quality || null,
       payoffQuality: result.draft.payoffQuality || previousDraft.payoffQuality || null,
+      signatureQuality: result.draft.signatureQuality || previousDraft.signatureQuality || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],

@@ -6,6 +6,12 @@ import { assertSafePrompt, cleanText } from "../_lib/validate.js";
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 import { validateStoryQuality } from "../_lib/story-quality.mjs";
 import { removeFrameworkLanguage, validateStoryPayoffs } from "../_lib/story-payoffs.mjs";
+import {
+  cleanEngineVisibleLanguage,
+  generateEmotionalRhythmPlan,
+  naturalizeDecisionSetup,
+  validateSignatureMoments,
+} from "../_lib/story-signature.mjs";
 
 const STORY_DRAFT_COST = CREATOR_CREDIT_COSTS.storyDraft;
 const STORY_DRAFT_MODEL = "gpt-5-mini";
@@ -143,6 +149,65 @@ const bestMomentsSchema = {
   ].map((key) => [key, { type: "string" }])),
 };
 
+const signaturePlanningSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["signatureMomentsPlan", "emotionalRhythmPlan", "storyLocations"],
+  properties: {
+    signatureMomentsPlan: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "wowMoment1", "wowMoment2", "biggestReveal", "mostEmotionalMoment",
+        "mostShockingBetrayal", "coolestLocation", "coolestCreatureOrEntity",
+        "mostDifficultChoice", "funniestOrWarmestMoment", "mostIllustratableScene",
+        "finaleSpectacle",
+      ],
+      properties: Object.fromEntries([
+        "wowMoment1", "wowMoment2", "biggestReveal", "mostEmotionalMoment",
+        "mostShockingBetrayal", "coolestLocation", "coolestCreatureOrEntity",
+        "mostDifficultChoice", "funniestOrWarmestMoment", "mostIllustratableScene",
+        "finaleSpectacle",
+      ].map((key) => [key, { type: "string" }])),
+    },
+    emotionalRhythmPlan: {
+      type: "array",
+      minItems: 4,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["chapterNumber", "primaryTone", "secondaryTone", "purpose"],
+        properties: {
+          chapterNumber: { type: "integer", minimum: 1, maximum: 8 },
+          primaryTone: { type: "string" },
+          secondaryTone: { type: "string" },
+          purpose: { type: "string" },
+        },
+      },
+    },
+    storyLocations: {
+      type: "array",
+      minItems: 3,
+      maxItems: 5,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "visualIdentity", "sensoryDetails", "danger", "secret", "storyPurpose", "illustrationPromptSeed"],
+        properties: {
+          name: { type: "string" },
+          visualIdentity: { type: "string" },
+          sensoryDetails: { type: "string" },
+          danger: { type: "string" },
+          secret: { type: "string" },
+          storyPurpose: { type: "string" },
+          illustrationPromptSeed: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
 const logicPlanSchema = {
   type: "object",
   additionalProperties: false,
@@ -275,7 +340,7 @@ export async function onRequestPost({ request, env }) {
     const user = await requireUser(request, env);
     const body = await readJson(request, "Invalid story request.");
     const mode = body.mode === "split" ? "split" : "write";
-    const requestedStage = mode === "write" && ["spine", "logic", "moments", "prose"].includes(body.stage)
+    const requestedStage = mode === "write" && ["spine", "logic", "moments", "signature", "prose"].includes(body.stage)
       ? body.stage
       : "";
     if (mode === "write" && Number(user.credits_remaining || 0) < STORY_DRAFT_COST) {
@@ -342,6 +407,9 @@ export async function onRequestPost({ request, env }) {
         title: cleanText(body.title, 100),
         storySpine: body.storySpine || {},
         bestMomentsPlan: body.bestMomentsPlan || {},
+        signatureMomentsPlan: body.signatureMomentsPlan || {},
+        emotionalRhythmPlan: body.emotionalRhythmPlan || [],
+        storyLocations: body.storyLocations || [],
         ...split.value,
       });
       models = [split.model];
@@ -385,6 +453,31 @@ export async function onRequestPost({ request, env }) {
         creditsUsed: 0,
         model: moments.model,
       });
+    } else if (requestedStage === "signature") {
+      const storySpine = normalizeStorySpine(body.storySpine);
+      const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+      const bestMomentsPlan = normalizeBestMomentsPlan(body.bestMomentsPlan);
+      if (!storySpine.centralMystery || logicPlan.decisions.length < 3) {
+        return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
+      }
+      const signature = await generateSignatureMomentsPlan(
+        env,
+        storySpine,
+        logicPlan,
+        bestMomentsPlan,
+        creatorBible,
+        `${user.id}:signature`,
+        true,
+      );
+      if (signature.pending) return backgroundStageResponse("signature", signature);
+      const normalized = normalizeSignaturePlanning(signature.value, storySpine, logicPlan, bestMomentsPlan, creatorBible);
+      return json({
+        ok: true,
+        stage: "signature",
+        ...normalized,
+        creditsUsed: 0,
+        model: signature.model,
+      });
     } else if (requestedStage === "prose") {
       const storySpine = normalizeStorySpine(body.storySpine);
       const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
@@ -392,21 +485,36 @@ export async function onRequestPost({ request, env }) {
       const bestMomentsPlan = suppliedMoments.biggestReveal
         ? suppliedMoments
         : fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible);
+      const signaturePlanning = normalizeSignaturePlanning({
+        signatureMomentsPlan: body.signatureMomentsPlan,
+        emotionalRhythmPlan: body.emotionalRhythmPlan,
+        storyLocations: body.storyLocations,
+      }, storySpine, logicPlan, bestMomentsPlan, creatorBible);
       if (!storySpine.centralMystery || logicPlan.decisions.length < 3 || logicPlan.clues.length < 3) {
         return json({ ok: false, error: "The story plan was incomplete. Please regenerate the story." }, 400);
       }
-      const prose = await generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, `${user.id}:prose`, true);
+      const prose = await generateFullChapterStory(
+        env,
+        storySpine,
+        logicPlan,
+        bestMomentsPlan,
+        signaturePlanning,
+        creatorBible,
+        `${user.id}:prose`,
+        true,
+      );
       if (prose.pending) {
         await ensureBackgroundStoryJob(env, prose.responseId, user.id);
         return backgroundStageResponse("prose", prose);
       }
-      draft = normalizeDraft(removeFrameworkLanguage({
+      draft = finalizeStoryDraft({
         ...prose.value,
         storySpine,
         logicPlan,
         bestMomentsPlan,
+        ...signaturePlanning,
         scenes: [],
-      }));
+      });
       models = [prose.model];
     } else {
       const spine = await generateStorySpine(env, creatorBible, `${user.id}:spine`);
@@ -418,18 +526,28 @@ export async function onRequestPost({ request, env }) {
         momentsValue = moments.value;
         momentsModel = moments.model;
       } catch {}
-      const prose = await generateFullChapterStory(env, spine.value, plan.value, momentsValue, creatorBible, `${user.id}:prose`);
-      draft = normalizeDraft(removeFrameworkLanguage({
+      let signatureValue = fallbackSignaturePlanning(spine.value, plan.value, momentsValue, creatorBible);
+      let signatureModel = "deterministic-fallback";
+      try {
+        const signature = await generateSignatureMomentsPlan(env, spine.value, plan.value, momentsValue, creatorBible, `${user.id}:signature`);
+        signatureValue = signature.value;
+        signatureModel = signature.model;
+      } catch {}
+      const signaturePlanning = normalizeSignaturePlanning(signatureValue, spine.value, plan.value, momentsValue, creatorBible);
+      const prose = await generateFullChapterStory(env, spine.value, plan.value, momentsValue, signaturePlanning, creatorBible, `${user.id}:prose`);
+      draft = finalizeStoryDraft({
         ...prose.value,
         storySpine: spine.value,
         logicPlan: plan.value,
         bestMomentsPlan: momentsValue,
+        ...signaturePlanning,
         scenes: [],
-      }));
-      models = [spine.model, plan.model, momentsModel, prose.model];
+      });
+      models = [spine.model, plan.model, momentsModel, signatureModel, prose.model];
     }
     draft.quality = validateStoryQuality(draft);
     draft.payoffQuality = validateStoryPayoffs(draft, draft.bestMomentsPlan, draft.logicPlan?.clues, draft.logicPlan?.decisions);
+    draft.signatureQuality = validateSignatureMoments(draft, draft.signatureMomentsPlan, draft.storyLocations, draft.emotionalRhythmPlan);
 
     if (mode === "write") {
       const charged = await chargeCredits(env, user.id);
@@ -476,6 +594,20 @@ async function finishBackgroundStage({ env, user, body, creatorBible, stage, pro
       model,
     });
   }
+  if (stage === "signature") {
+    const storySpine = normalizeStorySpine(body.storySpine);
+    const logicPlan = normalizeLogicPlan(body.storyLogicPlan);
+    const bestMomentsPlan = normalizeBestMomentsPlan(body.bestMomentsPlan);
+    return json({
+      ok: true,
+      status: "completed",
+      stage,
+      providerResponseId,
+      ...normalizeSignaturePlanning(value, storySpine, logicPlan, bestMomentsPlan, creatorBible),
+      creditsUsed: 0,
+      model,
+    });
+  }
   const storySpine = normalizeStorySpine(body.storySpine);
   const existingJob = await env.OPREALM_DB.prepare(
     "SELECT * FROM generation_jobs WHERE id = ? AND web_user_id = ? AND tool = ? LIMIT 1",
@@ -488,15 +620,22 @@ async function finishBackgroundStage({ env, user, body, creatorBible, stage, pro
   const bestMomentsPlan = suppliedMoments.biggestReveal
     ? suppliedMoments
     : fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible);
-  const draft = normalizeDraft(removeFrameworkLanguage({
+  const signaturePlanning = normalizeSignaturePlanning({
+    signatureMomentsPlan: body.signatureMomentsPlan,
+    emotionalRhythmPlan: body.emotionalRhythmPlan,
+    storyLocations: body.storyLocations,
+  }, storySpine, logicPlan, bestMomentsPlan, creatorBible);
+  const draft = finalizeStoryDraft({
     ...value,
     storySpine,
     logicPlan,
     bestMomentsPlan,
+    ...signaturePlanning,
     scenes: [],
-  }));
+  });
   draft.quality = validateStoryQuality(draft);
   draft.payoffQuality = validateStoryPayoffs(draft, bestMomentsPlan, logicPlan.clues, logicPlan.decisions);
+  draft.signatureQuality = validateSignatureMoments(draft, draft.signatureMomentsPlan, draft.storyLocations, draft.emotionalRhythmPlan);
   const charged = await chargeCredits(env, user.id);
   if (!charged) return json({ ok: false, error: `You need ${STORY_DRAFT_COST} Creator credits to finish this story.` }, 402);
   const completedResult = {
@@ -620,11 +759,81 @@ export async function generateBestMomentsPlan(env, storySpine, pickPathPlan, cre
   });
 }
 
-export async function generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, creatorBible, seed = "full-story", background = false) {
+export async function generateSignatureMomentsPlan(env, storySpine, pickPathPlan, bestMomentsPlan, creatorBible, seed = "signature-moments", background = false) {
+  const chapterCount = Math.max(4, Math.min(8, storySpine?.chapterAdventurePromises?.length || storySpine?.chapterHooks?.length || 6));
+  const prompt = [
+    `Story Spine: ${JSON.stringify(storySpine)}`,
+    `Pick-a-Path Plan: ${JSON.stringify(pickPathPlan)}`,
+    `Best Moments Plan: ${JSON.stringify(bestMomentsPlan)}`,
+    `Creator Bible: ${JSON.stringify(creatorBible)}`,
+    `Plan for exactly ${chapterCount} chapters.`,
+    "Design the story's signature moments, emotional rhythm and 3-5 named cinematic locations before prose is written.",
+    "wowMoment1 must physically occur by Chapter 1 or 2. The coolest location must appear before the midpoint.",
+    "The biggest reveal must pay off earlier concrete clues. The betrayal must involve a named character or a damaging false assumption.",
+    "The most difficult choice must be emotionally painful, with credible reasons every option may be right or wrong.",
+    "Include one warm or funny breathing-space moment and an emotional quiet moment before the finale.",
+    "The finale spectacle must resolve the immediate danger, central mystery and hero relationship or emotional conflict through visible action.",
+    "At least one location must be impossible, magical, strange and illustration-worthy rather than a generic forest, cave, castle or room.",
+    "Every location needs a story function, danger and secret. Do not add decorative lore that never affects an event, clue, choice or payoff.",
+    "If the world supports creatures, machines, spirits or beasts, design one named entity with a distinctive silhouette and a direct connection to a clue, reveal or choice.",
+    "Vary chapter tones across danger, mystery, wonder, suspicion, warmth, humour, betrayal, awe, sacrifice, quiet reflection, terror and triumph.",
+    "Do not write chapter prose, UI language, visual production notes or story-framework commentary.",
+  ].join("\n");
+  return requestStructured(env, {
+    schema: signaturePlanningSchema,
+    schemaName: "oprealm_signature_story_plan",
+    instructions: "You are a visionary children's adventure editor designing unforgettable, emotionally varied moments and impossible story locations.",
+    input: prompt,
+    effort: "medium",
+    maxOutputTokens: 9000,
+    background,
+    seed,
+  });
+}
+
+export function generateStoryLocations(creatorBible, storySpine, signatureMomentsPlan) {
+  const world = parseNamedValue(creatorBible?.world, "name") || "the selected realm";
+  const force = cleanText(storySpine?.mainAntagonisticForce, 120) || "the hidden threat";
+  const coolest = cleanText(signatureMomentsPlan?.coolestLocation, 240) || `The impossible heart of ${world}`;
+  return normalizeStoryLocations([
+    {
+      name: `The Turning Gate of ${world}`,
+      visualIdentity: "A colossal gate built into the moving ribs of a sleeping stone titan.",
+      sensoryDetails: "Dust falls with each slow breath; blue runes hum beneath warm stone.",
+      danger: `Each movement wakes ${force} and changes every escape route.`,
+      secret: "The gate opens only when two people choose to trust different parts of the same clue.",
+      storyPurpose: "Deliver the early wow moment and plant the first physical contradiction.",
+      illustrationPromptSeed: "Wide cinematic view of heroes crossing the moving ribs of a sleeping titan as a rune gate turns beneath them.",
+    },
+    {
+      name: cleanText(coolest, 100),
+      visualIdentity: "An impossible landmark suspended inside a giant crystal above a bottomless storm.",
+      sensoryDetails: "Whispering echoes arrive before each voice; cold rainbow light moves across every surface.",
+      danger: "The crystal shows tempting false routes that become real when believed.",
+      secret: "One reflection reveals the named betrayer acting before the story began.",
+      storyPurpose: "Stage the midpoint revelation, relationship conflict and difficult choice.",
+      illustrationPromptSeed: "Heroes inside a giant floating crystal above a bottomless storm, surrounded by living reflections and branching paths.",
+    },
+    {
+      name: `The Last Horizon of ${world}`,
+      visualIdentity: "A broken landscape folding upward like pages while the sky opens beneath it.",
+      sensoryDetails: "Thunder rolls upward; fragments of earth orbit a bright silent center.",
+      danger: "The realm will lock into the wrong shape if the final choice is made for control instead of help.",
+      secret: "The apparent weapon is the mechanism that can safely restore the world.",
+      storyPurpose: "Hold the finale spectacle and resolve the mystery through the hero's changed behaviour.",
+      illustrationPromptSeed: "Finale above a world folding like giant pages, heroes and allies acting together around a brilliant restoration mechanism.",
+    },
+  ]);
+}
+
+export async function generateFullChapterStory(env, storySpine, logicPlan, bestMomentsPlan, signaturePlanning, creatorBible, seed = "full-story", background = false) {
   const prompt = [
     `Approved Story Spine: ${JSON.stringify(storySpine)}`,
     `Approved Pick-a-Path Logic Plan: ${JSON.stringify(logicPlan)}`,
     `Approved Best Moments Plan: ${JSON.stringify(bestMomentsPlan)}`,
+    `Approved Signature Moments Plan: ${JSON.stringify(signaturePlanning?.signatureMomentsPlan || {})}`,
+    `Approved Emotional Rhythm Plan: ${JSON.stringify(signaturePlanning?.emotionalRhythmPlan || [])}`,
+    `Approved Named Story Locations: ${JSON.stringify(signaturePlanning?.storyLocations || [])}`,
     `Creator Bible: ${JSON.stringify(creatorBible)}`,
     "Write only the complete chapter prose, title and spoiler-light summary. Do not create scenes, image prompts, visual directions, metadata or a new logic plan.",
     "Write as if creating a bestselling children's adventure series: entertainment first, invisible structure and irresistible momentum.",
@@ -637,11 +846,17 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, bestM
     "Every chapter must deliver one illustration-worthy WOW moment: an impossible discovery, colossal creature, hidden world, magical event, terrifying enemy, unexpected ally, impossible object or reality-changing twist.",
     "Never allow two ordinary travel, investigation or conversation chapters in a row. Escalate scale, danger, wonder or emotional cost.",
     "Every non-final chapter must end with a cliffhanger, shocking reveal, dangerous arrival, betrayal hint, impossible choice, emotional reversal or discovery that changes everything.",
-    "Before every planned decision, a named character must directly ask the hero to choose between the concrete options. The choice must feel like the climax of the conversation, never a UI insert.",
+    "Before every planned decision, build emotional pressure through action and natural dialogue with a named character. Show the visible consequence, uncertainty, and why every option could be right or wrong.",
+    "A character may ask the hero a question, but never recite option labels or sound like a menu. The UI will present the concise actions separately.",
+    "Do not write phrases such as do you choose X or Y, you have three options, what will you do, or the choice stood before them.",
     "Plant every planned clue visibly before it becomes useful. Later dialogue or action must allow the reader to connect that clue to the wiser choice.",
     "Include real setbacks and costly reversals. Let plans fail, allies disagree and discoveries change what the characters believe.",
     "Most stories should contain false trust, a hidden motive, a misunderstood clue or a mistaken assumption. The reversal must make earlier concrete details suddenly meaningful.",
     "Build naturally toward every Best Moments Plan item. Do not list them or force them together; earn them through setup, escalation and payoff.",
+    "Build naturally toward every Signature Moments Plan item. wowMoment1 must occur by Chapter 2 and the coolest named location must appear before the midpoint.",
+    "Use the named Story Locations as active places with dangers and secrets that change events. At least one impossible location must be central to a clue, choice or reveal.",
+    "Follow the Emotional Rhythm Plan. Include warmth or humour, wonder or awe, betrayal or reversal, and a quiet honest moment before the finale.",
+    "Across the story, show at least four varied hero behaviours: making a mistake, snapping at someone, joking under pressure, protecting someone instinctively, apologising, trusting despite fear, refusing an easy answer, or choosing help over control.",
     "Every major clue must pay off in a reveal, betrayal, difficult decision or finale rather than leading only to another clue.",
     "Vary the chapter rhythm across danger, wonder, mystery, friendship, reversal and high-stakes finale. Do not keep every chapter grim or equally intense.",
     "Make decisions genuinely uncomfortable. Both options must protect something valuable and risk something painful; never make one answer obviously correct.",
@@ -653,6 +868,7 @@ export async function generateFullChapterStory(env, storySpine, logicPlan, bestM
     "Keep all content original, child-safe and suitable for ages 7-13.",
     "The final chapter must resolve the immediate danger, the main choice, the core mystery and the hero's emotional conflict. It may hint at future adventures only after delivering a satisfying ending.",
     "Before returning, silently inspect and revise the story. Fix any chapter lacking tension, spectacle, a hook, distinct dialogue or sensory life. Fix twists without foreshadowing, obvious choices, unearned victories and framework-exposing prose.",
+    "Every chapter must contain a cinematic visual, character interaction, active obstacle, emotional beat, clue/reveal/twist and a compelling reason to continue.",
     "Return only the polished final story. Never mention this hidden inspection.",
   ].join("\n");
   return requestStructured(env, {
@@ -781,6 +997,9 @@ function extractOutputText(data) {
 function normalizeDraft(value) {
   const storySpine = normalizeStorySpine(value.storySpine);
   const bestMomentsPlan = normalizeBestMomentsPlan(value.bestMomentsPlan);
+  const signatureMomentsPlan = normalizeSignatureMomentsPlan(value.signatureMomentsPlan);
+  const emotionalRhythmPlan = normalizeEmotionalRhythmPlan(value.emotionalRhythmPlan, storySpine);
+  const storyLocations = normalizeStoryLocations(value.storyLocations);
   const chapters = (value.chapters || []).slice(0, 8).map((chapter, index) => ({
     title: cleanText(chapter.title, 100) || `Chapter ${index + 1}`,
     description: cleanText(chapter.description, 420) || chapterDescriptionFromParagraphs(chapter.paragraphs, index),
@@ -811,11 +1030,29 @@ function normalizeDraft(value) {
     summary: cleanProse(value.summary, 1800),
     storySpine,
     bestMomentsPlan,
+    signatureMomentsPlan,
+    emotionalRhythmPlan,
+    storyLocations,
     logicPlan,
     chapters,
     story: formattedStory,
     scenes: attachPlanDecisions(scenes, logicPlan),
   };
+}
+
+function finalizeStoryDraft(value) {
+  const cleaned = cleanEngineVisibleLanguage(removeFrameworkLanguage(value));
+  const draft = normalizeDraft(cleaned);
+  const chapterText = draft.chapters.map((chapter) => chapter.paragraphs.join("\n")).join("\n\n");
+  draft.logicPlan = {
+    ...draft.logicPlan,
+    decisions: draft.logicPlan.decisions.map((decision) => ({
+      ...decision,
+      setupText: naturalizeDecisionSetup(decision, chapterText),
+    })),
+  };
+  draft.scenes = attachPlanDecisions(draft.scenes, draft.logicPlan);
+  return draft;
 }
 
 function normalizeBestMomentsPlan(value) {
@@ -825,6 +1062,81 @@ function normalizeBestMomentsPlan(value) {
     "largestVisualSpectacle", "betrayalMoment", "finaleMoment", "wonderMoment",
     "humorOrWarmthMoment", "terrifyingButKidSafeMoment",
   ].map((key) => [key, cleanProse(source[key], 700)]));
+}
+
+function normalizeSignatureMomentsPlan(value) {
+  const source = value && typeof value === "object" ? value : {};
+  return Object.fromEntries([
+    "wowMoment1", "wowMoment2", "biggestReveal", "mostEmotionalMoment",
+    "mostShockingBetrayal", "coolestLocation", "coolestCreatureOrEntity",
+    "mostDifficultChoice", "funniestOrWarmestMoment", "mostIllustratableScene",
+    "finaleSpectacle",
+  ].map((key) => [key, cleanProse(source[key], 800)]));
+}
+
+function normalizeEmotionalRhythmPlan(value, storySpine = {}) {
+  const supplied = (Array.isArray(value) ? value : []).slice(0, 8).map((beat, index) => ({
+    chapterNumber: Math.max(1, Math.min(8, Number(beat?.chapterNumber) || index + 1)),
+    primaryTone: cleanText(beat?.primaryTone, 100),
+    secondaryTone: cleanText(beat?.secondaryTone, 100),
+    purpose: cleanProse(beat?.purpose, 500),
+  })).filter((beat) => beat.primaryTone && beat.secondaryTone);
+  if (supplied.length >= 4) return supplied;
+  const chapterCount = Math.max(4, Math.min(8, storySpine?.chapterAdventurePromises?.length || storySpine?.chapterHooks?.length || 6));
+  return generateEmotionalRhythmPlan(chapterCount);
+}
+
+function normalizeStoryLocations(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 5).map((location) => ({
+    name: cleanText(location?.name, 120),
+    visualIdentity: cleanProse(location?.visualIdentity, 700),
+    sensoryDetails: cleanProse(location?.sensoryDetails, 700),
+    danger: cleanProse(location?.danger, 700),
+    secret: cleanProse(location?.secret, 700),
+    storyPurpose: cleanProse(location?.storyPurpose, 700),
+    illustrationPromptSeed: cleanProse(location?.illustrationPromptSeed, 1000),
+  })).filter((location) => location.name && location.visualIdentity);
+}
+
+function normalizeSignaturePlanning(value, storySpine, logicPlan, bestMomentsPlan, creatorBible) {
+  const fallback = fallbackSignaturePlanning(storySpine, logicPlan, bestMomentsPlan, creatorBible);
+  const signatureMomentsPlan = normalizeSignatureMomentsPlan(value?.signatureMomentsPlan);
+  const completeSignature = signatureMomentsPlan.wowMoment1 && signatureMomentsPlan.finaleSpectacle
+    ? signatureMomentsPlan
+    : fallback.signatureMomentsPlan;
+  const storyLocations = normalizeStoryLocations(value?.storyLocations);
+  return {
+    signatureMomentsPlan: completeSignature,
+    emotionalRhythmPlan: normalizeEmotionalRhythmPlan(value?.emotionalRhythmPlan, storySpine),
+    storyLocations: storyLocations.length >= 3 ? storyLocations : fallback.storyLocations,
+  };
+}
+
+function fallbackSignaturePlanning(storySpine, logicPlan, bestMomentsPlan, creatorBible) {
+  const spine = normalizeStorySpine(storySpine);
+  const plan = normalizeLogicPlan(logicPlan);
+  const moments = normalizeBestMomentsPlan(bestMomentsPlan);
+  const hero = parseNamedValue(creatorBible?.character, "name") || "the protagonist";
+  const locations = generateStoryLocations(creatorBible, spine, {
+    coolestLocation: moments.wonderMoment,
+  });
+  return {
+    signatureMomentsPlan: normalizeSignatureMomentsPlan({
+      wowMoment1: moments.wonderMoment || `${hero} reaches an impossible moving landmark and survives its first transformation.`,
+      wowMoment2: moments.largestVisualSpectacle || `${spine.mainAntagonisticForce || "the hidden force"} awakens and changes the shape of the realm.`,
+      biggestReveal: moments.biggestReveal || spine.trueRevelation,
+      mostEmotionalMoment: moments.mostEmotionalScene || `${hero} apologises to the ally hurt by their mistake and asks for help.`,
+      mostShockingBetrayal: moments.betrayalMoment || spine.reversalDesign?.reversal,
+      coolestLocation: locations[1]?.name || locations[0]?.name,
+      coolestCreatureOrEntity: moments.coolestCreatureOrEntity || spine.mainAntagonisticForce,
+      mostDifficultChoice: moments.hardestChoice || plan.decisions[1]?.questionText,
+      funniestOrWarmestMoment: moments.humorOrWarmthMoment || `${hero} and an ally laugh while repairing the damage from a failed plan.`,
+      mostIllustratableScene: moments.largestVisualSpectacle || locations[0]?.illustrationPromptSeed,
+      finaleSpectacle: moments.finaleMoment || `${hero} resolves the mystery as the realm transforms around the whole cast.`,
+    }),
+    emotionalRhythmPlan: generateEmotionalRhythmPlan(spine.chapterAdventurePromises.length || spine.chapterHooks.length || 6),
+    storyLocations: locations,
+  };
 }
 
 function fallbackBestMomentsPlan(storySpine, logicPlan, creatorBible) {

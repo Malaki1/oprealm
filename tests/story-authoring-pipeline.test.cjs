@@ -16,6 +16,9 @@ const qualityModule = import(pathToFileURL(
 const payoffModule = import(pathToFileURL(
   path.join(__dirname, "../functions/_lib/story-payoffs.mjs"),
 ).href);
+const signatureModule = import(pathToFileURL(
+  path.join(__dirname, "../functions/_lib/story-signature.mjs"),
+).href);
 
 function qualityFixture() {
   const decisionTypes = ["trust_choice", "mystery_deduction", "sacrifice_choice"];
@@ -70,10 +73,38 @@ function qualityFixture() {
       humorOrWarmthMoment: "Rowan jokes about Mira's terrible map reading while they repair the compass.",
       terrifyingButKidSafeMoment: "A colossal clockwork dragon silhouette crosses the moon.",
     },
+    signatureMomentsPlan: {
+      wowMoment1: "The hidden clockwork city rises from beneath the ocean.",
+      wowMoment2: "A clockwork dragon unfolds brass wings over the city.",
+      biggestReveal: "The reversed wax seal proves Rowan's mentor forged the evacuation order.",
+      mostEmotionalMoment: "Mira apologises to Rowan and asks him to trust her again.",
+      mostShockingBetrayal: "Rowan's trusted mentor breaks his promise and locks Rowan outside the gate.",
+      coolestLocation: "The Observatory Inside the Moon",
+      coolestCreatureOrEntity: "A clockwork dragon carrying a living city on its back.",
+      mostDifficultChoice: "Mira must expose Rowan's mentor or lose the only route home.",
+      funniestOrWarmestMoment: "Rowan jokes about Mira's map reading while they repair the compass.",
+      mostIllustratableScene: "The floating city unfolds brass wings above the open ocean.",
+      finaleSpectacle: "The floating city unfolds its brass wings as Mira and Rowan stop the saboteur together.",
+    },
+    emotionalRhythmPlan: [
+      { chapterNumber: 1, primaryTone: "danger", secondaryTone: "mystery", purpose: "Open with pressure." },
+      { chapterNumber: 2, primaryTone: "wonder", secondaryTone: "suspicion", purpose: "Reveal the city." },
+      { chapterNumber: 3, primaryTone: "warmth", secondaryTone: "fear", purpose: "Repair trust." },
+      { chapterNumber: 4, primaryTone: "betrayal", secondaryTone: "urgency", purpose: "Turn the story." },
+      { chapterNumber: 5, primaryTone: "awe", secondaryTone: "sacrifice", purpose: "Prepare the finale." },
+      { chapterNumber: 6, primaryTone: "terror", secondaryTone: "triumph", purpose: "Resolve the story." },
+    ],
+    storyLocations: [
+      {
+        name: "The Observatory Inside the Moon",
+        visualIdentity: "A library floating inside a giant crystal moon above a bottomless storm.",
+        secret: "Its reflections reveal the forged warning.",
+      },
+    ],
     chapters: [
-      { paragraphs: ['"Wait," Rowan said. "The compass is pointing north!"', "Their first plan failed when the bridge collapsed, but footsteps sounded behind them."] },
-      { paragraphs: ['"The mud came from the marsh," Mira answered. "Someone used this map today."', "The gate opened until a masked rider appeared!"] },
-      { paragraphs: ['"The seal is backwards," Rowan said. "The warning was forged."', "Mira finally accepted Rowan's help and they stopped the saboteur."] },
+      { paragraphs: ['"Wait," Rowan said. "The compass is pointing north!"', "Their first plan failed when the bridge collapsed and Mira dropped the compass, but the hidden clockwork city rose from beneath the ocean."] },
+      { paragraphs: ['"The mud came from the marsh," Mira answered. "Someone used this map today."', "At the Observatory Inside the Moon, Mira shielded Rowan until a clockwork dragon appeared across the open gate!"] },
+      { paragraphs: ['"Terrible time for a map joke," Rowan said, and Mira laughed before admitting, "I was wrong. I am sorry."', "Mira trusted Rowan, refused the easy escape and they stopped the saboteur together."] },
     ],
     scenes: [],
   };
@@ -83,11 +114,13 @@ test("the authoring pipeline creates spine and logic before prose", () => {
   const spineCall = storyDraftSource.indexOf("await generateStorySpine");
   const planCall = storyDraftSource.indexOf("await generatePickPathPlan");
   const momentsCall = storyDraftSource.indexOf("await generateBestMomentsPlan");
+  const signatureCall = storyDraftSource.indexOf("await generateSignatureMomentsPlan");
   const proseCall = storyDraftSource.indexOf("await generateFullChapterStory");
   assert.ok(spineCall > -1);
   assert.ok(spineCall < planCall);
   assert.ok(planCall < momentsCall);
-  assert.ok(momentsCall < proseCall);
+  assert.ok(momentsCall < signatureCall);
+  assert.ok(signatureCall < proseCall);
 });
 
 test("quality validation accepts three clue-grounded decisions and hooked chapters", async () => {
@@ -172,6 +205,70 @@ test("Best Moments failure has a deterministic legacy fallback", () => {
   assert.match(storyDraftSource, /fallbackBestMomentsPlan/);
   assert.match(storyDraftSource, /catch \{\}/);
   assert.match(storyDraftSource, /suppliedMoments\.biggestReveal/);
+});
+
+test("Signature Moments plan contains every required memorable beat", () => {
+  const required = [
+    "wowMoment1", "wowMoment2", "biggestReveal", "mostEmotionalMoment",
+    "mostShockingBetrayal", "coolestLocation", "coolestCreatureOrEntity",
+    "mostDifficultChoice", "funniestOrWarmestMoment", "mostIllustratableScene",
+    "finaleSpectacle",
+  ];
+  const fixture = qualityFixture();
+  assert.ok(required.every((key) => fixture.signatureMomentsPlan[key]));
+  assert.match(storyDraftSource, /fallbackSignaturePlanning/);
+});
+
+test("signature validation finds an early wow moment, impossible location, entity and varied hero behaviour", async () => {
+  const { validateSignatureMoments } = await signatureModule;
+  const fixture = qualityFixture();
+  const result = validateSignatureMoments(
+    fixture,
+    fixture.signatureMomentsPlan,
+    fixture.storyLocations,
+    fixture.emotionalRhythmPlan,
+  );
+  assert.equal(result.metrics.earlyWowDetected, true);
+  assert.equal(result.metrics.impossibleLocationCount, 1);
+  assert.ok(result.metrics.heroBehaviourCount >= 4);
+  assert.ok(result.metrics.emotionalToneCount >= 5);
+});
+
+test("natural decision setup creates dramatic prose without UI instructions", async () => {
+  const { naturalizeDecisionSetup } = await signatureModule;
+  const fixture = qualityFixture();
+  const setup = naturalizeDecisionSetup(
+    fixture.logicPlan.decisions[0],
+    '"The seal is backwards," Rowan said. "Someone forged this."',
+  );
+  assert.match(setup, /Rowan/);
+  assert.match(setup, /price|danger|cost|stop/i);
+  assert.doesNotMatch(setup, /do you choose|three options|select an option|what will you do/i);
+});
+
+test("signature prose cleanup reduces repeated engine-visible phrases", async () => {
+  const { cleanEngineVisibleLanguage } = await signatureModule;
+  const cleaned = cleanEngineVisibleLanguage({
+    chapters: [{ paragraphs: [
+      "The choice stood before her. The world narrowed.",
+      "The choice stood before her again. The world narrowed.",
+      "She had to decide. The world narrowed.",
+    ] }],
+  });
+  const text = cleaned.chapters[0].paragraphs.join(" ");
+  assert.ok((text.match(/the choice stood before her/gi) || []).length <= 1);
+  assert.ok((text.match(/the world narrowed/gi) || []).length <= 1);
+});
+
+test("emotional rhythm fallback always includes warmth, wonder, betrayal and triumph", async () => {
+  const { generateEmotionalRhythmPlan } = await signatureModule;
+  const plan = generateEmotionalRhythmPlan(6);
+  const tones = plan.flatMap((beat) => [beat.primaryTone, beat.secondaryTone]).join(" ");
+  assert.equal(plan.length, 6);
+  assert.match(tones, /warmth/);
+  assert.match(tones, /wonder/);
+  assert.match(tones, /betrayal/);
+  assert.match(tones, /triumph/);
 });
 
 test("long story stages use background responses instead of open HTTP waits", () => {
