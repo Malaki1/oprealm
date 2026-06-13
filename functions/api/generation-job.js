@@ -2,6 +2,10 @@ import { requireUser } from "../_lib/auth.js";
 import { jobResponse } from "../_lib/generation-jobs.js";
 import { json } from "../_lib/http.js";
 
+const SCENE_IMAGE_TOOL = "story_scene_images";
+const STALE_PROCESSING_MINUTES = 6;
+const STALE_QUEUED_MINUTES = 15;
+
 export async function onRequestGet({ request, env }) {
   try {
     const user = await requireUser(request, env);
@@ -39,8 +43,35 @@ export async function onRequestGet({ request, env }) {
         .first();
 
     if (!job) return json({ ok: false, error: "Generation job was not found." }, 404);
-    return json(jobResponse(job));
+    const reconciledJob = await reconcileStaleSceneImageJob(env, job);
+    return json(jobResponse(reconciledJob));
   } catch (error) {
     return json({ ok: false, error: error.message || "Could not load generation job." }, error.status || 500);
   }
+}
+
+async function reconcileStaleSceneImageJob(env, job) {
+  if (job.tool !== SCENE_IMAGE_TOOL || !["queued", "processing"].includes(job.status)) return job;
+
+  const staleMinutes = job.status === "processing" ? STALE_PROCESSING_MINUTES : STALE_QUEUED_MINUTES;
+  const error = job.status === "processing"
+    ? "Image generation stopped before completion. Press Try Again when you are ready."
+    : "The image request waited too long in the queue. Press Try Again when you are ready.";
+  const result = await env.OPREALM_DB.prepare(
+    `
+      UPDATE generation_jobs
+      SET status = 'failed',
+          error = ?,
+          updated_at = datetime('now'),
+          completed_at = datetime('now')
+      WHERE id = ?
+        AND status = ?
+        AND updated_at <= datetime('now', ?)
+    `,
+  )
+    .bind(error, job.id, job.status, `-${staleMinutes} minutes`)
+    .run();
+
+  if (!result.meta?.changes) return job;
+  return { ...job, status: "failed", error, completed_at: new Date().toISOString() };
 }

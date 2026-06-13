@@ -164,6 +164,15 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
     .first();
   if (!job) throw providerError("Queued scene image job was not found.", 404);
   if (job.status === "completed") return jobResponse(job);
+  if (job.status === "failed") {
+    return {
+      ok: false,
+      jobId,
+      status: "failed",
+      retryable: false,
+      error: job.error || "This scene image job was stopped. Press Try Again when you are ready.",
+    };
+  }
 
   const metadata = safeJson(job.metadata_json) || {};
   const payloadKey = cleanText(metadata.payloadKey || "", 500);
