@@ -2858,7 +2858,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
         : response.status === 402
           ? "Not enough Creator credits for this scene image."
           : response.status === 429
-            ? result.error || "Several creators are generating artwork. Wait a moment, then press Try Again."
+            ? "The artwork queue is receiving many scenes. Wait briefly, then press Try Again; your completed images are safe."
           : [503, 504].includes(response.status)
             ? "The image service is temporarily busy. Press Try Again when you are ready."
             : "";

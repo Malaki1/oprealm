@@ -63,7 +63,15 @@ export async function onRequestPost({ request, env }) {
     }
   }
   try {
-    await assertRateLimit(env, user.id, SCENE_TOOL, { limit: 6, windowSeconds: 60 });
+    const cloudQueueAvailable = Boolean(env.OPREALM_GENERATION_QUEUE?.send && env.OPREALM_ASSETS);
+    await assertRateLimit(
+      env,
+      user.id,
+      SCENE_TOOL,
+      cloudQueueAvailable
+        ? { limit: 180, windowSeconds: 15 * 60 }
+        : { limit: 6, windowSeconds: 60 },
+    );
   } catch (error) {
     return json({ ok: false, error: error.message || "Too many scene requests. Try again shortly." }, error.status || 429);
   }
