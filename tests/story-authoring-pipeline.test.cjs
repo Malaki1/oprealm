@@ -10,6 +10,10 @@ const storyDraftSource = fs.readFileSync(
   path.join(__dirname, "../functions/api/story-draft.js"),
   "utf8",
 );
+const middlewareSource = fs.readFileSync(
+  path.join(__dirname, "../functions/api/_middleware.js"),
+  "utf8",
+);
 const qualityModule = import(pathToFileURL(
   path.join(__dirname, "../functions/_lib/story-quality.mjs"),
 ).href);
@@ -276,6 +280,12 @@ test("long story stages use background responses instead of open HTTP waits", ()
   assert.match(storyDraftSource, /retrieveBackgroundResponse/);
   assert.match(storyDraftSource, /providerResponseId/);
   assert.match(storyDraftSource, /story_draft_background/);
+});
+
+test("background status polling has a separate Cloudflare rate-limit bucket", () => {
+  assert.match(middlewareSource, /body\.providerResponseId/);
+  assert.match(middlewareSource, /routeKey = `\$\{routeKey\}:poll`/);
+  assert.match(middlewareSource, /generalLimit = 600/);
 });
 
 test("fallback decisions are bounded, specific, and free of old generic wording", () => {

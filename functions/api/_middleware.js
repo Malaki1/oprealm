@@ -92,10 +92,18 @@ async function enforceRateLimits(request, env) {
   await ensureRateLimitTable(env);
   const url = new URL(request.url);
   const ip = clientIp(request);
-  const routeKey = `${request.method}:${url.pathname}`;
-  const generalLimit = request.method === "GET"
+  let routeKey = `${request.method}:${url.pathname}`;
+  let generalLimit = request.method === "GET"
     ? GENERAL_LIMIT
     : ROUTE_MUTATION_LIMITS.get(url.pathname) || MUTATION_LIMIT;
+
+  if (request.method === "POST" && url.pathname === "/api/story-draft") {
+    const body = await safeJson(request);
+    if (String(body.providerResponseId || "").trim()) {
+      routeKey = `${routeKey}:poll`;
+      generalLimit = 600;
+    }
+  }
 
   await hitRateLimit(env, `ip:${ip}:route:${routeKey}`, generalLimit, WINDOW_SECONDS);
 
