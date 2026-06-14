@@ -144,16 +144,34 @@ function renderDesignSystem(){
 function ruleCard(title,items){return `<article class="panel panel-pad"><h3>${esc(title)}</h3>${items.map(x=>`<p class="muted">${esc(x)}</p>`).join("")}</article>`}
 function renderAssetMap(){
   document.title="Asset Map | Mockup Asset Forge";const p=state.project,m=p.mockups?.at(-1),regions=p.regions.filter(r=>r.assetId).slice(0,36);
-  const overlays=regions.map((r,i)=>{const a=p.assets.find(x=>x.id===r.assetId)||p.assets[r.assetIndex];return `<button class="region" data-region="${i}" aria-label="${attr(a?.name||`Region ${i+1}`)}" title="${attr(a?.name||`Region ${i+1}`)}" style="left:${regionPercent(r.x,m?.width)}%;top:${regionPercent(r.y,m?.height)}%;width:${regionPercent(r.width,m?.width)}%;height:${regionPercent(r.height,m?.height)}%"><span>${i+1}</span></button>`}).join("");
+  const overlays=regions.map((r,i)=>{const a=p.assets.find(x=>x.id===r.assetId)||p.assets[r.assetIndex];return `<button class="region" data-region="${i}" aria-label="${attr(a?.name||`Region ${i+1}`)}" title="${attr(a?.name||`Region ${i+1}`)}" style="left:${regionPercent(r.x,m?.width)}%;top:${regionPercent(r.y,m?.height)}%;width:${regionPercent(r.width,m?.width)}%;height:${regionPercent(r.height,m?.height)}%"><span>${i+1}</span><i class="region-handle" data-resize-region="${i}"></i></button>`}).join("");
   const list=regions.map((r,i)=>{const a=p.assets.find(x=>x.id===r.assetId)||p.assets[r.assetIndex];return `<button data-region-link="${i}"><span>${i+1}. ${esc(a?.name||"Detected asset")}</span><span class="badge">${esc(a?.category||r.category)}</span></button>`}).join("");
   main.innerHTML=header("Asset Map","Review tightly detected asset bounds. Regions identify specific reusable visuals, never broad screenshot sections.",`<button class="btn" id="refineRegions">Refine Positions</button><button class="btn" id="addRegionAsset">+ Add Asset</button><a class="btn primary" href="/asset-checklist">Approve Map</a>`)+
-  `<div class="map-layout"><section class="panel map-canvas"><div class="map-image">${m?.url?`<img src="${attr(m.url)}" alt="">`:""}${overlays}</div>${regions.length?"":`<div class="map-empty"><strong>No precise positions saved yet.</strong><span>Run Refine Positions to locate each visible asset.</span></div>`}</section><aside class="panel panel-pad"><div class="panel-title"><h2>Detected Regions</h2><span class="badge">${regions.length}</span></div><div class="summary-list region-list">${list}</div></aside></div>`;
+  `<div class="map-help">Drag boxes to move them. Drag the lower-right handle to resize. Corrections auto-save.</div><div class="map-layout"><section class="panel map-canvas"><div class="map-image">${m?.url?`<img src="${attr(m.url)}" alt="">`:""}${overlays}</div>${regions.length?"":`<div class="map-empty"><strong>No precise positions saved yet.</strong><span>Run Refine Positions to locate each visible asset.</span></div>`}</section><aside class="panel panel-pad"><div class="panel-title"><h2>Detected Regions</h2><span class="badge">${regions.length}</span></div><div class="summary-list region-list">${list}</div></aside></div>`;
   document.querySelector("#addRegionAsset").onclick=addAssetDialog;
   document.querySelector("#refineRegions").onclick=()=>state.demo?requireLogin("Log in to refine saved asset positions."):analyseCurrent("/asset-map");
   document.querySelectorAll("[data-region],[data-region-link]").forEach(btn=>btn.onclick=()=>selectRegion(Number(btn.dataset.region??btn.dataset.regionLink)));
+  bindRegionEditing(regions,m);
 }
 function regionPercent(value,total){return Math.max(0,Math.min(100,(Number(value||0)/Math.max(1,Number(total||1)))*100))}
 function selectRegion(index){document.querySelectorAll(".region,[data-region-link]").forEach(x=>x.classList.remove("active"));document.querySelector(`[data-region="${index}"]`)?.classList.add("active");document.querySelector(`[data-region-link="${index}"]`)?.classList.add("active")}
+function bindRegionEditing(regions,mockup){
+  if(state.demo)return;
+  const image=document.querySelector(".map-image"),sourceWidth=Number(mockup?.width||1),sourceHeight=Number(mockup?.height||1);
+  document.querySelectorAll(".region").forEach(box=>box.onpointerdown=event=>{
+    event.preventDefault();event.stopPropagation();
+    const index=Number(box.dataset.region),region=regions[index],resizing=event.target.matches("[data-resize-region]");
+    const startX=event.clientX,startY=event.clientY,start={x:region.x,y:region.y,width:region.width,height:region.height};
+    box.setPointerCapture(event.pointerId);selectRegion(index);
+    box.onpointermove=move=>{
+      const rect=image.getBoundingClientRect(),dx=(move.clientX-startX)/rect.width*sourceWidth,dy=(move.clientY-startY)/rect.height*sourceHeight;
+      if(resizing){region.width=Math.max(4,Math.min(sourceWidth-region.x,start.width+dx));region.height=Math.max(4,Math.min(sourceHeight-region.y,start.height+dy))}
+      else{region.x=Math.max(0,Math.min(sourceWidth-region.width,start.x+dx));region.y=Math.max(0,Math.min(sourceHeight-region.height,start.y+dy))}
+      box.style.left=`${regionPercent(region.x,sourceWidth)}%`;box.style.top=`${regionPercent(region.y,sourceHeight)}%`;box.style.width=`${regionPercent(region.width,sourceWidth)}%`;box.style.height=`${regionPercent(region.height,sourceHeight)}%`;
+    };
+    box.onpointerup=()=>{box.onpointermove=null;box.onpointerup=null;clearTimeout(bindRegionEditing.saveTimer);bindRegionEditing.saveTimer=setTimeout(()=>saveCurrent(false).then(()=>notify("Asset position saved.")),250)};
+  });
+}
 function renderAssetMapLegacy(){
   document.title="Asset Map | Mockup Asset Forge";const p=state.project,m=p.mockups?.at(-1);
   main.innerHTML=header("Asset Map","Review detected regions. Regions are references for new reusable assets, never screenshot crops.",`<button class="btn" id="addRegionAsset">＋ Add Asset</button><a class="btn primary" href="/asset-checklist">Approve Map</a>`)+

@@ -107,7 +107,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .map-image img { width: 100%; display: block; border-radius: 5px; }
 .region { position: absolute; min-width: 10px; min-height: 10px; padding: 0; border: 2px solid #b14dff; border-radius: 3px; background: #8b32f414; color: #fff; cursor: pointer; box-shadow: 0 0 0 1px #05091699; }
 .region span { position: absolute; top: -9px; left: -9px; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border-radius: 99px; background: #8d32f4; font-size: .55rem; font-weight: 800; }
+.region-handle { position: absolute; right: -6px; bottom: -6px; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 2px; background: #8d32f4; cursor: nwse-resize; }
 .region:hover, .region.active { z-index: 3; background: #8b32f43d; box-shadow: 0 0 0 2px #fff, 0 0 18px #9b3cffaa; }
+.map-help { margin: 0 0 9px; color: var(--muted); font-size: .67rem; }
 .map-empty { display: grid; gap: 5px; padding: 18px; color: var(--muted); text-align: center; }
 .region-list button { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 7px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .region-list button:hover, .region-list button.active { border-color: #7933b9; background: #351257; }

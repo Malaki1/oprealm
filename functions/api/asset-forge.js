@@ -251,10 +251,11 @@ async function visionAnalysis(env, mockup, body, seed) {
   const response = await openAiFetch(env, "/v1/responses", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: "gpt-4.1-mini",
+      model: "gpt-5.4",
+      reasoning: { effort: "low" },
       input: [{ role: "user", content: [
-        { type: "input_text", text: "Analyse this interface mockup. Return JSON only with styleName, styleSummary, audience, complexityLevel, designLanguage, visualMood, palette (six hex colors), and detectedAssets. Each detected asset must be one specific visible reusable visual item, not a broad section or screenshot crop. For every detectedAssets object return name, category, purpose, and sourceRegion with x, y, width, height, unit:'percent', and confidence. Coordinates are percentages from the original image's top-left corner. Make each box tightly fit only the named icon, illustration, avatar, badge, button, thumbnail, or other visual asset. Do not overlap unrelated assets, do not return navigation panels or whole content sections, and return at most 36 high-confidence items." },
-        { type: "input_image", image_url: `data:${mockup.mime};base64,${base64}` },
+        { type: "input_text", text: "Act as a screenshot asset-localization system. Analyse the entire interface at native resolution. Return JSON only with styleName, styleSummary, audience, complexityLevel, designLanguage, visualMood, palette (six hex colors), and detectedAssets. Each detected asset must be one specific visible reusable visual item. For every detectedAssets object return name, category, purpose, and sourceRegion with x, y, width, height, unit:'percent', and confidence. Coordinates are percentages from the original image top-left and must tightly enclose the visible pixels of that exact named asset. First identify the asset center, then measure its left, top, right and bottom edges. Icons, badges and avatars require small tight boxes. Thumbnail boxes must cover only the image area, excluding captions and neighbouring cards. Buttons must cover the button only. Do not return panels, columns, text blocks, navigation groups, form sections, or empty areas. Do not overlap unrelated assets. Omit any item below 0.8 confidence. Return at most 36 assets." },
+        { type: "input_image", image_url: `data:${mockup.mime};base64,${base64}`, detail: "original" },
       ] }],
       text: { format: { type: "json_object" } },
     }),

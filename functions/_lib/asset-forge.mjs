@@ -67,7 +67,7 @@ export function analyseForgeProject(project, input = {}) {
   const styleProfile = buildStyleProfile(styleAnalysis, designSystem);
   const assets = detectAssets(project, input, styleAnalysis, designSystem);
   const regions = assets.map((asset, index) => {
-    const bounds = normalizeSourceRegion(asset.sourceRegion, input.width || 1600, input.height || 1000);
+    const bounds = normalizeSourceRegion(asset.sourceRegion, input.width || 1600, input.height || 1000, asset);
     return bounds ? {
       id: crypto.randomUUID(),
       assetId: asset.id,
@@ -295,7 +295,7 @@ function buildStyleProfile(analysis, system) {
   };
 }
 
-function normalizeSourceRegion(region, canvasWidth, canvasHeight) {
+function normalizeSourceRegion(region, canvasWidth, canvasHeight, asset = {}) {
   if (!region || typeof region !== "object") return null;
   const rawX = Number(region.x ?? region.left);
   const rawY = Number(region.y ?? region.top);
@@ -308,12 +308,36 @@ function normalizeSourceRegion(region, canvasWidth, canvasHeight) {
   const scaleY = percentage ? canvasHeight / 100 : 1;
   const x = clampNumber(rawX * scaleX, 0, canvasWidth - 1);
   const y = clampNumber(rawY * scaleY, 0, canvasHeight - 1);
+  const profile = regionProfile(asset);
+  const rawPixelWidth = rawWidth * scaleX;
+  const rawPixelHeight = rawHeight * scaleY;
+  const width = clampNumber(rawPixelWidth, profile.minWidth * canvasWidth, profile.maxWidth * canvasWidth);
+  const height = clampNumber(rawPixelHeight, profile.minHeight * canvasHeight, profile.maxHeight * canvasHeight);
+  const centerX = x + rawPixelWidth / 2;
+  const centerY = y + rawPixelHeight / 2;
+  const fittedX = clampNumber(centerX - width / 2, 0, canvasWidth - width);
+  const fittedY = clampNumber(centerY - height / 2, 0, canvasHeight - height);
   return {
-    x: Math.round(x),
-    y: Math.round(y),
-    width: Math.round(clampNumber(rawWidth * scaleX, 2, canvasWidth - x)),
-    height: Math.round(clampNumber(rawHeight * scaleY, 2, canvasHeight - y)),
+    x: Math.round(fittedX),
+    y: Math.round(fittedY),
+    width: Math.round(width),
+    height: Math.round(height),
   };
+}
+
+function regionProfile(asset) {
+  const label = `${asset.name || ""} ${asset.category || ""}`.toLowerCase();
+  if (/template thumbnail/.test(label)) return boundsProfile(.07, .06, .17, .18);
+  if (/visual style|storyboard frame|thumbnail/.test(label)) return boundsProfile(.035, .035, .1, .1);
+  if (/reel preview|preview scene|hero illustration/.test(label)) return boundsProfile(.18, .18, .42, .42);
+  if (/button/.test(label)) return boundsProfile(.035, .02, .18, .07);
+  if (/badge|avatar|icon|logo|crown/.test(label)) return boundsProfile(.008, .012, .065, .09);
+  if (/character|illustration/.test(label)) return boundsProfile(.06, .08, .3, .42);
+  return boundsProfile(.015, .02, .22, .24);
+}
+
+function boundsProfile(minWidth, minHeight, maxWidth, maxHeight) {
+  return { minWidth, minHeight, maxWidth, maxHeight };
 }
 
 function recommendedFormat(category) {

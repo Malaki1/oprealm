@@ -40,7 +40,7 @@ test("vision asset bounds are preserved and clamped to the mockup", () => {
   });
   assert.deepEqual(
     project.regions.map(({ x, y, width, height }) => ({ x, y, width, height })),
-    [{ x: 900, y: 20, width: 80, height: 80 }, { x: 980, y: 480, width: 20, height: 20 }],
+    [{ x: 908, y: 38, width: 65, height: 45 }, { x: 935, y: 455, width: 65, height: 45 }],
   );
   assert.equal(project.regions[0].assetId, project.assets[0].id);
 });
