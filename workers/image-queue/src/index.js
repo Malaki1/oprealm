@@ -1,5 +1,6 @@
 import { hasOpenAiKey } from "../../../functions/_lib/ai-gateway.js";
 import { processQueuedSceneImageJob } from "../../../functions/api/story-scene-images.js";
+import { processQueuedAssetForgeBatch } from "../../../functions/api/asset-forge.js";
 
 export default {
   async queue(batch, env) {
@@ -13,7 +14,9 @@ export default {
       const finalAttempt = Number(message.attempts || 1) >= 5;
       if (canProcessDirectly(env)) {
         try {
-          const result = await processQueuedSceneImageJob(env, jobId, { finalAttempt });
+          const result = message.body?.tool === "asset_forge_batch"
+            ? await processQueuedAssetForgeBatch(env, jobId, { finalAttempt })
+            : await processQueuedSceneImageJob(env, jobId, { finalAttempt });
           if (result.ok || !result.retryable || finalAttempt) {
             if (result.ok) await clearProviderPause(env);
             message.ack();
@@ -98,6 +101,18 @@ export default {
             AND updated_at <= datetime('now', '-15 minutes')
         `,
       ).bind("The image request waited too long in the queue. Press Try Again when you are ready."),
+      env.OPREALM_DB.prepare(
+        `
+          UPDATE generation_jobs
+          SET status = 'failed',
+              error = ?,
+              updated_at = datetime('now'),
+              completed_at = datetime('now')
+          WHERE tool = 'asset_forge_batch'
+            AND status IN ('queued', 'processing')
+            AND updated_at <= datetime('now', '-30 minutes')
+        `,
+      ).bind("The asset batch stopped before completion. Generate the remaining assets again."),
       env.OPREALM_DB.prepare(
         `
           DELETE FROM provider_generation_slots

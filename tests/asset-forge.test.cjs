@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { pathToFileURL } = require("node:url");
 const path = require("node:path");
+const fs = require("node:fs");
 
 let forge;
 let zip;
@@ -70,4 +71,14 @@ test("stored ZIP writer creates a valid ZIP container", () => {
   assert.equal(Buffer.from(bytes.subarray(0, 4)).toString("hex"), "504b0304");
   assert.ok(Buffer.from(bytes).includes(Buffer.from("manifest.json")));
   assert.ok(Buffer.from(bytes).includes(Buffer.from("README.txt")));
+});
+
+test("Asset Forge batches every selected asset through the background queue", () => {
+  const ui = fs.readFileSync(path.resolve("public/asset-forge.js"), "utf8");
+  const api = fs.readFileSync(path.resolve("functions/api/asset-forge.js"), "utf8");
+  const worker = fs.readFileSync(path.resolve("workers/image-queue/src/index.js"), "utf8");
+  assert.match(ui, /action:"generate_batch"/);
+  assert.doesNotMatch(ui, /generateBatch\([^)]*slice\(0,\s*[68]\)/);
+  assert.match(api, /processQueuedAssetForgeBatch/);
+  assert.match(worker, /asset_forge_batch/);
 });

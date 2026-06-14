@@ -1,6 +1,14 @@
 import { requireUser } from "../_lib/auth.js";
 import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
-import { assertRateLimit } from "../_lib/generation-jobs.js";
+import {
+  assertRateLimit,
+  createGenerationJob,
+  enqueueGenerationJob,
+  markJobCompleted,
+  markJobFailed,
+  markJobProcessing,
+  sha256Text,
+} from "../_lib/generation-jobs.js";
 import { json, readJson } from "../_lib/http.js";
 import {
   analyseForgeProject,
@@ -14,6 +22,7 @@ import {
 import { createStoredZip } from "../_lib/simple-zip.mjs";
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const ASSET_FORGE_BATCH_TOOL = "asset_forge_batch";
 const allowedMime = new Set(["image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/pdf"]);
 
 export async function onRequestGet({ request, env }) {
@@ -46,6 +55,7 @@ export async function onRequestPost({ request, env }) {
     if (action === "save") return saveProject(env, user, body.project);
     if (action === "add_asset") return addAsset(env, user, body);
     if (action === "generate") return generateAsset(env, user, body);
+    if (action === "generate_batch") return queueAssetBatch(env, user, body);
     if (action === "validate") return validateAsset(env, user, body);
     if (action === "optimize") return optimizeAsset(env, user, body);
     if (action === "export") return exportProject(env, user, body);
@@ -126,10 +136,132 @@ async function generateAsset(env, user, body) {
   const job = { id: crypto.randomUUID(), projectId: project.id, assetId: asset.id, status: "processing", progress: 15, jobType: "generate" };
   project.queue = [job, ...(project.queue || []).filter((item) => item.assetId !== asset.id)].slice(0, 40);
   await persistProject(env, project);
+  await generateAssetOutput(env, user, project, asset);
+  Object.assign(job, { status: "complete", progress: 100 });
+  project.progress = Math.max(project.progress, 72);
+  project.updatedAt = new Date().toISOString();
+  await persistProject(env, project);
+  return json({ ok: true, project: withUrls(project), asset });
+}
+
+async function queueAssetBatch(env, user, body) {
+  const project = await requiredProject(env, user.id, body.projectId);
+  const requested = [...new Set((Array.isArray(body.assetIds) ? body.assetIds : []).map(cleanId).filter(Boolean))];
+  const assets = requested.map((id) => project.assets.find((asset) => asset.id === id)).filter(Boolean);
+  if (!assets.length) throw bad("Select at least one pending asset.");
+  await assertRateLimit(env, user.id, ASSET_FORGE_BATCH_TOOL, { limit: 8, windowSeconds: 15 * 60 });
+
+  const jobId = crypto.randomUUID();
+  const payloadKey = `asset-forge/${user.id}/${project.id}/batch-requests/${jobId}.json`;
+  await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify({ projectId: project.id, assetIds: assets.map((asset) => asset.id) }), {
+    httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
+  });
+  await createGenerationJob(env, {
+    id: jobId,
+    userId: user.id,
+    tool: ASSET_FORGE_BATCH_TOOL,
+    promptHash: await sha256Text(`${project.id}:${assets.map((asset) => asset.id).join(":")}:${Date.now()}`),
+    idempotencyKey: text(body.idempotencyKey || "", 120) || null,
+    creditsReserved: 0,
+    metadata: { projectId: project.id, payloadKey, assetCount: assets.length },
+  });
+  const queuedAt = new Date().toISOString();
+  const queuedIds = new Set(assets.map((asset) => asset.id));
+  for (const asset of project.assets) if (queuedIds.has(asset.id)) asset.status = "queued";
+  project.queue = [
+    ...assets.map((asset, index) => ({
+      id: `${jobId}:${asset.id}`,
+      batchJobId: jobId,
+      projectId: project.id,
+      assetId: asset.id,
+      status: "queued",
+      progress: 0,
+      position: index + 1,
+      total: assets.length,
+      jobType: "generate",
+      createdAt: queuedAt,
+    })),
+    ...(project.queue || []).filter((item) => !queuedIds.has(item.assetId)),
+  ].slice(0, 160);
+  await persistProject(env, project);
+  await enqueueGenerationJob(env, jobId, {
+    tool: ASSET_FORGE_BATCH_TOOL,
+    userId: user.id,
+    metadata: { payloadKey },
+  });
+  return json({ ok: true, jobId, status: "queued", queued: assets.length, project: withUrls(project) }, 202, {
+    "retry-after": "5",
+  });
+}
+
+export async function processQueuedAssetForgeBatch(env, jobId, { finalAttempt = false } = {}) {
+  const job = await env.OPREALM_DB.prepare(
+    "SELECT * FROM generation_jobs WHERE id = ? AND tool = ? LIMIT 1",
+  ).bind(jobId, ASSET_FORGE_BATCH_TOOL).first();
+  if (!job) throw bad("Queued Asset Forge batch was not found.", 404);
+  if (job.status === "completed") return { ok: true, jobId, ...(parse(job.result_json) || {}) };
+  if (job.status === "failed") return { ok: false, jobId, retryable: false, error: job.error || "Asset batch failed." };
+
+  const metadata = parse(job.metadata_json) || {};
+  const payloadObject = metadata.payloadKey ? await env.OPREALM_ASSETS.get(metadata.payloadKey) : null;
+  if (!payloadObject) throw bad("Queued Asset Forge request data was not found.", 404);
+  const payload = await payloadObject.json();
+  const user = await env.OPREALM_DB.prepare("SELECT * FROM web_users WHERE id = ? LIMIT 1").bind(job.web_user_id).first();
+  if (!user) throw bad("The creator account for this batch was not found.", 404);
+
+  await markJobProcessing(env, jobId);
+  const completed = [];
+  const failed = [];
+  try {
+    for (let index = 0; index < payload.assetIds.length; index += 1) {
+      const project = await requiredProject(env, user.id, payload.projectId);
+      const asset = project.assets.find((item) => item.id === payload.assetIds[index]);
+      if (!asset) {
+        failed.push({ assetId: payload.assetIds[index], error: "Asset not found." });
+        continue;
+      }
+      const queueItem = project.queue.find((item) => item.batchJobId === jobId && item.assetId === asset.id);
+      if (queueItem) Object.assign(queueItem, { status: "processing", progress: 20 });
+      asset.status = "generating";
+      await persistProject(env, project);
+      try {
+        if (asset.outputKey && ["approved", "complete", "optimized"].includes(asset.status)) {
+          if (queueItem) Object.assign(queueItem, { status: "complete", progress: 100 });
+          completed.push(asset.id);
+          await persistProject(env, project);
+          continue;
+        }
+        await generateAssetOutput(env, user, project, asset, { allowFallback: false });
+        if (queueItem) Object.assign(queueItem, { status: "complete", progress: 100 });
+        completed.push(asset.id);
+      } catch (error) {
+        if (isRetryableGenerationError(error) && !finalAttempt) throw error;
+        asset.status = "failed";
+        if (queueItem) Object.assign(queueItem, { status: "failed", progress: 100, error: String(error.message || error).slice(0, 300) });
+        failed.push({ assetId: asset.id, name: asset.name, error: String(error.message || error).slice(0, 300) });
+      }
+      project.updatedAt = new Date().toISOString();
+      await persistProject(env, project);
+    }
+    const result = { projectId: payload.projectId, requested: payload.assetIds.length, completed: completed.length, failed };
+    await markJobCompleted(env, jobId, { result, creditsCharged: 0, model: "gpt-image-1-mini", quality: "low" });
+    await env.OPREALM_ASSETS.delete(metadata.payloadKey);
+    return { ok: true, jobId, ...result };
+  } catch (error) {
+    if (finalAttempt) {
+      await markJobFailed(env, jobId, error);
+      await env.OPREALM_ASSETS.delete(metadata.payloadKey);
+    }
+    throw error;
+  }
+}
+
+async function generateAssetOutput(env, user, project, asset, { allowFallback = true } = {}) {
   let generated;
   try {
     generated = hasOpenAiKey(env) ? await generateImage(env, asset) : fallbackSvg(asset, project);
-  } catch {
+  } catch (error) {
+    if (!allowFallback) throw error;
     generated = fallbackSvg(asset, project);
   }
   const key = `asset-forge/${user.id}/${project.id}/assets/${asset.id}.${generated.extension}`;
@@ -137,14 +269,11 @@ async function generateAsset(env, user, body) {
   asset.outputKey = key;
   asset.outputUrl = fileUrl(key);
   asset.thumbnailUrl = asset.outputUrl;
+  asset.exportFormat = generated.extension === "svg" ? "svg" : asset.exportFormat;
   asset.status = "complete";
   asset.quality = scoreAssetQuality(asset, { byteLength: generated.bytes.length });
   if (asset.quality.productionReady) asset.status = "approved";
-  Object.assign(job, { status: "complete", progress: 100 });
   project.progress = Math.max(project.progress, 72);
-  project.updatedAt = new Date().toISOString();
-  await persistProject(env, project);
-  return json({ ok: true, project: withUrls(project), asset });
 }
 
 async function validateAsset(env, user, body) {
@@ -273,8 +402,17 @@ async function generateImage(env, asset) {
   }, { seed: asset.id, timeoutMs: 120000, retries: 1 });
   const data = await response.json();
   const b64 = data.data?.[0]?.b64_json;
-  if (!response.ok || !b64) throw new Error(data.error?.message || "Asset generation failed.");
+  if (!response.ok || !b64) {
+    const error = new Error(data.error?.message || "Asset generation failed.");
+    error.status = response.status;
+    throw error;
+  }
   return { bytes: Uint8Array.from(atob(b64), (char) => char.charCodeAt(0)), mime: "image/png", extension: "png" };
+}
+
+function isRetryableGenerationError(error) {
+  const status = Number(error?.status || 0);
+  return status === 408 || status === 409 || status === 429 || status >= 500;
 }
 
 function fallbackSvg(asset, project) {

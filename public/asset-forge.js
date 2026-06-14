@@ -232,8 +232,8 @@ function bindChecklist(){
   document.querySelectorAll("[data-generate]").forEach(b=>b.onclick=()=>generateOne(b.dataset.generate));
   document.querySelectorAll("[data-select]").forEach(b=>b.onchange=()=>{const a=state.project.assets.find(x=>x.id===b.dataset.select);a.selected=b.checked;saveCurrent(false)});
   document.querySelector("#regenerateAsset")?.addEventListener("click",()=>generateOne(state.selectedAsset.id));
-  document.querySelector("#generateSelected").onclick=()=>generateBatch(state.project.assets.filter(a=>a.selected&&!["approved","optimized"].includes(a.status)).slice(0,6));
-  document.querySelector("#generateApproved").onclick=()=>generateBatch(state.project.assets.filter(a=>a.approved&&!["approved","optimized"].includes(a.status)).slice(0,8));
+  document.querySelector("#generateSelected").onclick=()=>generateBatch(state.project.assets.filter(a=>a.selected&&!["approved","optimized"].includes(a.status)));
+  document.querySelector("#generateApproved").onclick=()=>generateBatch(state.project.assets.filter(a=>a.approved&&!["approved","optimized"].includes(a.status)));
 }
 function filteredAssets(){return state.project.assets.filter(a=>(state.filter==="all"||a.category===state.filter)&&(state.status==="all"||a.status===state.status)&&(!state.query||`${a.name} ${a.purpose}`.toLowerCase().includes(state.query.toLowerCase())))}
 async function addAssetDialog(){
@@ -247,7 +247,36 @@ async function generateOne(id){
   try{const data=await api("/api/asset-forge",{method:"POST",body:{action:"generate",projectId:state.project.id,assetId:id}});state.project=data.project;state.selectedAsset=data.asset;replaceProject();render();notify("Asset generated and quality checked.")}
   catch(error){notify(error.message,true)}
 }
-async function generateBatch(assets){if(!assets.length)return notify("No eligible assets selected.");for(const asset of assets)await generateOne(asset.id)}
+async function generateBatch(assets){
+  if(!assets.length)return notify("No eligible assets selected.");
+  if(state.demo)return requireLogin("Log in to generate production assets.");
+  notify(`Queueing all ${assets.length} assets for background generation...`);
+  try{
+    const data=await api("/api/asset-forge",{method:"POST",body:{action:"generate_batch",projectId:state.project.id,assetIds:assets.map(asset=>asset.id),idempotencyKey:crypto.randomUUID()}});
+    state.project=data.project;replaceProject();render();notify(`${data.queued} assets queued. Generation will continue in the background.`);
+    pollAssetBatch(data.jobId);
+  }catch(error){notify(error.message,true)}
+}
+async function pollAssetBatch(jobId){
+  for(let attempt=0;attempt<180;attempt+=1){
+    await delay(attempt<10?3000:6000);
+    try{
+      const job=await api(`/api/generation-job?id=${encodeURIComponent(jobId)}`);
+      if(job.status==="completed"){
+        await reloadCurrentProject();
+        render();
+        const failed=job.failed?.length||0;
+        notify(`${job.completed||0} assets completed${failed?`, ${failed} failed`:""}.`,failed>0);
+        return;
+      }
+      if(job.status==="failed"){
+        await reloadCurrentProject();render();notify(job.error||"Asset generation batch failed.",true);return;
+      }
+    }catch(error){if(attempt>5){notify(error.message,true);return}}
+  }
+  notify("Generation is still running. You can monitor it in Generation Queue.");
+}
+async function reloadCurrentProject(){const data=await api(`/api/asset-forge?id=${encodeURIComponent(state.project.id)}`);state.project=data.project;replaceProject()}
 function renderDirector(){
   document.title="Design Director | Mockup Asset Forge";const p=state.project;
   main.innerHTML=header("Design Director","Review what should exist, how it should scale, and which formats belong in production.",`<a class="btn primary" href="/asset-checklist">Approve Plan</a>`)+
@@ -290,6 +319,7 @@ async function saveCurrent(show=true){if(state.demo)return;try{const data=await 
 async function api(url,options={}){const response=await fetch(url,{method:options.method||"GET",headers:options.body?{"content-type":"application/json"}:{},body:options.body?JSON.stringify(options.body):undefined});const data=await response.json().catch(()=>({}));if(!response.ok||data.ok===false){const error=new Error(data.error||`Request failed (${response.status})`);error.status=response.status;throw error}return data}
 function notify(message,error=false){toast.hidden=false;toast.textContent=message;toast.style.borderColor=error?"#a33b4a":"#7e3bc0";clearTimeout(notify.timer);notify.timer=setTimeout(()=>toast.hidden=true,4200)}
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+function delay(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function imageDimensions(src){return new Promise(resolve=>{const img=new Image();img.onload=()=>resolve({width:img.naturalWidth,height:img.naturalHeight});img.onerror=()=>resolve({width:0,height:0});img.src=src})}
 function downloadJson(name,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function unique(items){return [...new Set(items.filter(Boolean))]}
