@@ -240,6 +240,7 @@ const MIN_STORY_SCENES = 1;
 const FALLBACK_STORY_SCENES = 16;
 const STORY_SCENES_PAGE = /\/storyboard-scenes(?:\.html)?$/i.test(window.location.pathname);
 const STORY_IMAGE_MODE_KEY = "oprealm_story_image_mode_v1";
+const STORY_TEST_MODE_KEY = "oprealm_story_test_mode_v1";
 const STORY_IMAGE_MODES = {
   mock: { label: "Mock", credits: 0, cost: "$0.000", button: "Create Mock Image (free)" },
   draft: { label: "Draft", credits: 1, cost: "~$0.006", button: "Generate Draft (1 credit)" },
@@ -269,12 +270,43 @@ const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emot
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
 function storyImageMode() {
-  const value = localStorage.getItem(STORY_IMAGE_MODE_KEY) || "draft";
+  const value = localStorage.getItem(STORY_IMAGE_MODE_KEY) || (storyTestMode() ? "mock" : "draft");
   return STORY_IMAGE_MODES[value] ? value : "draft";
 }
 
 function setStoryImageMode(value) {
   localStorage.setItem(STORY_IMAGE_MODE_KEY, STORY_IMAGE_MODES[value] ? value : "draft");
+}
+
+function storyTestMode() {
+  const requested = creatorFlowParams.get("test");
+  if (requested === "1") {
+    const alreadyEnabled = localStorage.getItem(STORY_TEST_MODE_KEY) === "true";
+    localStorage.setItem(STORY_TEST_MODE_KEY, "true");
+    if (!alreadyEnabled) setStoryImageMode("mock");
+    return true;
+  }
+  if (requested === "0") {
+    localStorage.removeItem(STORY_TEST_MODE_KEY);
+    return false;
+  }
+  return localStorage.getItem(STORY_TEST_MODE_KEY) === "true";
+}
+
+function setStoryTestMode(enabled) {
+  if (enabled) {
+    localStorage.setItem(STORY_TEST_MODE_KEY, "true");
+    setStoryImageMode("mock");
+  } else {
+    localStorage.removeItem(STORY_TEST_MODE_KEY);
+    if (storyImageMode() === "mock") setStoryImageMode("draft");
+  }
+}
+
+function storyArtworkEstimate(project, mode = storyImageMode()) {
+  const missing = (project?.scenes || []).filter((scene) => !scene.generatedImageUrl).length;
+  const unitCost = mode === "final" ? 0.2 : mode === "draft" ? 0.006 : 0;
+  return { missing, unitCost, total: missing * unitCost };
 }
 
 function createMockSceneImage(scene, sceneIndex) {
@@ -2827,6 +2859,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
     const requestBody = JSON.stringify({
         sceneId,
         imageMode,
+        testMode: storyTestMode(),
         idempotencyKey: scene.imageRequestId || "",
         prompt: storyContext,
         visualPrompt: scene.imagePromptInternal,
@@ -3962,14 +3995,18 @@ function bindStoryboardSceneControls(project) {
   const imageModeSelect = document.querySelector("#storyImageMode");
   const imageModeDescription = document.querySelector("#artworkModeDescription");
   if (imageModeSelect) {
+    const testMode = storyTestMode();
+    const finalOption = imageModeSelect.querySelector('option[value="final"]');
+    if (finalOption) finalOption.disabled = testMode;
     imageModeSelect.value = storyImageMode();
     const updateDescription = () => {
+      const estimate = storyArtworkEstimate(project);
       const descriptions = {
-        mock: "Creates an instant local placeholder. No API request, provider charge or Creator credits.",
-        draft: "Uses GPT Image 1 Mini at low quality with character references. Estimated provider cost: $0.006 per image.",
+        mock: `Creates instant local placeholders for ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"}. No API request, provider charge or Creator credits.`,
+        draft: `Uses GPT Image 1 Mini at low quality with character references. ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"} would cost about $${estimate.total.toFixed(3)} total.`,
         final: "Uses GPT Image 1.5 at high quality. Estimated provider cost: $0.20 per image and confirmation is required.",
       };
-      if (imageModeDescription) imageModeDescription.textContent = descriptions[storyImageMode()];
+      if (imageModeDescription) imageModeDescription.textContent = `${testMode ? "STORY TEST MODE: " : ""}${descriptions[storyImageMode()]}`;
     };
     updateDescription();
     if (!imageModeSelect.dataset.modeBound) {
@@ -3980,6 +4017,33 @@ function bindStoryboardSceneControls(project) {
         rerenderStoryboard(readStoryboardProject());
       });
     }
+    let testActions = document.querySelector("#storyTestActions");
+    if (!testActions) {
+      testActions = document.createElement("div");
+      testActions.id = "storyTestActions";
+      testActions.className = "story-scenes-step-actions";
+      imageModeSelect.closest(".artwork-test-mode")?.append(testActions);
+    }
+    const estimate = storyArtworkEstimate(project);
+    testActions.innerHTML = `
+      <button class="add-scene-inline" id="toggleStoryTestMode" type="button">${testMode ? "Exit Story Test Mode" : "Enable Story Test Mode"}</button>
+      <button class="add-scene-inline" id="generateAllTestScenes" type="button" ${estimate.missing ? "" : "disabled"}>
+        Generate ${estimate.missing || "No"} Missing ${storyImageMode() === "mock" ? "Mock" : "Draft"} Images
+      </button>
+    `;
+    document.querySelector("#toggleStoryTestMode")?.addEventListener("click", () => {
+      setStoryTestMode(!testMode);
+      rerenderStoryboard(readStoryboardProject());
+    });
+    document.querySelector("#generateAllTestScenes")?.addEventListener("click", () => {
+      const current = readStoryboardProject();
+      if (storyTestMode() && storyImageMode() === "final") {
+        setStoryImageMode("mock");
+      }
+      for (const scene of current.scenes || []) {
+        if (!scene.generatedImageUrl) queueStoryboardSceneImage(scene.id);
+      }
+    });
   }
 
   document.querySelectorAll(".scene-card").forEach((card) => {
@@ -4184,6 +4248,11 @@ function bindStoryboardSceneControls(project) {
 
   document.querySelectorAll("[data-generate-scene-image]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (storyTestMode() && storyImageMode() === "final") {
+        setStoryImageMode("mock");
+        rerenderStoryboard(readStoryboardProject());
+        return;
+      }
       if (storyImageMode() === "final" && !window.confirm(
         "Generate final-quality artwork?\n\nEstimated provider cost: about $0.20 per image\nCreator credits: 24\n\nUse Draft for prompt testing at about $0.006.",
       )) return;

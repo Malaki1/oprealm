@@ -38,7 +38,7 @@ export async function onRequestPost({ request, env }) {
   } catch {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
   }
-  const imageMode = sceneImageMode(body.imageMode);
+  const imageMode = sceneImageMode(body.imageMode, { testMode: Boolean(body.testMode) });
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
   let existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
   if (existingJob?.status === "completed") return json(jobResponse(existingJob));
@@ -228,7 +228,7 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
 }
 
 async function processSceneImageJob(env, { jobId, user, body }) {
-  const imageMode = sceneImageMode(body.imageMode);
+  const imageMode = sceneImageMode(body.imageMode, { testMode: Boolean(body.testMode) });
   const referenceImages = normalizeReferenceImages(body.referenceImages);
   const webPrompt = buildScenePrompt(body, "web", referenceImages);
   let web;

@@ -19,6 +19,7 @@ export const SCENE_IMAGE_MODES = Object.freeze({
   }),
 });
 
-export function sceneImageMode(value) {
-  return SCENE_IMAGE_MODES[String(value || "").toLowerCase()] || SCENE_IMAGE_MODES.draft;
+export function sceneImageMode(value, options = {}) {
+  const selected = SCENE_IMAGE_MODES[String(value || "").toLowerCase()] || SCENE_IMAGE_MODES.draft;
+  return options.testMode && selected.id === "final" ? SCENE_IMAGE_MODES.draft : selected;
 }
