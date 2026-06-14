@@ -29,6 +29,22 @@ test("asset plans include smart sizing, formats and prompt safeguards", () => {
   assert.match(icon.negativePrompt, /watermark/i);
 });
 
+test("vision asset bounds are preserved and clamped to the mockup", () => {
+  const project = forge.analyseForgeProject(forge.createForgeProject({ name: "Mapped UI" }), {
+    width: 1000,
+    height: 500,
+    detectedAssets: [
+      { name: "Profile Avatar", category: "avatars", sourceRegion: { x: 90, y: 4, width: 8, height: 16, unit: "percent", confidence: 0.97 } },
+      { name: "Edge Icon", category: "icons", sourceRegion: { x: 98, y: 96, width: 10, height: 12, unit: "percent" } },
+    ],
+  });
+  assert.deepEqual(
+    project.regions.map(({ x, y, width, height }) => ({ x, y, width, height })),
+    [{ x: 900, y: 20, width: 80, height: 80 }, { x: 980, y: 480, width: 20, height: 20 }],
+  );
+  assert.equal(project.regions[0].assetId, project.assets[0].id);
+});
+
 test("quality scoring and optimization produce production records", () => {
   const project = forge.analyseForgeProject(forge.createForgeProject({ name: "Mobile App" }), {});
   const asset = project.assets[0];

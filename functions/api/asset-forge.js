@@ -253,7 +253,7 @@ async function visionAnalysis(env, mockup, body, seed) {
     body: JSON.stringify({
       model: "gpt-4.1-mini",
       input: [{ role: "user", content: [
-        { type: "input_text", text: "Analyse this interface mockup. Return JSON only with styleName, styleSummary, audience, complexityLevel, designLanguage, visualMood, palette (six hex colors), and detectedAssets (up to 36 objects with name, category, purpose). Use reusable production assets, never screenshot crops." },
+        { type: "input_text", text: "Analyse this interface mockup. Return JSON only with styleName, styleSummary, audience, complexityLevel, designLanguage, visualMood, palette (six hex colors), and detectedAssets. Each detected asset must be one specific visible reusable visual item, not a broad section or screenshot crop. For every detectedAssets object return name, category, purpose, and sourceRegion with x, y, width, height, unit:'percent', and confidence. Coordinates are percentages from the original image's top-left corner. Make each box tightly fit only the named icon, illustration, avatar, badge, button, thumbnail, or other visual asset. Do not overlap unrelated assets, do not return navigation panels or whole content sections, and return at most 36 high-confidence items." },
         { type: "input_image", image_url: `data:${mockup.mime};base64,${base64}` },
       ] }],
       text: { format: { type: "json_object" } },

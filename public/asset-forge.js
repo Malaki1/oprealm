@@ -112,9 +112,9 @@ async function handleUpload(file){
     await analyseCurrent();
   }catch(error){notify(error.message,true);setBusy(false)}
 }
-async function analyseCurrent(){
+async function analyseCurrent(returnPath="/style-analysis"){
   setBusy(true,"Analysing layout, style, components and reusable assets...");
-  try{const data=await api("/api/asset-forge",{method:"POST",body:{action:"analyse",projectId:state.project.id}});state.project=data.project;replaceProject();selectProject(state.project.id);location.href="/style-analysis"}
+  try{const data=await api("/api/asset-forge",{method:"POST",body:{action:"analyse",projectId:state.project.id}});state.project=data.project;replaceProject();selectProject(state.project.id);location.href=returnPath}
   catch(error){notify(error.message,true);setBusy(false)}
 }
 function renderAnalysis(){
@@ -143,6 +143,18 @@ function renderDesignSystem(){
 }
 function ruleCard(title,items){return `<article class="panel panel-pad"><h3>${esc(title)}</h3>${items.map(x=>`<p class="muted">${esc(x)}</p>`).join("")}</article>`}
 function renderAssetMap(){
+  document.title="Asset Map | Mockup Asset Forge";const p=state.project,m=p.mockups?.at(-1),regions=p.regions.filter(r=>r.assetId).slice(0,36);
+  const overlays=regions.map((r,i)=>{const a=p.assets.find(x=>x.id===r.assetId)||p.assets[r.assetIndex];return `<button class="region" data-region="${i}" aria-label="${attr(a?.name||`Region ${i+1}`)}" title="${attr(a?.name||`Region ${i+1}`)}" style="left:${regionPercent(r.x,m?.width)}%;top:${regionPercent(r.y,m?.height)}%;width:${regionPercent(r.width,m?.width)}%;height:${regionPercent(r.height,m?.height)}%"><span>${i+1}</span></button>`}).join("");
+  const list=regions.map((r,i)=>{const a=p.assets.find(x=>x.id===r.assetId)||p.assets[r.assetIndex];return `<button data-region-link="${i}"><span>${i+1}. ${esc(a?.name||"Detected asset")}</span><span class="badge">${esc(a?.category||r.category)}</span></button>`}).join("");
+  main.innerHTML=header("Asset Map","Review tightly detected asset bounds. Regions identify specific reusable visuals, never broad screenshot sections.",`<button class="btn" id="refineRegions">Refine Positions</button><button class="btn" id="addRegionAsset">+ Add Asset</button><a class="btn primary" href="/asset-checklist">Approve Map</a>`)+
+  `<div class="map-layout"><section class="panel map-canvas"><div class="map-image">${m?.url?`<img src="${attr(m.url)}" alt="">`:""}${overlays}</div>${regions.length?"":`<div class="map-empty"><strong>No precise positions saved yet.</strong><span>Run Refine Positions to locate each visible asset.</span></div>`}</section><aside class="panel panel-pad"><div class="panel-title"><h2>Detected Regions</h2><span class="badge">${regions.length}</span></div><div class="summary-list region-list">${list}</div></aside></div>`;
+  document.querySelector("#addRegionAsset").onclick=addAssetDialog;
+  document.querySelector("#refineRegions").onclick=()=>state.demo?requireLogin("Log in to refine saved asset positions."):analyseCurrent("/asset-map");
+  document.querySelectorAll("[data-region],[data-region-link]").forEach(btn=>btn.onclick=()=>selectRegion(Number(btn.dataset.region??btn.dataset.regionLink)));
+}
+function regionPercent(value,total){return Math.max(0,Math.min(100,(Number(value||0)/Math.max(1,Number(total||1)))*100))}
+function selectRegion(index){document.querySelectorAll(".region,[data-region-link]").forEach(x=>x.classList.remove("active"));document.querySelector(`[data-region="${index}"]`)?.classList.add("active");document.querySelector(`[data-region-link="${index}"]`)?.classList.add("active")}
+function renderAssetMapLegacy(){
   document.title="Asset Map | Mockup Asset Forge";const p=state.project,m=p.mockups?.at(-1);
   main.innerHTML=header("Asset Map","Review detected regions. Regions are references for new reusable assets, never screenshot crops.",`<button class="btn" id="addRegionAsset">＋ Add Asset</button><a class="btn primary" href="/asset-checklist">Approve Map</a>`)+
   `<div class="map-layout"><section class="panel map-canvas"><div class="map-image">${m?.url?`<img src="${attr(m.url)}" alt="">`:""}${p.regions.slice(0,24).map((r,i)=>`<button class="region" data-region="${i}" style="left:${r.x/(m?.width||1600)*100}%;top:${r.y/(m?.height||1000)*100}%;width:${r.width/(m?.width||1600)*100}%;height:${r.height/(m?.height||1000)*100}%">${i+1}</button>`).join("")}</div></section>

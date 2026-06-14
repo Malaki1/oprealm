@@ -66,7 +66,17 @@ export function analyseForgeProject(project, input = {}) {
   const designSystem = buildDesignSystem(palette, styleAnalysis);
   const styleProfile = buildStyleProfile(styleAnalysis, designSystem);
   const assets = detectAssets(project, input, styleAnalysis, designSystem);
-  const regions = assets.map((asset, index) => regionFor(index, assets.length, input.width || 1600, input.height || 1000, asset.category));
+  const regions = assets.map((asset, index) => {
+    const bounds = normalizeSourceRegion(asset.sourceRegion, input.width || 1600, input.height || 1000);
+    return bounds ? {
+      id: crypto.randomUUID(),
+      assetId: asset.id,
+      assetIndex: index,
+      ...bounds,
+      category: asset.category,
+      confidence: Number(asset.sourceRegion?.confidence || 0.9),
+    } : null;
+  }).filter(Boolean);
   return {
     ...project,
     status: "analysed",
@@ -95,6 +105,7 @@ export function detectAssets(project, input, styleAnalysis, designSystem) {
     styleAnalysis,
     designSystem,
     purpose: item.purpose,
+    sourceRegion: item.sourceRegion || item.boundingBox || item.bounds || item.region,
   }));
 }
 
@@ -131,7 +142,7 @@ export function createAssetPlan(input) {
     variants: format === "svg" ? ["svg", "png@1x", "png@2x"] : ["original", "optimized", "retina", "thumbnail"],
     prompt,
     negativePrompt: "No text, letters, words, watermark, logo, screenshot remnants, mockup frame, surrounding UI, false transparency, cropped edges, blur, compression artifacts, random objects, inconsistent lighting.",
-    sourceRegion: null,
+    sourceRegion: input.sourceRegion || null,
     outputUrl: "",
     thumbnailUrl: "",
     quality: null,
@@ -284,20 +295,24 @@ function buildStyleProfile(analysis, system) {
   };
 }
 
-function regionFor(index, total, width, height, category) {
-  const columns = 4;
-  const rows = Math.max(1, Math.ceil(Math.min(total, 24) / columns));
-  const cellW = width / columns;
-  const cellH = height / rows;
+function normalizeSourceRegion(region, canvasWidth, canvasHeight) {
+  if (!region || typeof region !== "object") return null;
+  const rawX = Number(region.x ?? region.left);
+  const rawY = Number(region.y ?? region.top);
+  const rawWidth = Number(region.width ?? (Number(region.right) - rawX));
+  const rawHeight = Number(region.height ?? (Number(region.bottom) - rawY));
+  if (![rawX, rawY, rawWidth, rawHeight].every(Number.isFinite) || rawWidth <= 0 || rawHeight <= 0) return null;
+  const percentage = region.unit === "percent" || region.units === "percent"
+    || (rawX <= 100 && rawY <= 100 && rawWidth <= 100 && rawHeight <= 100);
+  const scaleX = percentage ? canvasWidth / 100 : 1;
+  const scaleY = percentage ? canvasHeight / 100 : 1;
+  const x = clampNumber(rawX * scaleX, 0, canvasWidth - 1);
+  const y = clampNumber(rawY * scaleY, 0, canvasHeight - 1);
   return {
-    id: crypto.randomUUID(),
-    assetIndex: index,
-    x: Math.round((index % columns) * cellW + cellW * 0.12),
-    y: Math.round((Math.floor(index / columns) % rows) * cellH + cellH * 0.14),
-    width: Math.round(cellW * 0.72),
-    height: Math.round(cellH * 0.68),
-    category,
-    confidence: Number((0.72 + ((index * 7) % 25) / 100).toFixed(2)),
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(clampNumber(rawWidth * scaleX, 2, canvasWidth - x)),
+    height: Math.round(clampNumber(rawHeight * scaleY, 2, canvasHeight - y)),
   };
 }
 
@@ -311,6 +326,7 @@ const transparentCategories = new Set(["icons", "buttons", "badges", "characters
 function indexSelected(index) { return index < 6; }
 function slug(value) { return clean(value, 100).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "asset"; }
 function clean(value, max) { return String(value || "").replace(/\s+/g, " ").trim().slice(0, max); }
+function clampNumber(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function hash(value) { let out = 2166136261; for (const char of String(value)) { out ^= char.charCodeAt(0); out = Math.imul(out, 16777619); } return out >>> 0; }
 function paletteFromSeed(seed) {
   const hue = seed % 360;
