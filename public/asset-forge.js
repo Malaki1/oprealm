@@ -44,7 +44,13 @@ function render(){
   if(route==="settings")return renderSettings();
   renderDashboard();
 }
-function header(title,subtitle,actions=""){return `<header class="page-head"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><div class="head-actions">${actions}</div></header>`}
+function header(title,subtitle,actions=""){
+  const loginAction=state.demo?`<a class="btn primary" href="${attr(loginUrl())}">Log In</a>`:"";
+  return `${state.demo?authNotice():""}<header class="page-head"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><div class="head-actions">${actions}${loginAction}</div></header>`;
+}
+function loginUrl(){return `/login?next=${encodeURIComponent(location.pathname+location.search)}`}
+function authNotice(){return `<section class="panel auth-notice"><div><strong>Preview mode</strong><span>Log in to upload mockups, save projects, generate assets and export files.</span></div><a class="btn primary" href="${attr(loginUrl())}">Log In to Continue</a></section>`}
+function requireLogin(message="Log in to continue."){notify(message,true);setTimeout(()=>location.href=loginUrl(),350)}
 function renderDashboard(){
   document.title="Dashboard | Mockup Asset Forge";
   main.innerHTML=header("Asset Forge Dashboard","Manage mockup analysis and reusable production asset projects.",`<a class="btn primary" href="/upload">＋ New Project</a>`) +
@@ -74,18 +80,19 @@ function renderUpload(){
     <aside class="panel panel-pad"><div class="panel-title"><h2>Project Details</h2></div><div class="form-grid">
       <div class="field"><label>Project name</label><input id="projectName" value="${attr(state.project?.name||"")}" placeholder="Example: Fintech Mobile App"></div>
       <div class="field"><label>Description</label><textarea id="projectDescription" rows="5" placeholder="What is this interface and what assets do you need?">${esc(state.project?.description||"")}</textarea></div>
-      <button class="btn primary" id="createEmptyProject">${state.project?"Add Additional Screen":"Create Project"}</button>
-      ${state.demo?`<p class="muted">Preview mode is active. Log in through the host account to save uploads and run AI analysis.</p>`:""}
+      <button class="btn primary" id="createEmptyProject">${state.demo?"Log In to Upload":state.project?"Add Additional Screen":"Create Project"}</button>
+      ${state.demo?`<p class="muted">Your selected file stays on your device until you are logged in and start the upload.</p>`:""}
     </div></aside></div>`;
   const input=document.querySelector("#mockupFile"),zone=document.querySelector("#dropzone");
-  document.querySelector("#chooseMockup").onclick=()=>input.click();
+  document.querySelector("#chooseMockup").textContent=state.demo?"Log In to Choose File":"Choose File";
+  document.querySelector("#chooseMockup").onclick=()=>state.demo?requireLogin("Log in, then choose your mockup."):input.click();
   zone.ondragover=e=>{e.preventDefault();zone.classList.add("drag")};zone.ondragleave=()=>zone.classList.remove("drag");
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove("drag");handleUpload(e.dataTransfer.files[0])};
   input.onchange=()=>handleUpload(input.files[0]);
   document.querySelector("#createEmptyProject").onclick=async()=>{if(state.project){input.click();return}await createProject()};
 }
 async function createProject(){
-  if(state.demo)return notify("Log in to create a saved project.",true);
+  if(state.demo)return requireLogin("Log in to create a saved project.");
   const name=document.querySelector("#projectName").value.trim()||"Untitled Asset Project";
   const description=document.querySelector("#projectDescription").value.trim();
   const data=await api("/api/asset-forge",{method:"POST",body:{action:"create",name,description}});
@@ -93,7 +100,7 @@ async function createProject(){
 }
 async function handleUpload(file){
   if(!file)return;
-  if(state.demo)return notify("Log in to upload and analyse a mockup.",true);
+  if(state.demo)return requireLogin("Log in, then choose your mockup again to upload it.");
   if(!state.project)await createProject();
   const dataUrl=await readFile(file);
   let dimensions={width:0,height:0};
@@ -250,7 +257,7 @@ function selectProject(id){state.project=state.projects.find(p=>p.id===id)||stat
 function replaceProject(){const i=state.projects.findIndex(p=>p.id===state.project.id);if(i>=0)state.projects[i]=state.project;else state.projects.unshift(state.project);updateProjectMini()}
 function updateProjectMini(){const box=document.querySelector("#forgeProjectMini");if(!box)return;if(!state.project)return;box.querySelector("strong").textContent=state.project.name;box.querySelector("span").textContent=`${state.project.progress}% Complete · ${state.project.assets?.length||0} assets`;box.querySelector("i").style.width=`${state.project.progress}%`}
 async function saveCurrent(show=true){if(state.demo)return;try{const data=await api("/api/asset-forge",{method:"POST",body:{action:"save",project:state.project}});state.project=data.project;replaceProject();if(show)notify("Project saved.")}catch(error){notify(error.message,true)}}
-async function api(url,options={}){const response=await fetch(url,{method:options.method||"GET",headers:options.body?{"content-type":"application/json"}:{},body:options.body?JSON.stringify(options.body):undefined});const data=await response.json().catch(()=>({}));if(!response.ok||data.ok===false)throw new Error(data.error||`Request failed (${response.status})`);return data}
+async function api(url,options={}){const response=await fetch(url,{method:options.method||"GET",headers:options.body?{"content-type":"application/json"}:{},body:options.body?JSON.stringify(options.body):undefined});const data=await response.json().catch(()=>({}));if(!response.ok||data.ok===false){const error=new Error(data.error||`Request failed (${response.status})`);error.status=response.status;throw error}return data}
 function notify(message,error=false){toast.hidden=false;toast.textContent=message;toast.style.borderColor=error?"#a33b4a":"#7e3bc0";clearTimeout(notify.timer);notify.timer=setTimeout(()=>toast.hidden=true,4200)}
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 function imageDimensions(src){return new Promise(resolve=>{const img=new Image();img.onload=()=>resolve({width:img.naturalWidth,height:img.naturalHeight});img.onerror=()=>resolve({width:0,height:0});img.src=src})}

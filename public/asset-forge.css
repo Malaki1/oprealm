@@ -49,6 +49,9 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .forge-loader span { width: 40px; height: 40px; border: 3px solid #27324a; border-top-color: var(--purple); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.auth-notice { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; padding: 12px 14px; border-color: #7133b7; background: linear-gradient(90deg, #24103f, #11192a); }
+.auth-notice div { display: grid; gap: 3px; }
+.auth-notice span { color: #c1c9d8; font-size: .72rem; }
 .page-head h1 { margin: 0; font-size: 1.35rem; }
 .page-head p { margin: 5px 0 0; color: var(--muted); font-size: .75rem; }
 .head-actions { display: flex; gap: 8px; }
@@ -170,6 +173,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .forge-steps a { padding: 0 8px; font-size: 0; }
   .forge-steps a i { font-size: .65rem; }
   .page-head { align-items: stretch; flex-direction: column; }
+  .auth-notice { align-items: stretch; flex-direction: column; }
   .head-actions > * { flex: 1; }
   .dashboard-grid, .projects-grid, .gallery-grid, .analysis-cards, .token-grid, .check-left, .check-right { grid-template-columns: 1fr; }
   .toolbar { flex-wrap: wrap; }

@@ -9,6 +9,12 @@ const statuses = {
 };
 
 let config = {};
+const nextPath = safeNextPath(new URLSearchParams(location.search).get("next"));
+
+function safeNextPath(value) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "";
+  return value;
+}
 async function loadConfig() {
   const response = await fetch("/api/site-config");
   config = await response.json();
@@ -93,7 +99,7 @@ forms.login.addEventListener("submit", async (event) => {
     const token = await waitForTurnstileToken("login");
     await postAccount("login", { ...formData(forms.login), turnstileToken: token });
     statuses.login.textContent = "Logged in. Opening your account...";
-    location.href = "/account";
+    location.href = nextPath || "/account";
   } catch (error) {
     statuses.login.textContent = error.message;
     resetTurnstile("login");
@@ -106,8 +112,8 @@ forms.register.addEventListener("submit", async (event) => {
   try {
     const token = await waitForTurnstileToken("register");
     await postAccount("register", { ...formData(forms.register), turnstileToken: token });
-    statuses.register.textContent = "Account created. Opening memberships...";
-    location.href = "/billing";
+    statuses.register.textContent = nextPath ? "Account created. Opening your workspace..." : "Account created. Opening memberships...";
+    location.href = nextPath || "/billing";
   } catch (error) {
     statuses.register.textContent = error.message;
     resetTurnstile("register");
