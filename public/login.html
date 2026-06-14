@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/studio.css?v=3" />
-    <script src="/login.js?v=7" defer></script>
+    <script src="/login.js?v=8" defer></script>
   </head>
   <body>
     <header class="studio-header">
@@ -48,7 +48,7 @@
             Password
             <input name="password" type="password" autocomplete="current-password" required />
           </label>
-          <div class="turnstile-slot" data-turnstile="login"></div>
+          <p class="form-note">Sign-in attempts are securely rate limited. No verification widget is required.</p>
           <button class="button button-primary" type="submit">Log In</button>
           <a class="text-button text-link" href="/forgot-password">Forgot password?</a>
           <p class="form-note" id="loginStatus"></p>

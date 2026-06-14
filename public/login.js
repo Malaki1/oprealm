@@ -96,13 +96,11 @@ forms.login.addEventListener("submit", async (event) => {
   event.preventDefault();
   statuses.login.textContent = "Checking account...";
   try {
-    const token = await waitForTurnstileToken("login");
-    await postAccount("login", { ...formData(forms.login), turnstileToken: token });
+    await postAccount("login", formData(forms.login));
     statuses.login.textContent = "Logged in. Opening your account...";
     location.href = nextPath || "/account";
   } catch (error) {
     statuses.login.textContent = error.message;
-    resetTurnstile("login");
   }
 });
 
