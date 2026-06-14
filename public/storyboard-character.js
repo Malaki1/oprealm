@@ -55,10 +55,7 @@ const inlineGenerateButton = document.querySelector(".character-regenerate-butto
 const statusNode = document.querySelector("#characterGenerationStatus");
 const consistencyInput = document.querySelector("#consistencyLockInput");
 const conceptImage = document.querySelector("#characterPreviewImage");
-const liveImage = document.querySelector("#characterLiveImage");
 const conceptBlank = document.querySelector("#characterPreviewBlank");
-const liveBlank = document.querySelector("#characterLiveBlank");
-const liveStage = document.querySelector(".live-character-stage");
 const enlargeCharacterReferenceButton = document.querySelector("#enlargeCharacterReferenceButton");
 const downloadCharacterReferenceButton = document.querySelector("#downloadCharacterReferenceButton");
 const characterLightbox = document.querySelector("#characterReferenceLightbox");
@@ -139,10 +136,6 @@ function selectedProjectWorld() {
 function syncCharacterWorldContext() {
   const world = selectedProjectWorld();
   recipeState.components.environment = world?.name || "";
-  const worldImage = world?.imageUrl || world?.generatedImageUrl || "";
-  if (liveStage) {
-    liveStage.style.setProperty("--character-environment-preview", worldImage ? `url("${worldImage}")` : "none");
-  }
   return world;
 }
 
@@ -213,7 +206,7 @@ function compressImageDataUrl(dataUrl, maxWidth = 900, maxHeight = 1200, quality
 function setCharacterImage(src = "") {
   const safeSrc = String(src || "").trim();
   recipeState.generation.generatedImageUrl = safeSrc;
-  [conceptImage, liveImage].forEach((image) => {
+  [conceptImage].forEach((image) => {
     if (!image) return;
     if (safeSrc) {
       image.src = safeSrc;
@@ -225,14 +218,13 @@ function setCharacterImage(src = "") {
       image.hidden = true;
     }
   });
-  [conceptBlank, liveBlank].forEach((blank) => {
+  [conceptBlank].forEach((blank) => {
     if (blank) blank.hidden = Boolean(safeSrc);
   });
   [enlargeCharacterReferenceButton, downloadCharacterReferenceButton, downloadCharacterLightboxButton].forEach((button) => {
     if (button) button.disabled = !safeSrc;
   });
   document.querySelector(".character-art-frame")?.classList.toggle("has-generated-image", Boolean(safeSrc));
-  liveStage?.classList.toggle("has-generated-image", Boolean(safeSrc));
 }
 
 function imageLoaderMarkup(title = "Generating artwork...", detail = "OPREALM is shaping the dots into a consistent character reference.", progress = 0) {
@@ -249,7 +241,7 @@ function imageLoaderMarkup(title = "Generating artwork...", detail = "OPREALM is
 }
 
 function renderCharacterGenerationProgress() {
-  document.querySelectorAll(".character-art-frame .scene-image-loader, .live-character-stage .scene-image-loader").forEach((loader) => {
+  document.querySelectorAll(".character-art-frame .scene-image-loader").forEach((loader) => {
     const ring = loader.querySelector(".scene-image-progress");
     const label = ring?.querySelector("span");
     if (ring) ring.style.setProperty("--scene-image-progress", `${characterGenerationProgress * 3.6}deg`);
@@ -275,13 +267,12 @@ function finishCharacterGenerationProgress() {
 
 function setCharacterGenerating(isGenerating) {
   document.querySelector(".character-art-frame")?.classList.toggle("is-generating-image", isGenerating);
-  liveStage?.classList.toggle("is-generating-image", isGenerating);
   if (isGenerating) {
     startCharacterGenerationProgress();
-    [conceptImage, liveImage].forEach((image) => {
+    [conceptImage].forEach((image) => {
       if (image) image.hidden = true;
     });
-    [conceptBlank, liveBlank].forEach((blank) => {
+    [conceptBlank].forEach((blank) => {
       if (!blank) return;
       blank.hidden = false;
       blank.innerHTML = imageLoaderMarkup("Generating character...", "Locking style, outfit, colors, traits and companion details together.", characterGenerationProgress);
@@ -292,10 +283,6 @@ function setCharacterGenerating(isGenerating) {
       if (conceptBlank) {
         conceptBlank.hidden = false;
         conceptBlank.innerHTML = "<strong>No character image yet</strong><span>Add your character details, then generate.</span>";
-      }
-      if (liveBlank) {
-        liveBlank.hidden = false;
-        liveBlank.innerHTML = "<strong>Preview will appear here</strong><span>Your character stays blank until you generate it.</span>";
       }
     }
   }
@@ -401,13 +388,6 @@ function saveCustomOutfit() {
   renderSummary();
 }
 
-function syncVisualPreview(group, button) {
-  if (group === "environment" && liveStage) {
-    const previewSrc = button?.querySelector("img")?.getAttribute("src");
-    liveStage.style.setProperty("--character-environment-preview", previewSrc ? `url("${previewSrc}")` : "none");
-  }
-}
-
 function selectedPetDescription() {
   const pet = recipeState.components.pet;
   if (pet === "Custom Pet") {
@@ -491,8 +471,6 @@ function selectChoiceCard(group, value) {
     document.querySelectorAll(".appearance-tabs button").forEach((item) => item.classList.toggle("is-active", item.dataset.value === value));
   }
   setSingleChoice(group, value);
-  const selected = document.querySelector(`[data-recipe-choice="${group}"][data-value="${CSS.escape(value)}"]`);
-  syncVisualPreview(group, selected);
 }
 
 function ensureMultiChoice(group, value) {
@@ -812,7 +790,6 @@ function refreshChoiceUi() {
         : recipeState.components[group] === value;
     button.classList.toggle("is-selected", selected);
     if (group === "sourceMode") button.classList.toggle("is-active", selected);
-    if (selected) syncVisualPreview(group, button);
   });
   document.querySelectorAll("[data-recipe-multi]").forEach((button) => {
     const group = button.dataset.recipeMulti;
