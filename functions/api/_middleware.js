@@ -16,6 +16,7 @@ const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-branch", 120],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],
+  ["/api/realm-reels", 240],
 ]);
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
 const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;
@@ -28,6 +29,7 @@ const LARGE_BODY_PATHS = new Set([
   "/api/story-game-cover",
   "/api/story-image-download",
   "/api/creations",
+  "/api/realm-reels",
 ]);
 
 export async function onRequest(context) {

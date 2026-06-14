@@ -37,3 +37,12 @@
 
 /creator-flow.css
   Cache-Control: no-cache, must-revalidate
+
+/realmreels*
+  Cache-Control: no-store
+
+/realmreels.js
+  Cache-Control: no-cache, must-revalidate
+
+/realmreels.css
+  Cache-Control: no-cache, must-revalidate
