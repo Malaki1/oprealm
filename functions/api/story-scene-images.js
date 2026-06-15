@@ -316,7 +316,9 @@ async function generateImage(env, prompt, imageMode, referenceImages = [], polli
     height,
     references: referenceImages,
     model: imageMode.model,
-    timeoutMs: 180000,
+    // Leave enough time for the Pages function to checkpoint and return
+    // before the queue consumer's 180-second hard timeout.
+    timeoutMs: 105000,
     pollingUrl,
   });
   return {
