@@ -56,3 +56,39 @@ test("FLUX helper submits references, polls, and downloads the generated image",
     global.fetch = originalFetch;
   }
 });
+
+test("FLUX helper caps polling below the Cloudflare subrequest limit", async () => {
+  const { generateBflImage } = await import(moduleUrl);
+  const originalFetch = global.fetch;
+  const originalSetTimeout = global.setTimeout;
+  let calls = 0;
+  global.setTimeout = (callback) => originalSetTimeout(callback, 0);
+  global.fetch = async () => {
+    calls += 1;
+    if (calls === 1) {
+      return new Response(JSON.stringify({
+        id: "request-slow",
+        polling_url: "https://api.bfl.ai/v1/get_result?id=request-slow",
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(JSON.stringify({ status: "Pending" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+
+  try {
+    await assert.rejects(
+      generateBflImage(
+        { BFL_API_KEY: "test-bfl-key" },
+        { prompt: "A slow safe image", width: 1344, height: 768, timeoutMs: 180000 },
+      ),
+      /timed out/,
+    );
+    assert.equal(calls, 33);
+    assert.ok(calls < 50);
+  } finally {
+    global.fetch = originalFetch;
+    global.setTimeout = originalSetTimeout;
+  }
+});

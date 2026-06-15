@@ -70,7 +70,8 @@ export default {
         message.ack();
         continue;
       }
-      if (!result.retryable || finalAttempt) {
+      const responseRetryable = Boolean(result.retryable) || isRetryableStatus(response.status);
+      if (!responseRetryable || finalAttempt) {
         await failJob(
           env,
           jobId,
@@ -147,8 +148,12 @@ function retryMessage(message) {
 
 function isRetryable(error) {
   if (isBillingError(error)) return false;
-  const status = Number(error?.status || 0);
-  return status === 408 || status === 409 || status === 429 || status >= 500;
+  return isRetryableStatus(error?.status);
+}
+
+function isRetryableStatus(status) {
+  const code = Number(status || 0);
+  return code === 408 || code === 409 || code === 429 || code >= 500;
 }
 
 function isBillingError(error) {

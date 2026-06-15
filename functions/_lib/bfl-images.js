@@ -48,8 +48,9 @@ export async function generateBflImage(env, {
   }
 
   const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    await sleep(900);
+  const maxPollAttempts = 32;
+  for (let pollAttempt = 0; pollAttempt < maxPollAttempts && Date.now() < deadline; pollAttempt += 1) {
+    await sleep(pollAttempt === 0 ? 1200 : 5000);
     const pollResponse = await fetch(created.polling_url, {
       headers: { accept: "application/json", "x-key": key },
       signal: AbortSignal.timeout(15000),
