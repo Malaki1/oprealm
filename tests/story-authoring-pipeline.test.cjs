@@ -14,6 +14,14 @@ const middlewareSource = fs.readFileSync(
   path.join(__dirname, "../functions/api/_middleware.js"),
   "utf8",
 );
+const generationJobSource = fs.readFileSync(
+  path.join(__dirname, "../functions/api/generation-job.js"),
+  "utf8",
+);
+const creatorFlowSource = fs.readFileSync(
+  path.join(__dirname, "../public/creator-flow.js"),
+  "utf8",
+);
 const qualityModule = import(pathToFileURL(
   path.join(__dirname, "../functions/_lib/story-quality.mjs"),
 ).href);
@@ -286,6 +294,13 @@ test("background status polling has a separate Cloudflare rate-limit bucket", ()
   assert.match(middlewareSource, /body\.providerResponseId/);
   assert.match(middlewareSource, /routeKey = `\$\{routeKey\}:poll`/);
   assert.match(middlewareSource, /generalLimit = 600/);
+});
+
+test("scene image recovery can replace a stale failed job with the latest completed scene result", () => {
+  assert.match(generationJobSource, /json_extract\(metadata_json, '\$\.sceneId'\) = \?/);
+  assert.match(generationJobSource, /ORDER BY completed_at DESC, updated_at DESC/);
+  assert.match(creatorFlowSource, /sceneId=\$\{encodeURIComponent\(candidate\.id\)\}&preferCompleted=true/);
+  assert.match(creatorFlowSource, /scene\.imageRequestId = "";\s*\n\s*scene\.imageJobId = "";/);
 });
 
 test("fallback decisions are bounded, specific, and free of old generic wording", () => {

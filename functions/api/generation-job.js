@@ -13,7 +13,9 @@ export async function onRequestGet({ request, env }) {
     const id = url.searchParams.get("id");
     const idempotencyKey = String(url.searchParams.get("idempotencyKey") || "").trim().slice(0, 120);
     const tool = String(url.searchParams.get("tool") || "").trim().slice(0, 80);
-    if (!id && (!idempotencyKey || !tool)) {
+    const sceneId = String(url.searchParams.get("sceneId") || "").trim().slice(0, 120);
+    const preferCompleted = url.searchParams.get("preferCompleted") === "true";
+    if (!id && (!tool || (!idempotencyKey && !sceneId))) {
       return json({ ok: false, error: "Missing generation job id." }, 400);
     }
 
@@ -29,7 +31,23 @@ export async function onRequestGet({ request, env }) {
       )
         .bind(id, user.id)
         .first()
-      : await env.OPREALM_DB.prepare(
+      : sceneId && preferCompleted
+        ? await env.OPREALM_DB.prepare(
+          `
+            SELECT *
+            FROM generation_jobs
+            WHERE web_user_id = ?
+              AND tool = ?
+              AND status = 'completed'
+              AND result_json IS NOT NULL
+              AND json_extract(metadata_json, '$.sceneId') = ?
+            ORDER BY completed_at DESC, updated_at DESC
+            LIMIT 1
+          `,
+        )
+          .bind(user.id, tool, sceneId)
+          .first()
+        : await env.OPREALM_DB.prepare(
         `
           SELECT *
           FROM generation_jobs

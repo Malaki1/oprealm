@@ -3191,11 +3191,26 @@ async function recoverExistingSceneImageJobs(project) {
       );
       const result = await response.json().catch(() => ({}));
       const scene = (recoveredProject.scenes || []).find((item) => item.id === candidate.id);
-      if (!scene || !response.ok) return;
+      if (!scene) return;
 
-      if (result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) {
-        scene.generatedImageUrl = result.webImageUrl
-          || await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+      let recoveredResult = result;
+      let recoveredResponseOk = response.ok;
+      if (!response.ok || result.status === "failed") {
+        const completedResponse = await fetch(
+          `/api/generation-job?tool=story_scene_images&sceneId=${encodeURIComponent(candidate.id)}&preferCompleted=true`,
+          { cache: "no-store" },
+        );
+        const completedResult = await completedResponse.json().catch(() => ({}));
+        if (completedResponse.ok && completedResult.status === "completed") {
+          recoveredResult = completedResult;
+          recoveredResponseOk = true;
+        }
+      }
+      if (!recoveredResponseOk) return;
+
+      if (recoveredResult.status === "completed" && (recoveredResult.webImageUrl || recoveredResult.webImageDataUrl)) {
+        scene.generatedImageUrl = recoveredResult.webImageUrl
+          || await compressImageDataUrl(recoveredResult.webImageDataUrl, 720, 480, 0.74);
         scene.status = "complete";
         scene.completed = true;
         scene.imageProgress = 100;
@@ -3205,24 +3220,25 @@ async function recoverExistingSceneImageJobs(project) {
         scene.imageRequestId = "";
         scene.imageJobId = "";
         changed = true;
-      } else if (result.status === "queued") {
+      } else if (recoveredResult.status === "queued") {
         scene.status = "image_queued";
-        scene.imageJobId = result.jobId || scene.imageJobId;
+        scene.imageJobId = recoveredResult.jobId || scene.imageJobId;
         scene.imageError = "";
         changed = true;
-      } else if (result.status === "processing") {
+      } else if (recoveredResult.status === "processing") {
         scene.status = "generating";
-        scene.imageJobId = result.jobId || scene.imageJobId;
+        scene.imageJobId = recoveredResult.jobId || scene.imageJobId;
         scene.imageGenerationStartedAt = scene.imageGenerationStartedAt || new Date().toISOString();
         scene.imageProgress = Math.max(8, Number(scene.imageProgress || 0));
         scene.imageError = "";
         changed = true;
-      } else if (result.status === "failed") {
+      } else if (recoveredResult.status === "failed") {
         scene.status = "image_error";
         scene.imageProgress = 0;
         scene.imageGenerationStartedAt = "";
         scene.imageQueuedAt = "";
-        scene.imageError = result.error || "Image generation stopped. Press Try Again when you are ready.";
+        scene.imageError = recoveredResult.error || "Image generation stopped. Press Try Again when you are ready.";
+        scene.imageRequestId = "";
         scene.imageJobId = "";
         changed = true;
       }
