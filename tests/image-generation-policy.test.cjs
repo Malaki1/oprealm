@@ -76,18 +76,38 @@ test("story test mode defaults to free mock images and blocks accidental final a
   assert.match(source, /generateAllTestScenes/);
 });
 
-test("slow FLUX jobs abandon a persistently pending provider request", () => {
+test("slow FLUX jobs resume one provider request instead of creating replacements", () => {
   const source = fs.readFileSync(path.join(__dirname, "../functions/api/story-scene-images.js"), "utf8");
   assert.match(source, /bflPollingAttempts/);
-  assert.match(source, /body\.bflFallbackUsed = true/);
-  assert.match(source, /body\.referenceImages = \[\]/);
-  assert.match(source, /pollingAttempts >= 2 && body\.bflFallbackUsed/);
+  assert.match(source, /body\.bflPollingUrl = error\.pollingUrl/);
+  assert.match(source, /PROVIDER_POLL_SLICE_MS = 25000/);
+  assert.doesNotMatch(source, /body\.bflFallbackUsed = true/);
+  assert.doesNotMatch(source, /body\.referenceImages = \[\]/);
 });
 
-test("the scheduled image worker recovers orphaned queued scene jobs", () => {
+test("the scheduled image worker recovers queued and processing scene jobs", () => {
   const source = fs.readFileSync(path.join(__dirname, "../workers/image-queue/src/index.js"), "utf8");
   assert.match(source, /recoverable/);
-  assert.match(source, /body: JSON\.stringify\(\{ jobId: recoverable\.id \}\)/);
+  assert.match(source, /status = 'processing'/);
+  assert.match(source, /OPREALM_GENERATION_QUEUE\.send/);
+  assert.match(source, /recoveryAttempts/);
+});
+
+test("scene workers atomically claim jobs and checkpoint stored results before charging", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../functions/api/story-scene-images.js"), "utf8");
+  assert.match(source, /AND status = 'queued'/);
+  assert.match(source, /Another worker claimed this scene/);
+  assert.match(source, /SET result_json = \?/);
+  assert.match(source, /finalizeStoredSceneImage/);
+  assert.doesNotMatch(source, /OR provider_generation_slots\.job_id = excluded\.job_id/);
+});
+
+test("the browser converts saved character and world URLs into provider references", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../public/creator-flow.js"), "utf8");
+  assert.match(source, /async function storyboardReferenceImages/);
+  assert.match(source, /async function referenceImageDataUrl/);
+  assert.match(source, /credentials: "include"/);
+  assert.match(source, /referenceImages: await storyboardReferenceImages/);
 });
 
 test("story projects sync to authenticated account storage", () => {

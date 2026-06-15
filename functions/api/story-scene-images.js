@@ -9,7 +9,6 @@ import {
   jobResponse,
   markJobCompleted,
   markJobFailed,
-  markJobProcessing,
   sha256Text,
 } from "../_lib/generation-jobs.js";
 import { readJson } from "../_lib/http.js";
@@ -22,6 +21,8 @@ const IMAGE_PROVIDER = "bfl_images";
 const IMAGE_CONCURRENCY = 3;
 const IMAGE_SLOT_LEASE_SECONDS = 240;
 const IMAGE_SLOT_WAIT_MS = 20000;
+const PROVIDER_POLL_SLICE_MS = 25000;
+const MAX_PROVIDER_POLL_SLICES = 12;
 
 export async function onRequestPost({ request, env }) {
   if (!env.OPREALM_DB) return json({ ok: false, error: "OPRealm database is not connected." }, 500);
@@ -104,7 +105,25 @@ export async function onRequestPost({ request, env }) {
 
   const referenceImages = normalizeReferenceImages(body.referenceImages);
   const webPrompt = buildScenePrompt(body, "web", referenceImages);
-  const promptHash = await sha256Text(`${SCENE_TOOL}:${imageMode.model}:${imageMode.quality}:${imageMode.size}:${webPrompt}`);
+  const referenceFingerprint = await sha256Text(referenceImages.map((image) => image.imageDataUrl).join("|"));
+  const promptHash = await sha256Text(
+    `${SCENE_TOOL}:${projectFingerprint}:${sceneId}:${imageMode.model}:${imageMode.quality}:${imageMode.size}:${referenceFingerprint}:${webPrompt}`,
+  );
+  const canonicalJob = projectFingerprint && sceneId
+    ? await findCanonicalActiveSceneJob(env, user.id, {
+      sceneId,
+      projectFingerprint,
+    })
+    : null;
+  if (canonicalJob && canonicalJob.id !== existingJob?.id) {
+    return json({
+      ok: false,
+      jobId: canonicalJob.id,
+      status: canonicalJob.status,
+      retryable: true,
+      error: "This scene already has an active artwork job.",
+    }, 202, { "retry-after": "6" });
+  }
   const cachedJob = await findCachedJob(env, user.id, SCENE_TOOL, promptHash);
   if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
 
@@ -183,7 +202,7 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = false } = {}) {
-  const job = await env.OPREALM_DB.prepare(
+  let job = await env.OPREALM_DB.prepare(
     "SELECT * FROM generation_jobs WHERE id = ? AND tool = ? LIMIT 1",
   )
     .bind(jobId, SCENE_TOOL)
@@ -199,6 +218,45 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
       error: job.error || "This scene image job was stopped. Press Try Again when you are ready.",
     };
   }
+  if (job.status === "processing") {
+    return {
+      ok: false,
+      jobId,
+      status: "processing",
+      retryable: true,
+      error: "Another worker is already processing this scene.",
+    };
+  }
+  const claim = await env.OPREALM_DB.prepare(
+    `
+      UPDATE generation_jobs
+      SET status = 'processing',
+          error = NULL,
+          updated_at = datetime('now')
+      WHERE id = ?
+        AND tool = ?
+        AND status = 'queued'
+    `,
+  )
+    .bind(jobId, SCENE_TOOL)
+    .run();
+  if (!claim.meta?.changes) {
+    job = await env.OPREALM_DB.prepare(
+      "SELECT * FROM generation_jobs WHERE id = ? AND tool = ? LIMIT 1",
+    )
+      .bind(jobId, SCENE_TOOL)
+      .first();
+    return job?.status === "completed"
+      ? jobResponse(job)
+      : {
+        ok: false,
+        jobId,
+        status: job?.status || "processing",
+        retryable: job?.status !== "failed",
+        error: job?.error || "Another worker claimed this scene.",
+      };
+  }
+  job = { ...job, status: "processing" };
 
   const metadata = safeJson(job.metadata_json) || {};
   const payloadKey = cleanText(metadata.payloadKey || "", 500);
@@ -209,6 +267,12 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
     .bind(job.web_user_id)
     .first();
   if (!user) throw providerError("The creator account for this image job was not found.", 404);
+  const storedResult = safeJson(job.result_json);
+  if (storedResult?.r2Key && storedResult?.webImageUrl) {
+    const result = await finalizeStoredSceneImage(env, { job, user, body, storedResult });
+    await env.OPREALM_ASSETS.delete(payloadKey);
+    return { ok: true, jobId, ...result };
+  }
 
   try {
     const result = await processSceneImageJob(env, { jobId, user, body });
@@ -218,24 +282,17 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
     if (isTemporaryProviderError(error) && !finalAttempt) {
       if (error.pollingUrl) {
         const pollingAttempts = Number(body.bflPollingAttempts || 0) + 1;
-        if (pollingAttempts >= 2 && body.bflFallbackUsed) {
+        if (pollingAttempts >= MAX_PROVIDER_POLL_SLICES) {
           const terminalError = providerError(
-            "FLUX accepted this scene twice but did not finish it. Adjust the scene prompt slightly, then press Try Again.",
-            422,
+            "FLUX did not finish this image after repeated status checks. No replacement request was created and no Creator credits were charged.",
+            504,
           );
           await markJobFailed(env, jobId, terminalError);
           await env.OPREALM_ASSETS.delete(payloadKey);
           throw terminalError;
         }
-        if (pollingAttempts >= 2) {
-          body.bflPollingAttempts = 0;
-          body.bflPollingUrl = "";
-          body.bflFallbackUsed = true;
-          body.referenceImages = [];
-        } else {
-          body.bflPollingAttempts = pollingAttempts;
-          body.bflPollingUrl = error.pollingUrl;
-        }
+        body.bflPollingAttempts = pollingAttempts;
+        body.bflPollingUrl = error.pollingUrl;
         await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
           httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
           customMetadata: {
@@ -265,13 +322,24 @@ async function processSceneImageJob(env, { jobId, user, body }) {
   let web;
   let providerSlot = 0;
   try {
+    await env.OPREALM_DB.prepare(
+      `
+        UPDATE generation_jobs
+        SET status = 'processing',
+            error = NULL,
+            updated_at = datetime('now')
+        WHERE id = ?
+          AND status IN ('queued', 'processing')
+      `,
+    )
+      .bind(jobId)
+      .run();
     providerSlot = await acquireProviderSlot(env, jobId);
     if (!providerSlot) {
       const error = providerError("Several creators are generating artwork right now. Please wait a moment, then press Try Again.", 429);
       error.retryAfter = 12;
       throw error;
     }
-    await markJobProcessing(env, jobId);
     web = await generateImage(env, webPrompt, imageMode, referenceImages, body.bflPollingUrl);
   } catch (error) {
     throw error;
@@ -294,18 +362,6 @@ async function processSceneImageJob(env, { jobId, user, body }) {
     webImageDataUrl = `data:image/png;base64,${web.b64}`;
   }
 
-  const creditUpdate = await env.OPREALM_DB.prepare(
-    "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ? AND credits_remaining >= ?",
-  )
-    .bind(imageMode.credits, user.id, imageMode.credits)
-    .run();
-  if (!creditUpdate.meta?.changes) {
-    const error = Object.assign(new Error(`You need ${imageMode.credits} Creator credit${imageMode.credits === 1 ? "" : "s"} to finish this scene image.`), { status: 402 });
-    await markJobFailed(env, jobId, error);
-    throw error;
-  }
-
-  await logAiUsage(env, user, webPrompt, web, imageMode);
   const storedResult = {
     webImageUrl,
     webImageDataUrl,
@@ -318,14 +374,27 @@ async function processSceneImageJob(env, { jobId, user, body }) {
     estimatedCostUsd: imageMode.estimatedCostUsd,
     r2Key,
   };
-  await markJobCompleted(env, jobId, {
-    result: storedResult,
-    creditsCharged: imageMode.credits,
-    model: web.model,
-    quality: web.quality,
+  await env.OPREALM_DB.prepare(
+    `
+      UPDATE generation_jobs
+      SET result_json = ?,
+          model = ?,
+          quality = ?,
+          updated_at = datetime('now')
+      WHERE id = ?
+        AND status IN ('queued', 'processing')
+    `,
+  )
+    .bind(JSON.stringify(storedResult), web.model, web.quality, jobId)
+    .run();
+  return finalizeStoredSceneImage(env, {
+    job: { id: jobId, credits_charged: 0 },
+    user,
+    body,
+    storedResult,
+    webPrompt,
+    web,
   });
-
-  return storedResult;
 }
 
 async function generateImage(env, prompt, imageMode, referenceImages = [], pollingUrl = "") {
@@ -338,7 +407,7 @@ async function generateImage(env, prompt, imageMode, referenceImages = [], polli
     model: imageMode.model,
     // Leave enough time for the Pages function to checkpoint and return
     // before the queue consumer's 180-second hard timeout.
-    timeoutMs: 105000,
+    timeoutMs: PROVIDER_POLL_SLICE_MS,
     pollingUrl,
   });
   return {
@@ -416,7 +485,6 @@ async function acquireProviderSlot(env, jobId) {
             lease_expires_at = excluded.lease_expires_at,
             updated_at = datetime('now')
           WHERE provider_generation_slots.lease_expires_at <= unixepoch()
-             OR provider_generation_slots.job_id = excluded.job_id
         `,
       )
         .bind(IMAGE_PROVIDER, slot, jobId, IMAGE_SLOT_LEASE_SECONDS)
@@ -426,6 +494,88 @@ async function acquireProviderSlot(env, jobId) {
     await sleep(1500 + Math.floor(Math.random() * 900));
   }
   return 0;
+}
+
+async function findCanonicalActiveSceneJob(env, userId, { sceneId, projectFingerprint }) {
+  return env.OPREALM_DB.prepare(
+    `
+      SELECT *
+      FROM generation_jobs
+      WHERE web_user_id = ?
+        AND tool = ?
+        AND status IN ('queued', 'processing')
+        AND json_extract(metadata_json, '$.sceneId') = ?
+        AND json_extract(metadata_json, '$.projectFingerprint') = ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  )
+    .bind(userId, SCENE_TOOL, sceneId, projectFingerprint)
+    .first();
+}
+
+async function finalizeStoredSceneImage(env, {
+  job,
+  user,
+  body,
+  storedResult,
+  webPrompt = "",
+  web = null,
+}) {
+  const imageMode = sceneImageMode(body.imageMode, { testMode: Boolean(body.testMode) });
+  let creditsCharged = Number(job.credits_charged || 0);
+  if (!creditsCharged) {
+    const reserveCharge = await env.OPREALM_DB.prepare(
+      `
+        UPDATE generation_jobs
+        SET credits_charged = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+          AND credits_charged = 0
+          AND EXISTS (
+            SELECT 1
+            FROM web_users
+            WHERE id = ?
+              AND credits_remaining >= ?
+          )
+      `,
+    )
+      .bind(imageMode.credits, job.id, user.id, imageMode.credits)
+      .run();
+    if (reserveCharge.meta?.changes) {
+      const debit = await env.OPREALM_DB.prepare(
+        "UPDATE web_users SET credits_remaining = credits_remaining - ?, updated_at = datetime('now') WHERE id = ? AND credits_remaining >= ?",
+      )
+        .bind(imageMode.credits, user.id, imageMode.credits)
+        .run();
+      if (!debit.meta?.changes) {
+        await env.OPREALM_DB.prepare(
+          "UPDATE generation_jobs SET credits_charged = 0, updated_at = datetime('now') WHERE id = ?",
+        )
+          .bind(job.id)
+          .run();
+        throw Object.assign(new Error(`You need ${imageMode.credits} Creator credit${imageMode.credits === 1 ? "" : "s"} to finish this scene image.`), { status: 402 });
+      }
+    }
+    const chargedJob = await env.OPREALM_DB.prepare(
+      "SELECT credits_charged FROM generation_jobs WHERE id = ? LIMIT 1",
+    )
+      .bind(job.id)
+      .first();
+    creditsCharged = Number(chargedJob?.credits_charged || 0);
+  }
+  if (!creditsCharged) {
+    throw Object.assign(new Error("The scene image charge could not be finalized."), { status: 402 });
+  }
+
+  await markJobCompleted(env, job.id, {
+    result: storedResult,
+    creditsCharged,
+    model: storedResult.model,
+    quality: storedResult.quality,
+  });
+  if (web && webPrompt) await logAiUsage(env, user, webPrompt, web, imageMode, job.id);
+  return storedResult;
 }
 
 async function releaseProviderSlot(env, jobId) {
@@ -524,7 +674,7 @@ function normalizeReferenceImages(images) {
     .slice(0, MAX_REFERENCE_IMAGES);
 }
 
-async function logAiUsage(env, user, prompt, web, imageMode) {
+async function logAiUsage(env, user, prompt, web, imageMode, jobId = "") {
   try {
     await env.OPREALM_DB.prepare(
       `
@@ -561,6 +711,7 @@ async function logAiUsage(env, user, prompt, web, imageMode) {
           webUserId: user.id,
           generationMode: web?.mode || "generation",
           imageMode: imageMode.id,
+          jobId,
         }).slice(0, 1500),
       )
       .run();

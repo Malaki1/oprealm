@@ -20,12 +20,18 @@
     }
   ],
   "queues": {
+    "producers": [
+      {
+        "binding": "OPREALM_GENERATION_QUEUE",
+        "queue": "oprealm-image-generation"
+      }
+    ],
     "consumers": [
       {
         "queue": "oprealm-image-generation",
         "max_batch_size": 1,
         "max_batch_timeout": 5,
-        "max_retries": 5,
+        "max_retries": 12,
         "max_concurrency": 3,
         "retry_delay": 15
       }
@@ -33,7 +39,7 @@
   },
   "triggers": {
     "crons": [
-      "*/5 * * * *"
+      "* * * * *"
     ]
   }
 }

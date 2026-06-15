@@ -3,8 +3,9 @@ import { jobResponse } from "../_lib/generation-jobs.js";
 import { json } from "../_lib/http.js";
 
 const SCENE_IMAGE_TOOL = "story_scene_images";
-const STALE_PROCESSING_MINUTES = 6;
-const STALE_QUEUED_MINUTES = 15;
+const STALE_PROCESSING_MINUTES = 3;
+const STALE_QUEUED_MINUTES = 5;
+const MAX_RECOVERY_ATTEMPTS = 3;
 
 export async function onRequestGet({ request, env }) {
   try {
@@ -74,24 +75,78 @@ async function reconcileStaleSceneImageJob(env, job) {
   if (job.tool !== SCENE_IMAGE_TOOL || !["queued", "processing"].includes(job.status)) return job;
 
   const staleMinutes = job.status === "processing" ? STALE_PROCESSING_MINUTES : STALE_QUEUED_MINUTES;
-  const error = job.status === "processing"
-    ? "Image generation stopped before completion. Press Try Again when you are ready."
-    : "The image request waited too long in the queue. Press Try Again when you are ready.";
+  const updatedAt = Date.parse(`${job.updated_at || job.created_at || ""}Z`);
+  if (Number.isFinite(updatedAt) && Date.now() - updatedAt < staleMinutes * 60 * 1000) return job;
+  const metadata = safeJson(job.metadata_json);
+  const recoveryAttempts = Number(metadata.recoveryAttempts || 0);
+  if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+    const error = "The image provider did not finish this scene after automatic recovery. No duplicate request was created and no Creator credits were charged.";
+    await env.OPREALM_DB.prepare(
+      `
+        UPDATE generation_jobs
+        SET status = 'failed',
+            error = ?,
+            updated_at = datetime('now'),
+            completed_at = datetime('now')
+        WHERE id = ?
+          AND status IN ('queued', 'processing')
+      `,
+    )
+      .bind(error, job.id)
+      .run();
+    await releaseSceneImageSlot(env, job.id);
+    return { ...job, status: "failed", error, completed_at: new Date().toISOString() };
+  }
+
   const result = await env.OPREALM_DB.prepare(
     `
       UPDATE generation_jobs
-      SET status = 'failed',
-          error = ?,
+      SET status = 'queued',
+          error = 'Automatically resumed after an interrupted worker.',
+          metadata_json = json_set(COALESCE(metadata_json, '{}'), '$.recoveryAttempts', ?),
           updated_at = datetime('now'),
-          completed_at = datetime('now')
+          completed_at = NULL
       WHERE id = ?
         AND status = ?
         AND updated_at <= datetime('now', ?)
     `,
   )
-    .bind(error, job.id, job.status, `-${staleMinutes} minutes`)
+    .bind(recoveryAttempts + 1, job.id, job.status, `-${staleMinutes} minutes`)
     .run();
 
   if (!result.meta?.changes) return job;
-  return { ...job, status: "failed", error, completed_at: new Date().toISOString() };
+  await releaseSceneImageSlot(env, job.id);
+  if (env.OPREALM_GENERATION_QUEUE?.send) {
+    await env.OPREALM_GENERATION_QUEUE.send({
+      jobId: job.id,
+      tool: SCENE_IMAGE_TOOL,
+      userId: job.web_user_id,
+      createdAt: new Date().toISOString(),
+      metadata: { recovered: true },
+    }).catch(() => {});
+  }
+  return {
+    ...job,
+    status: "queued",
+    error: "Automatically resumed after an interrupted worker.",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function releaseSceneImageSlot(env, jobId) {
+  if (!env.OPREALM_DB) return;
+  await env.OPREALM_DB.prepare(
+    "DELETE FROM provider_generation_slots WHERE provider = 'bfl_images' AND job_id = ?",
+  )
+    .bind(jobId)
+    .run()
+    .catch(() => {});
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value || "{}");
+  } catch {
+    return {};
+  }
 }

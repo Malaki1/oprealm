@@ -2357,27 +2357,47 @@ function clearStoryboardScenes(project) {
   return normalizeSceneOrders(project);
 }
 
-function storyboardReferenceImages(project, scene) {
+async function storyboardReferenceImages(project, scene) {
   const references = [];
-  const addReference = (imageDataUrl, label) => {
-    if (!imageDataUrl || typeof imageDataUrl !== "string") return;
-    if (!imageDataUrl.startsWith("data:image/")) return;
+  const addReference = async (imageSource, label) => {
+    const imageDataUrl = await referenceImageDataUrl(imageSource);
+    if (!imageDataUrl) return;
     references.push({ imageDataUrl, label });
   };
 
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
-  (scene.selectedCharacterIds || []).forEach((id) => {
+  for (const id of scene.selectedCharacterIds || []) {
     const character = characterById.get(id);
-    addReference(
+    await addReference(
       character?.imageUrl || character?.generatedImageUrl || character?.recipe?.generation?.generatedImageUrl,
       character?.name || "Character",
     );
-  });
+  }
 
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
-  addReference(world?.imageUrl || world?.generatedImageUrl, world?.name || "World");
+  await addReference(world?.imageUrl || world?.generatedImageUrl, world?.name || "World");
 
   return references.slice(0, 4);
+}
+
+async function referenceImageDataUrl(imageSource) {
+  const source = String(imageSource || "").trim();
+  if (/^data:image\/(png|jpe?g|webp);base64,/i.test(source)) return source;
+  if (!source || (!source.startsWith("/") && !/^https?:\/\//i.test(source))) return "";
+  try {
+    const response = await fetch(source, { credentials: "include", cache: "force-cache" });
+    if (!response.ok) return "";
+    const blob = await response.blob();
+    if (!/^image\/(png|jpe?g|webp)$/i.test(blob.type)) return "";
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
 }
 
 function buildSceneVideoPrompt(project, scene, sceneIndex) {
@@ -2951,7 +2971,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
         lockCharacterStyle: true,
         lockSceneContinuity: true,
         continuityBrief: `Scene ${sceneIndex + 1} of ${project.title || "an OPREALM story"}. Preserve the saved character, selected world, outfit colors, accessories, and the previous scene logic.`,
-        referenceImages: storyboardReferenceImages(project, scene),
+        referenceImages: await storyboardReferenceImages(project, scene),
       });
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 210000);
