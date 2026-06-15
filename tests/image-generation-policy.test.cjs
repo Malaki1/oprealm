@@ -69,7 +69,9 @@ test("cached image responses never report a second credit charge", async () => {
 test("story test mode defaults to free mock images and blocks accidental final artwork", () => {
   const source = fs.readFileSync(path.join(__dirname, "../public/creator-flow.js"), "utf8");
   assert.match(source, /STORY_TEST_MODE_KEY/);
-  assert.match(source, /storyTestMode\(\) \? "mock" : "draft"/);
+  assert.match(source, /storyTestQueryApplied/);
+  assert.match(source, /setStoryImageMode\("mock"\)/);
+  assert.match(source, /recoverQueuedScenesAsMocks/);
   assert.match(source, /finalOption\.disabled = testMode/);
   assert.match(source, /generateAllTestScenes/);
 });

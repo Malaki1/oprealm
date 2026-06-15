@@ -266,6 +266,7 @@ const sceneImageProgressTimers = new Map();
 const sceneImageGenerationQueue = [];
 let sceneImageQueueActive = false;
 let sceneImageStatusMonitor = 0;
+let storyTestQueryApplied = false;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
@@ -281,9 +282,11 @@ function setStoryImageMode(value) {
 function storyTestMode() {
   const requested = creatorFlowParams.get("test");
   if (requested === "1") {
-    const alreadyEnabled = localStorage.getItem(STORY_TEST_MODE_KEY) === "true";
     localStorage.setItem(STORY_TEST_MODE_KEY, "true");
-    if (!alreadyEnabled) setStoryImageMode("mock");
+    if (!storyTestQueryApplied) {
+      setStoryImageMode("mock");
+      storyTestQueryApplied = true;
+    }
     return true;
   }
   if (requested === "0") {
@@ -3079,6 +3082,7 @@ async function processSceneImageQueue() {
 }
 
 function resumeQueuedSceneImages(project) {
+  if (storyTestMode() && storyImageMode() === "mock") return;
   [...(project.scenes || [])]
     .filter((scene) => ["image_queued", "generating"].includes(scene.status) && !scene.generatedImageUrl && scene.imageRequestId)
     .sort((a, b) => {
@@ -3094,6 +3098,28 @@ function resumeQueuedSceneImages(project) {
       }
     });
   processSceneImageQueue();
+}
+
+function recoverQueuedScenesAsMocks(project) {
+  if (!storyTestMode() || storyImageMode() !== "mock") return project;
+  let changed = false;
+  (project.scenes || []).forEach((scene, sceneIndex) => {
+    if (scene.generatedImageUrl || !["image_queued", "generating"].includes(scene.status)) return;
+    scene.generatedImageUrl = createMockSceneImage(scene, sceneIndex);
+    scene.imageMode = "mock";
+    scene.imageWasCached = false;
+    scene.status = "complete";
+    scene.completed = true;
+    scene.imageProgress = 100;
+    scene.imageError = "";
+    scene.imageQueuedAt = "";
+    scene.imageGenerationStartedAt = "";
+    scene.imageRequestId = "";
+    scene.imageJobId = "";
+    changed = true;
+  });
+  if (changed) writeStoryboardProject(project);
+  return project;
 }
 
 async function recoverExistingSceneImageJobs(project) {
@@ -4295,7 +4321,10 @@ function closeSceneImageLightbox() {
 async function hydrateStoryboardPage() {
   if (!document.querySelector(".storyboard-shell")) return;
   configureStoryPage();
-  const project = writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject())));
+  storyTestMode();
+  const project = recoverQueuedScenesAsMocks(
+    writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject()))),
+  );
   if (STORY_SCENES_PAGE && !project.storyDraft?.approved) {
     window.location.replace("/storyboard.html");
     return;
