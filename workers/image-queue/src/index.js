@@ -51,8 +51,11 @@ export default {
           signal: controller.signal,
           body: JSON.stringify({ jobId }),
         });
-      } catch {
+      } catch (error) {
         if (finalAttempt) {
+          await failJob(env, jobId, error?.name === "AbortError"
+            ? new Error("The image worker timed out before the provider responded.")
+            : error);
           message.ack();
         } else {
           message.retry({ delaySeconds: Math.min(120, 15 * 2 ** Math.max(0, Number(message.attempts || 1) - 1)) });
@@ -68,6 +71,11 @@ export default {
         continue;
       }
       if (!result.retryable || finalAttempt) {
+        await failJob(
+          env,
+          jobId,
+          new Error(result.error || `The internal image worker returned HTTP ${response.status}.`),
+        );
         message.ack();
         continue;
       }

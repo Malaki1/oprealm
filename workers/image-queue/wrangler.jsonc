@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "compatibility_date": "2026-06-12",
   "vars": {
-    "OPREALM_INTERNAL_IMAGE_URL": "https://oprealm.com/api/internal-scene-image-worker"
+    "OPREALM_INTERNAL_IMAGE_URL": "https://oprealm.pages.dev/api/internal-scene-image-worker"
   },
   "d1_databases": [
     {
