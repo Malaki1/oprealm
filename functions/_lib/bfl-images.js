@@ -80,6 +80,14 @@ export async function generateBflImage(env, {
         estimatedCostUsd: references.length ? 0.045 : 0.03,
       };
     }
+    if (poll.status === "Request Moderated" || poll.status === "Content Moderated") {
+      const error = bflError(poll, 400, "FLUX could not safely illustrate this wording.");
+      error.moderated = true;
+      throw error;
+    }
+    if (poll.status === "Task not found") {
+      throw bflError(poll, 404, "FLUX could not find the submitted image request.");
+    }
     if (poll.status === "Error" || poll.status === "Failed") {
       throw bflError(poll, 502, "FLUX image generation failed.");
     }
@@ -105,7 +113,7 @@ function bflError(data, status, fallback) {
   const detail = Array.isArray(data?.detail)
     ? data.detail.map((item) => item?.msg || item?.message).filter(Boolean).join("; ")
     : data?.detail;
-  const error = new Error(String(detail || data?.error || data?.message || fallback));
+  const error = new Error(String(detail || data?.error || data?.message || data?.status || fallback));
   error.status = Number(status) || 502;
   error.providerError = data;
   return error;

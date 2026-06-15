@@ -128,3 +128,32 @@ test("FLUX helper resumes an existing provider request without creating another 
     global.fetch = originalFetch;
   }
 });
+
+test("FLUX moderation states fail immediately instead of polling forever", async () => {
+  const { generateBflImage } = await import(moduleUrl);
+  const originalFetch = global.fetch;
+  const originalSetTimeout = global.setTimeout;
+  global.setTimeout = (callback) => originalSetTimeout(callback, 0);
+  global.fetch = async () => new Response(JSON.stringify({
+    status: "Request Moderated",
+    details: { reason: "prompt review" },
+  }), { status: 200, headers: { "content-type": "application/json" } });
+
+  try {
+    await assert.rejects(
+      generateBflImage(
+        { BFL_API_KEY: "test-bfl-key" },
+        {
+          prompt: "A safe scene",
+          width: 1344,
+          height: 768,
+          pollingUrl: "https://api.bfl.ai/v1/get_result?id=moderated",
+        },
+      ),
+      /Request Moderated/,
+    );
+  } finally {
+    global.fetch = originalFetch;
+    global.setTimeout = originalSetTimeout;
+  }
+});

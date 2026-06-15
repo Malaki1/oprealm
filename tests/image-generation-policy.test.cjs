@@ -85,6 +85,12 @@ test("slow FLUX jobs resume one provider request instead of creating replacement
   assert.doesNotMatch(source, /body\.referenceImages = \[\]/);
 });
 
+test("scene prompts normalize harmless wording that commonly trips provider moderation", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../functions/api/story-scene-images.js"), "utf8");
+  assert.match(source, /providerSafeSceneText/);
+  assert.match(source, /overwhelmingly exuberant/);
+});
+
 test("the scheduled image worker recovers queued and processing scene jobs", () => {
   const source = fs.readFileSync(path.join(__dirname, "../workers/image-queue/src/index.js"), "utf8");
   assert.match(source, /recoverable/);

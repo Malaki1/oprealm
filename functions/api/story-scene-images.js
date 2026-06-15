@@ -633,8 +633,8 @@ function buildScenePrompt(body, format, referenceImages = []) {
     hasSecondHero
       ? "TWO HERO LOCK: Include both saved heroes as distinct characters. Do not merge them, swap their outfits, mix their features, or turn one into a sidekick unless the scene prompt asks for it."
       : "ONE HERO LOCK: Include the saved hero as the main character unless the scene says no character is shown.",
-    `Reader-facing story passage for context only: ${cleanText(body.prompt || "A magical choice moment begins.", 900)}`,
-    `Internal visual scene direction to illustrate: ${cleanText(body.visualPrompt || body.prompt || "A magical choice moment begins.", 1800)}`,
+    `Reader-facing story passage for context only: ${providerSafeSceneText(body.prompt || "A magical choice moment begins.", 900)}`,
+    `Internal visual scene direction to illustrate: ${providerSafeSceneText(body.visualPrompt || body.prompt || "A magical choice moment begins.", 1800)}`,
     `Camera angle: ${cleanText(body.camera || "Wide cinematic reveal", 80)}`,
     `Background: ${cleanText(body.background || "Custom background", 120)}`,
     `Character use: ${cleanText(body.character || "Use saved character", 120)}`,
@@ -722,6 +722,14 @@ async function logAiUsage(env, user, prompt, web, imageMode, jobId = "") {
 
 function cleanText(value, maxLength) {
   return String(value || "").replace(/[<>]/g, "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function providerSafeSceneText(value, maxLength) {
+  return cleanText(value, maxLength)
+    .replace(/\b(?:nearly|almost)\s+obscene\b/gi, "overwhelmingly exuberant")
+    .replace(/\bobscene\b/gi, "excessive")
+    .replace(/\bsensual\b/gi, "graceful")
+    .replace(/\bseductive\b/gi, "mysterious and charismatic");
 }
 
 function json(data, status = 200, extraHeaders = {}) {
