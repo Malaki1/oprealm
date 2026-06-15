@@ -79,7 +79,9 @@ test("story test mode defaults to free mock images and blocks accidental final a
 test("slow FLUX jobs abandon a persistently pending provider request", () => {
   const source = fs.readFileSync(path.join(__dirname, "../functions/api/story-scene-images.js"), "utf8");
   assert.match(source, /bflPollingAttempts/);
-  assert.match(source, /pollingAttempts >= 2 \? "" : error\.pollingUrl/);
+  assert.match(source, /body\.bflFallbackUsed = true/);
+  assert.match(source, /body\.referenceImages = \[\]/);
+  assert.match(source, /pollingAttempts >= 2 && body\.bflFallbackUsed/);
 });
 
 test("the scheduled image worker recovers orphaned queued scene jobs", () => {

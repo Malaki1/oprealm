@@ -216,8 +216,24 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
     if (isTemporaryProviderError(error) && !finalAttempt) {
       if (error.pollingUrl) {
         const pollingAttempts = Number(body.bflPollingAttempts || 0) + 1;
-        body.bflPollingAttempts = pollingAttempts;
-        body.bflPollingUrl = pollingAttempts >= 2 ? "" : error.pollingUrl;
+        if (pollingAttempts >= 2 && body.bflFallbackUsed) {
+          const terminalError = providerError(
+            "FLUX accepted this scene twice but did not finish it. Adjust the scene prompt slightly, then press Try Again.",
+            422,
+          );
+          await markJobFailed(env, jobId, terminalError);
+          await env.OPREALM_ASSETS.delete(payloadKey);
+          throw terminalError;
+        }
+        if (pollingAttempts >= 2) {
+          body.bflPollingAttempts = 0;
+          body.bflPollingUrl = "";
+          body.bflFallbackUsed = true;
+          body.referenceImages = [];
+        } else {
+          body.bflPollingAttempts = pollingAttempts;
+          body.bflPollingUrl = error.pollingUrl;
+        }
         await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
           httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
           customMetadata: {
