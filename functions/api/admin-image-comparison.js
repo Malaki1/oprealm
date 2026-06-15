@@ -133,21 +133,12 @@ async function generateOpenAi(env, item, prompt) {
 
 async function generateGoogle(env, item, prompt) {
   const key = googleApiKey(env);
-  const responseFormat = item.model === "gemini-2.5-flash-image"
-    ? { image: { aspectRatio: "16:9" } }
-    : { image: { aspectRatio: "16:9", imageSize: "1K" } };
   const response = await fetch(
     `${googleApiBase(env)}/models/${encodeURIComponent(item.model)}:generateContent`,
     {
       method: "POST",
       headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ["IMAGE"],
-          responseFormat,
-        },
-      }),
+      body: JSON.stringify(googleImageRequestBody(prompt)),
       signal: AbortSignal.timeout(180000),
     },
   );
@@ -159,6 +150,16 @@ async function generateGoogle(env, item, prompt) {
     throw new Error(data.error?.message || data.promptFeedback?.blockReason || `Google returned ${response.status}.`);
   }
   return `data:${inline.mimeType || inline.mime_type || "image/png"};base64,${inline.data}`;
+}
+
+export function googleImageRequestBody(prompt) {
+  return {
+    contents: [{
+      parts: [{
+        text: `${String(prompt || "").trim()}\n\nGenerate one image only. Use a wide 16:9 landscape composition. Do not add explanatory text outside the image.`,
+      }],
+    }],
+  };
 }
 
 async function generateBfl(env, item, prompt) {

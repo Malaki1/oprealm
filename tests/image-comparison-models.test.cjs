@@ -43,3 +43,14 @@ test("Google image comparison uses the current stable REST API by default", asyn
   assert.equal(googleApiBase({}), "https://generativelanguage.googleapis.com/v1");
   assert.equal(googleApiBase({ GEMINI_API_BASE_URL: "https://example.test/v1/" }), "https://example.test/v1");
 });
+
+test("Google image comparison avoids unsupported REST generation config fields", async () => {
+  const moduleUrl = pathToFileURL(
+    path.join(__dirname, "../functions/api/admin-image-comparison.js"),
+  );
+  const { googleImageRequestBody } = await import(moduleUrl);
+  const body = googleImageRequestBody("A crystal forest");
+  assert.equal(body.generationConfig, undefined);
+  assert.match(body.contents[0].parts[0].text, /16:9/);
+  assert.doesNotMatch(JSON.stringify(body), /responseModalities|responseFormat/);
+});
