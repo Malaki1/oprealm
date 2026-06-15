@@ -301,6 +301,7 @@ test("scene image recovery can replace a stale failed job with the latest comple
   assert.match(generationJobSource, /json_extract\(metadata_json, '\$\.projectFingerprint'\) = \?/);
   assert.match(generationJobSource, /ORDER BY completed_at DESC, updated_at DESC/);
   assert.match(creatorFlowSource, /projectFingerprint=\$\{encodeURIComponent\(projectFingerprint\)\}&preferCompleted=true/);
+  assert.match(creatorFlowSource, /if \(candidate\.imageJobId \|\| candidate\.imageRequestId\)/);
   assert.match(creatorFlowSource, /scene\.imageRequestId = "";\s*\n\s*scene\.imageJobId = "";/);
 });
 

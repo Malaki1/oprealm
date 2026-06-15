@@ -3205,7 +3205,7 @@ async function recoverExistingSceneImageJobs(project) {
   const candidates = (project.scenes || []).filter((scene) => (
     ["image_error", "image_queued", "generating"].includes(scene.status)
     && !scene.generatedImageUrl
-    && (scene.imageJobId || scene.imageRequestId)
+    && scene.id
   ));
   if (!candidates.length) return project;
 
@@ -3213,13 +3213,17 @@ async function recoverExistingSceneImageJobs(project) {
   let changed = false;
   await Promise.all(candidates.map(async (candidate) => {
     try {
-      const response = await fetch(
-        candidate.imageJobId
-          ? `/api/generation-job?id=${encodeURIComponent(candidate.imageJobId)}`
-          : `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
-        { cache: "no-store" },
-      );
-      const result = await response.json().catch(() => ({}));
+      let response = { ok: false, status: 404 };
+      let result = {};
+      if (candidate.imageJobId || candidate.imageRequestId) {
+        response = await fetch(
+          candidate.imageJobId
+            ? `/api/generation-job?id=${encodeURIComponent(candidate.imageJobId)}`
+            : `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
+          { cache: "no-store" },
+        );
+        result = await response.json().catch(() => ({}));
+      }
       const scene = (recoveredProject.scenes || []).find((item) => item.id === candidate.id);
       if (!scene) return;
 
