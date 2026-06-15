@@ -87,6 +87,40 @@ export default {
   async scheduled(_controller, env) {
     if (!env.OPREALM_DB) return;
     const error = "Image generation stopped before completion. Press Try Again when you are ready.";
+    const recoverable = await env.OPREALM_DB.prepare(
+      `
+        SELECT id
+        FROM generation_jobs
+        WHERE tool = 'story_scene_images'
+          AND status = 'queued'
+          AND metadata_json LIKE '%"payloadKey"%'
+          AND updated_at <= datetime('now', '-30 seconds')
+          AND updated_at > datetime('now', '-15 minutes')
+        ORDER BY updated_at ASC
+        LIMIT 1
+      `,
+    ).first();
+    if (recoverable?.id) {
+      try {
+        const response = await fetch(env.OPREALM_INTERNAL_IMAGE_URL, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-oprealm-queue-secret": env.OPREALM_QUEUE_SECRET,
+            "x-oprealm-final-attempt": "false",
+          },
+          body: JSON.stringify({ jobId: recoverable.id }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok && !Boolean(result.retryable) && !isRetryableStatus(response.status)) {
+          await failJob(env, recoverable.id, new Error(result.error || `Recovery worker returned HTTP ${response.status}.`));
+        }
+      } catch (generationError) {
+        if (!isRetryable(generationError)) {
+          await failJob(env, recoverable.id, generationError);
+        }
+      }
+    }
     await env.OPREALM_DB.batch([
       env.OPREALM_DB.prepare(
         `

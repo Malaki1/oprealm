@@ -81,3 +81,9 @@ test("slow FLUX jobs abandon a persistently pending provider request", () => {
   assert.match(source, /bflPollingAttempts/);
   assert.match(source, /pollingAttempts >= 2 \? "" : error\.pollingUrl/);
 });
+
+test("the scheduled image worker recovers orphaned queued scene jobs", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../workers/image-queue/src/index.js"), "utf8");
+  assert.match(source, /recoverable/);
+  assert.match(source, /body: JSON\.stringify\(\{ jobId: recoverable\.id \}\)/);
+});
