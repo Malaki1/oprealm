@@ -373,6 +373,7 @@ function friendlySceneImageError(value = "") {
 }
 
 function sanitizeStoryboardProject(project = {}) {
+  const invalidSceneImageJobs = new Set(["869f9033-1a18-4afb-a1fe-d16a44b19610"]);
   const storyGenerationStartedAt = Date.parse(project.storyDraft?.generationStartedAt || "");
   const storyGenerationIsStale = ["generating", "splitting"].includes(project.storyDraft?.status)
     && (!Number.isFinite(storyGenerationStartedAt) || Date.now() - storyGenerationStartedAt > 4 * 60 * 1000);
@@ -393,6 +394,9 @@ function sanitizeStoryboardProject(project = {}) {
     return { ...character, pet: "No Pet", customPet: "", petDescription: "no pet companion" };
   });
   project.scenes = (project.scenes || []).map((scene) => {
+    const invalidRestoredImage = [...invalidSceneImageJobs].some((jobId) => (
+      String(scene.generatedImageUrl || "").includes(jobId)
+    ));
     const generationStartedAt = Date.parse(scene.imageGenerationStartedAt || "");
     const generationIsStale = scene.status === "generating"
       && !scene.imageRequestId
@@ -405,13 +409,17 @@ function sanitizeStoryboardProject(project = {}) {
       imagePromptInternal: sanitizeStoryPlaceholders(scene.imagePromptInternal),
       videoPromptInternal: sanitizeStoryPlaceholders(scene.videoPromptInternal),
       selectedObjectIds: (scene.selectedObjectIds || []).filter((id) => !placeholderIds.has(id)),
-      status: generationIsStale || savedRecoveryQueue ? "image_error" : scene.status,
-      imageProgress: generationIsStale ? 0 : scene.imageProgress,
+      generatedImageUrl: invalidRestoredImage ? "" : scene.generatedImageUrl,
+      completed: invalidRestoredImage ? false : scene.completed,
+      status: generationIsStale || savedRecoveryQueue || invalidRestoredImage ? "image_error" : scene.status,
+      imageProgress: generationIsStale || invalidRestoredImage ? 0 : scene.imageProgress,
       imageGenerationStartedAt: generationIsStale ? "" : scene.imageGenerationStartedAt,
       imageQueuedAt: savedRecoveryQueue ? "" : scene.imageQueuedAt,
       imageNextRetryAt: "",
       imageError: generationIsStale
         ? "Image generation was interrupted. Press Try Again."
+        : invalidRestoredImage
+          ? "A mismatched recovered image was removed. Press Try Again to generate this scene with the current character and world."
         : savedRecoveryQueue
           ? "Image generation paused. Press Try Again when you are ready."
           : friendlySceneImageError(scene.imageError),
@@ -2910,6 +2918,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   try {
     const requestBody = JSON.stringify({
         sceneId,
+        projectFingerprint: storybookIdentity(project),
         imageMode,
         testMode: storyTestMode(),
         idempotencyKey: scene.imageRequestId || "",
@@ -3172,6 +3181,7 @@ function recoverQueuedScenesAsMocks(project) {
 }
 
 async function recoverExistingSceneImageJobs(project) {
+  const projectFingerprint = storybookIdentity(project);
   const candidates = (project.scenes || []).filter((scene) => (
     ["image_error", "image_queued", "generating"].includes(scene.status)
     && !scene.generatedImageUrl
@@ -3197,7 +3207,7 @@ async function recoverExistingSceneImageJobs(project) {
       let recoveredResponseOk = response.ok;
       if (!response.ok || result.status === "failed") {
         const completedResponse = await fetch(
-          `/api/generation-job?tool=story_scene_images&sceneId=${encodeURIComponent(candidate.id)}&preferCompleted=true`,
+          `/api/generation-job?tool=story_scene_images&sceneId=${encodeURIComponent(candidate.id)}&projectFingerprint=${encodeURIComponent(projectFingerprint)}&preferCompleted=true`,
           { cache: "no-store" },
         );
         const completedResult = await completedResponse.json().catch(() => ({}));

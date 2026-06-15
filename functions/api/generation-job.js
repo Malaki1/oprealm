@@ -14,6 +14,7 @@ export async function onRequestGet({ request, env }) {
     const idempotencyKey = String(url.searchParams.get("idempotencyKey") || "").trim().slice(0, 120);
     const tool = String(url.searchParams.get("tool") || "").trim().slice(0, 80);
     const sceneId = String(url.searchParams.get("sceneId") || "").trim().slice(0, 120);
+    const projectFingerprint = String(url.searchParams.get("projectFingerprint") || "").trim().slice(0, 120);
     const preferCompleted = url.searchParams.get("preferCompleted") === "true";
     if (!id && (!tool || (!idempotencyKey && !sceneId))) {
       return json({ ok: false, error: "Missing generation job id." }, 400);
@@ -31,7 +32,7 @@ export async function onRequestGet({ request, env }) {
       )
         .bind(id, user.id)
         .first()
-      : sceneId && preferCompleted
+      : sceneId && projectFingerprint && preferCompleted
         ? await env.OPREALM_DB.prepare(
           `
             SELECT *
@@ -41,11 +42,12 @@ export async function onRequestGet({ request, env }) {
               AND status = 'completed'
               AND result_json IS NOT NULL
               AND json_extract(metadata_json, '$.sceneId') = ?
+              AND json_extract(metadata_json, '$.projectFingerprint') = ?
             ORDER BY completed_at DESC, updated_at DESC
             LIMIT 1
           `,
         )
-          .bind(user.id, tool, sceneId)
+          .bind(user.id, tool, sceneId, projectFingerprint)
           .first()
         : await env.OPREALM_DB.prepare(
         `

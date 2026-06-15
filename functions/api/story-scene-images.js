@@ -39,6 +39,8 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: false, error: "Invalid scene image request." }, 400);
   }
   const imageMode = sceneImageMode(body.imageMode, { testMode: Boolean(body.testMode) });
+  const sceneId = cleanText(body.sceneId || "", 120);
+  const projectFingerprint = cleanText(body.projectFingerprint || "", 120);
   const idempotencyKey = cleanText(request.headers.get("x-idempotency-key") || body.idempotencyKey || "", 120) || null;
   let existingJob = await findIdempotentJob(env, user.id, SCENE_TOOL, idempotencyKey);
   if (existingJob?.status === "completed") return json(jobResponse(existingJob));
@@ -143,7 +145,7 @@ export async function onRequestPost({ request, env }) {
       promptHash,
       idempotencyKey,
       creditsReserved: imageMode.credits,
-      metadata: { source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id },
+      metadata: { source: "storyboard_scenes", sceneId, projectFingerprint, imageMode: imageMode.id },
     });
   }
 
@@ -151,12 +153,12 @@ export async function onRequestPost({ request, env }) {
     const payloadKey = `story-scene-image-requests/${user.id}/${jobId}.json`;
     await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
       httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
-      customMetadata: { userId: user.id, jobId, sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id },
+      customMetadata: { userId: user.id, jobId, sceneId, projectFingerprint, imageMode: imageMode.id },
     });
     await env.OPREALM_DB.prepare(
       "UPDATE generation_jobs SET status = 'queued', metadata_json = ?, error = NULL, updated_at = datetime('now') WHERE id = ?",
     )
-      .bind(JSON.stringify({ source: "storyboard_scenes", sceneId: cleanText(body.sceneId || "", 120), imageMode: imageMode.id, payloadKey }), jobId)
+      .bind(JSON.stringify({ source: "storyboard_scenes", sceneId, projectFingerprint, imageMode: imageMode.id, payloadKey }), jobId)
       .run();
     await enqueueGenerationJob(env, jobId, {
       tool: SCENE_TOOL,

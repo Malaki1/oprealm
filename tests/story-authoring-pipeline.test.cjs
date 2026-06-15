@@ -298,9 +298,15 @@ test("background status polling has a separate Cloudflare rate-limit bucket", ()
 
 test("scene image recovery can replace a stale failed job with the latest completed scene result", () => {
   assert.match(generationJobSource, /json_extract\(metadata_json, '\$\.sceneId'\) = \?/);
+  assert.match(generationJobSource, /json_extract\(metadata_json, '\$\.projectFingerprint'\) = \?/);
   assert.match(generationJobSource, /ORDER BY completed_at DESC, updated_at DESC/);
-  assert.match(creatorFlowSource, /sceneId=\$\{encodeURIComponent\(candidate\.id\)\}&preferCompleted=true/);
+  assert.match(creatorFlowSource, /projectFingerprint=\$\{encodeURIComponent\(projectFingerprint\)\}&preferCompleted=true/);
   assert.match(creatorFlowSource, /scene\.imageRequestId = "";\s*\n\s*scene\.imageJobId = "";/);
+});
+
+test("the mismatched restored scene image is removed from local project state", () => {
+  assert.match(creatorFlowSource, /869f9033-1a18-4afb-a1fe-d16a44b19610/);
+  assert.match(creatorFlowSource, /A mismatched recovered image was removed/);
 });
 
 test("fallback decisions are bounded, specific, and free of old generic wording", () => {
