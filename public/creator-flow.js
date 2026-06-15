@@ -267,6 +267,8 @@ const sceneImageGenerationQueue = [];
 let sceneImageQueueActive = false;
 let sceneImageStatusMonitor = 0;
 let storyTestQueryApplied = false;
+let storyProjectCloudSaveTimer = 0;
+let storyProjectCloudSaveRevision = 0;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
 
@@ -436,8 +438,55 @@ function sanitizeStoryboardProject(project = {}) {
 function writeStoryboardProject(project) {
   const sanitized = sanitizeStoryboardProject(project);
   localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(sanitized));
+  queueStoryProjectCloudSave(sanitized);
   window.OPREALMRefreshCreatorSteps?.();
   return sanitized;
+}
+
+function queueStoryProjectCloudSave(project) {
+  if (!project || (!project.title && !project.storyDraft && !(project.scenes || []).length)) return;
+  const revision = ++storyProjectCloudSaveRevision;
+  window.clearTimeout(storyProjectCloudSaveTimer);
+  storyProjectCloudSaveTimer = window.setTimeout(async () => {
+    try {
+      const response = await fetch("/api/story-project", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ project }),
+      });
+      if (response.status === 401 || revision !== storyProjectCloudSaveRevision) return;
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        console.warn("Story project cloud save failed", result.error || response.status);
+      }
+    } catch (error) {
+      console.warn("Story project cloud save failed", error);
+    }
+  }, 1200);
+}
+
+async function loadStoryProjectFromCloud(localProject) {
+  try {
+    const response = await fetch("/api/story-project", { cache: "no-store" });
+    if (!response.ok) return localProject;
+    const result = await response.json().catch(() => ({}));
+    const cloudProject = result.project;
+    if (!cloudProject || typeof cloudProject !== "object") {
+      queueStoryProjectCloudSave(localProject);
+      return localProject;
+    }
+    const localScenes = Number(localProject?.scenes?.length || 0);
+    const cloudScenes = Number(cloudProject?.scenes?.length || 0);
+    const localIsSubstantial = localScenes > cloudScenes
+      || Number(localProject?.characters?.length || 0) > Number(cloudProject?.characters?.length || 0);
+    const selected = localIsSubstantial ? localProject : sanitizeStoryboardProject(cloudProject);
+    localStorage.setItem(STORYBOARD_PROJECT_KEY, JSON.stringify(selected));
+    if (localIsSubstantial) queueStoryProjectCloudSave(selected);
+    return selected;
+  } catch (error) {
+    console.warn("Story project cloud load failed", error);
+    return localProject;
+  }
 }
 
 function dataUrlSize(value = "") {
@@ -4322,8 +4371,9 @@ async function hydrateStoryboardPage() {
   if (!document.querySelector(".storyboard-shell")) return;
   configureStoryPage();
   storyTestMode();
+  const cloudProject = await loadStoryProjectFromCloud(readStoryboardProject());
   const project = recoverQueuedScenesAsMocks(
-    writeStoryboardProject(await compactStoryboardImages(ensureSceneList(readStoryboardProject()))),
+    writeStoryboardProject(await compactStoryboardImages(ensureSceneList(cloudProject))),
   );
   if (STORY_SCENES_PAGE && !project.storyDraft?.approved) {
     window.location.replace("/storyboard.html");

@@ -29,6 +29,7 @@ const LARGE_BODY_PATHS = new Set([
   "/api/story-world-image",
   "/api/story-game-cover",
   "/api/story-image-download",
+  "/api/story-project",
   "/api/creations",
   "/api/realm-reels",
   "/api/asset-forge",

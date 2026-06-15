@@ -89,3 +89,14 @@ test("the scheduled image worker recovers orphaned queued scene jobs", () => {
   assert.match(source, /recoverable/);
   assert.match(source, /body: JSON\.stringify\(\{ jobId: recoverable\.id \}\)/);
 });
+
+test("story projects sync to authenticated account storage", () => {
+  const client = fs.readFileSync(path.join(__dirname, "../public/creator-flow.js"), "utf8");
+  const api = fs.readFileSync(path.join(__dirname, "../functions/api/story-project.js"), "utf8");
+  assert.match(client, /queueStoryProjectCloudSave/);
+  assert.match(client, /loadStoryProjectFromCloud/);
+  assert.match(client, /fetch\("\/api\/story-project"/);
+  assert.match(api, /requireUser/);
+  assert.match(api, /story-projects\//);
+  assert.match(api, /creator_projects/);
+});
