@@ -214,6 +214,17 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
     return { ok: true, jobId, ...result };
   } catch (error) {
     if (isTemporaryProviderError(error) && !finalAttempt) {
+      if (error.pollingUrl) {
+        body.bflPollingUrl = error.pollingUrl;
+        await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
+          httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
+          customMetadata: {
+            userId: job.web_user_id,
+            jobId,
+            sceneId: cleanText(body.sceneId || "", 120),
+          },
+        });
+      }
       await env.OPREALM_DB.prepare(
         "UPDATE generation_jobs SET status = 'queued', error = ?, updated_at = datetime('now') WHERE id = ?",
       )
@@ -241,7 +252,7 @@ async function processSceneImageJob(env, { jobId, user, body }) {
       throw error;
     }
     await markJobProcessing(env, jobId);
-    web = await generateImage(env, webPrompt, imageMode, referenceImages);
+    web = await generateImage(env, webPrompt, imageMode, referenceImages, body.bflPollingUrl);
   } catch (error) {
     throw error;
   } finally {
@@ -297,7 +308,7 @@ async function processSceneImageJob(env, { jobId, user, body }) {
   return storedResult;
 }
 
-async function generateImage(env, prompt, imageMode, referenceImages = []) {
+async function generateImage(env, prompt, imageMode, referenceImages = [], pollingUrl = "") {
   const [width, height] = String(imageMode.size).split("x").map(Number);
   const result = await generateBflImage(env, {
     prompt,
@@ -306,6 +317,7 @@ async function generateImage(env, prompt, imageMode, referenceImages = []) {
     references: referenceImages,
     model: imageMode.model,
     timeoutMs: 180000,
+    pollingUrl,
   });
   return {
     ...result,

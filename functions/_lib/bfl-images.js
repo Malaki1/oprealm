@@ -12,6 +12,7 @@ export async function generateBflImage(env, {
   model = BFL_IMAGE_MODEL,
   outputFormat = "png",
   timeoutMs = 180000,
+  pollingUrl = "",
 } = {}) {
   const key = bflApiKey(env);
   if (!key) {
@@ -32,26 +33,30 @@ export async function generateBflImage(env, {
     if (image) payload[index ? `input_image_${index + 1}` : "input_image"] = image;
   });
 
-  const createResponse = await fetch(`https://api.bfl.ai/v1/${encodeURIComponent(model)}`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "x-key": key,
-    },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(Math.min(timeoutMs, 30000)),
-  });
-  const created = await createResponse.json().catch(() => ({}));
-  if (!createResponse.ok || !created.polling_url) {
-    throw bflError(created, createResponse.status, "FLUX image request failed.");
+  let activePollingUrl = String(pollingUrl || "").trim();
+  if (!activePollingUrl) {
+    const createResponse = await fetch(`https://api.bfl.ai/v1/${encodeURIComponent(model)}`, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "x-key": key,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(Math.min(timeoutMs, 30000)),
+    });
+    const created = await createResponse.json().catch(() => ({}));
+    if (!createResponse.ok || !created.polling_url) {
+      throw bflError(created, createResponse.status, "FLUX image request failed.");
+    }
+    activePollingUrl = created.polling_url;
   }
 
   const deadline = Date.now() + timeoutMs;
   const maxPollAttempts = 32;
   for (let pollAttempt = 0; pollAttempt < maxPollAttempts && Date.now() < deadline; pollAttempt += 1) {
     await sleep(pollAttempt === 0 ? 1200 : 5000);
-    const pollResponse = await fetch(created.polling_url, {
+    const pollResponse = await fetch(activePollingUrl, {
       headers: { accept: "application/json", "x-key": key },
       signal: AbortSignal.timeout(15000),
     });
@@ -82,6 +87,7 @@ export async function generateBflImage(env, {
 
   const error = new Error("FLUX image generation timed out.");
   error.status = 504;
+  error.pollingUrl = activePollingUrl;
   throw error;
 }
 

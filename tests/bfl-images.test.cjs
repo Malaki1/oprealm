@@ -92,3 +92,39 @@ test("FLUX helper caps polling below the Cloudflare subrequest limit", async () 
     global.setTimeout = originalSetTimeout;
   }
 });
+
+test("FLUX helper resumes an existing provider request without creating another image", async () => {
+  const { generateBflImage } = await import(moduleUrl);
+  const originalFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(String(url));
+    if (calls.length === 1) {
+      return new Response(JSON.stringify({
+        status: "Ready",
+        result: { sample: "https://delivery.test/resumed.png" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return new Response(Uint8Array.from([1, 2, 3]), {
+      status: 200,
+      headers: { "content-type": "image/png" },
+    });
+  };
+
+  try {
+    const result = await generateBflImage(
+      { BFL_API_KEY: "test-bfl-key" },
+      {
+        prompt: "A resumed safe image",
+        width: 1344,
+        height: 768,
+        pollingUrl: "https://api.bfl.ai/v1/get_result?id=request-existing",
+      },
+    );
+    assert.equal(calls[0], "https://api.bfl.ai/v1/get_result?id=request-existing");
+    assert.equal(calls.length, 2);
+    assert.equal(result.b64, "AQID");
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
