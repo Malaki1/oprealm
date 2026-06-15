@@ -1,5 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
-import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
+import { BFL_IMAGE_MODEL, generateBflImage, hasBflKey } from "../_lib/bfl-images.js";
 import {
   assertRateLimit,
   createGenerationJob,
@@ -15,9 +15,9 @@ import { assertSafePrompt, cleanText, enumValue, requireMinText } from "../_lib/
 import { CREATOR_CREDIT_COSTS } from "../_lib/creator-pricing.js";
 
 const CHARACTER_IMAGE_COST = CREATOR_CREDIT_COSTS.characterImage;
-const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.133;
-const CHARACTER_IMAGE_MODEL = "gpt-image-1.5";
-const CHARACTER_IMAGE_QUALITY = "high";
+const CHARACTER_IMAGE_ESTIMATED_COST_USD = 0.045;
+const CHARACTER_IMAGE_MODEL = BFL_IMAGE_MODEL;
+const CHARACTER_IMAGE_QUALITY = "production";
 const CHARACTER_TOOL = "story_character_image";
 
 const STYLE_COMPONENTS = {
@@ -140,7 +140,7 @@ const ENVIRONMENT_COMPONENTS = {
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm image generator is not connected yet." }, 500);
+    if (!hasBflKey(env)) return json({ ok: false, error: "The OPRealm FLUX image generator is not connected yet." }, 500);
 
     const user = await requireUser(request, env);
     if (Number(user.credits_remaining || 0) < CHARACTER_IMAGE_COST) {
@@ -200,7 +200,7 @@ async function processCharacterImageJob(env, { jobId, user, prompt, body }) {
     if (!charged) throw Object.assign(new Error(`You need ${CHARACTER_IMAGE_COST} Creator credits to finish this character image.`), { status: 402 });
 
     const responseResult = {
-      imageDataUrl: `data:image/png;base64,${result.b64}`,
+      imageDataUrl: `data:${result.mimeType};base64,${result.b64}`,
       creditsUsed: CHARACTER_IMAGE_COST,
       model: result.model,
       quality: result.quality,
@@ -234,60 +234,13 @@ async function chargeCredits(env, userId, credits) {
 }
 
 async function generateCharacterImage(env, prompt, worldImageDataUrl = "") {
-  const attempts = [
-    { model: CHARACTER_IMAGE_MODEL, quality: CHARACTER_IMAGE_QUALITY },
-    { model: CHARACTER_IMAGE_MODEL, quality: "medium" },
-    { model: "gpt-image-1", quality: "medium" },
-    { model: "gpt-image-1-mini", quality: "high" },
-  ];
-  let lastError;
-
-  for (const attempt of attempts) {
-    const response = worldImageDataUrl
-      ? await requestCharacterWorldEdit(env, prompt, worldImageDataUrl, attempt)
-      : await requestCharacterGeneration(env, prompt, attempt);
-
-    const data = await response.json();
-    const b64 = data.data?.[0]?.b64_json;
-    if (response.ok && b64) return { b64, ...attempt };
-    lastError = new Error(data.error?.message || `Character image generation failed with ${attempt.model}.`);
-  }
-
-  throw lastError || new Error("Character image generation failed.");
-}
-
-function requestCharacterGeneration(env, prompt, attempt) {
-  return openAiFetch(env, "/v1/images/generations", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model: attempt.model,
-      prompt,
-      size: "1024x1024",
-      quality: attempt.quality,
-      n: 1,
-    }),
-  }, { seed: `${prompt}:${attempt.model}:${attempt.quality}`, retries: 2 });
-}
-
-function requestCharacterWorldEdit(env, prompt, worldImageDataUrl, attempt) {
-  const form = new FormData();
-  form.append("model", attempt.model);
-  form.append("prompt", prompt);
-  form.append("size", "1024x1024");
-  form.append("quality", attempt.quality);
-  form.append("image[]", dataUrlToFile(worldImageDataUrl, "saved-story-world.png"));
-  return openAiFetch(env, "/v1/images/edits", {
-    method: "POST",
-    body: form,
-  }, { seed: `${prompt}:${attempt.model}:${attempt.quality}:saved-world`, retries: 1 });
-}
-
-function dataUrlToFile(dataUrl, filename) {
-  const match = String(dataUrl).match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
-  if (!match) throw new Error("Invalid saved world image reference.");
-  const bytes = Uint8Array.from(atob(match[2]), (character) => character.charCodeAt(0));
-  return new File([bytes], filename, { type: match[1] });
+  return generateBflImage(env, {
+    prompt,
+    width: 1024,
+    height: 1024,
+    model: CHARACTER_IMAGE_MODEL,
+    references: worldImageDataUrl ? [worldImageDataUrl] : [],
+  });
 }
 
 async function logAiUsage(env, user, prompt, imageResult) {
@@ -317,7 +270,7 @@ async function logAiUsage(env, user, prompt, imageResult) {
         "story_character_image",
         prompt.slice(0, 1500),
         CHARACTER_IMAGE_COST,
-        "openai",
+        imageResult?.provider || "black_forest_labs",
         imageResult?.model || CHARACTER_IMAGE_MODEL,
         imageResult?.quality || CHARACTER_IMAGE_QUALITY,
         1,

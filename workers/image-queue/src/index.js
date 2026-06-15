@@ -1,3 +1,4 @@
+import { hasBflKey } from "../../../functions/_lib/bfl-images.js";
 import { hasOpenAiKey } from "../../../functions/_lib/ai-gateway.js";
 import { processQueuedSceneImageJob } from "../../../functions/api/story-scene-images.js";
 import { processQueuedAssetForgeBatch } from "../../../functions/api/asset-forge.js";
@@ -12,9 +13,10 @@ export default {
       }
 
       const finalAttempt = Number(message.attempts || 1) >= 5;
-      if (canProcessDirectly(env)) {
+      const isAssetForge = message.body?.tool === "asset_forge_batch";
+      if (canProcessDirectly(env, isAssetForge)) {
         try {
-          const result = message.body?.tool === "asset_forge_batch"
+          const result = isAssetForge
             ? await processQueuedAssetForgeBatch(env, jobId, { finalAttempt })
             : await processQueuedSceneImageJob(env, jobId, { finalAttempt });
           if (result.ok || !result.retryable || finalAttempt) {
@@ -116,7 +118,7 @@ export default {
       env.OPREALM_DB.prepare(
         `
           DELETE FROM provider_generation_slots
-          WHERE provider = 'openai_images'
+          WHERE provider IN ('openai_images', 'bfl_images')
             AND lease_expires_at <= unixepoch()
         `,
       ),
@@ -124,8 +126,9 @@ export default {
   },
 };
 
-function canProcessDirectly(env) {
-  return Boolean(env.OPREALM_DB && env.OPREALM_ASSETS && hasOpenAiKey(env));
+function canProcessDirectly(env, isAssetForge) {
+  const providerReady = isAssetForge ? hasOpenAiKey(env) : hasBflKey(env);
+  return Boolean(env.OPREALM_DB && env.OPREALM_ASSETS && providerReady);
 }
 
 function retryMessage(message) {
@@ -141,7 +144,7 @@ function isRetryable(error) {
 }
 
 function isBillingError(error) {
-  return /billing hard limit|billing limit|insufficient[_\s-]*quota|exceeded.*quota|quota.*exceeded|check your plan and billing/i.test(
+  return /billing hard limit|billing limit|insufficient[_\s-]*(quota|credits)|not enough credits|exceeded.*quota|quota.*exceeded|check your plan and billing/i.test(
     String(error?.message || error?.providerError || ""),
   );
 }
@@ -153,7 +156,7 @@ async function pauseImageProvider(env, error) {
     env.OPREALM_DB.prepare(
       `
         INSERT INTO generation_provider_state (provider, status, reason, blocked_until, updated_at)
-        VALUES ('openai_images', 'paused', ?, unixepoch() + 600, datetime('now'))
+        VALUES ('bfl_images', 'paused', ?, unixepoch() + 600, datetime('now'))
         ON CONFLICT(provider) DO UPDATE SET
           status = 'paused',
           reason = excluded.reason,
@@ -184,7 +187,7 @@ async function clearProviderPause(env) {
           reason = NULL,
           blocked_until = NULL,
           updated_at = datetime('now')
-      WHERE provider = 'openai_images'
+      WHERE provider = 'bfl_images'
     `,
   )
     .run()

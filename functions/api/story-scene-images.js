@@ -1,5 +1,5 @@
 import { requireUser } from "../_lib/auth.js";
-import { hasOpenAiKey, openAiFetch } from "../_lib/ai-gateway.js";
+import { generateBflImage, hasBflKey } from "../_lib/bfl-images.js";
 import {
   assertRateLimit,
   createGenerationJob,
@@ -18,7 +18,7 @@ import { checkPromptSafety } from "../_lib/validate.js";
 
 const MAX_REFERENCE_IMAGES = 4;
 const SCENE_TOOL = "story_scene_images";
-const IMAGE_PROVIDER = "openai_images";
+const IMAGE_PROVIDER = "bfl_images";
 const IMAGE_CONCURRENCY = 3;
 const IMAGE_SLOT_LEASE_SECONDS = 240;
 const IMAGE_SLOT_WAIT_MS = 20000;
@@ -106,7 +106,7 @@ export async function onRequestPost({ request, env }) {
   const cachedJob = await findCachedJob(env, user.id, SCENE_TOOL, promptHash);
   if (cachedJob) return json(jobResponse(cachedJob, { cached: true }));
 
-  if (!hasOpenAiKey(env)) return json({ ok: false, error: "The OPRealm scene image generator is not connected yet." }, 500);
+  if (!hasBflKey(env)) return json({ ok: false, error: "The OPRealm FLUX scene image generator is not connected yet." }, 500);
   if (Number(user.credits_remaining || 0) < imageMode.credits) {
     return json({
       ok: false,
@@ -298,101 +298,20 @@ async function processSceneImageJob(env, { jobId, user, body }) {
 }
 
 async function generateImage(env, prompt, imageMode, referenceImages = []) {
-  const { model, quality, size } = imageMode;
-  const attempts = referenceImages.length
-    ? [
-      { model, quality, references: referenceImages, mode: "reference edit" },
-      { model, quality, references: referenceImages.slice(0, 1), mode: "primary reference fallback" },
-      { model, quality, references: [], mode: "generation fallback", compact: true },
-    ]
-    : [
-      { model, quality, references: [], mode: "generation" },
-      { model, quality, references: [], mode: "compact generation fallback", compact: true },
-    ];
-  let lastError;
-
-  for (const attempt of attempts) {
-    if (lastError && isSafetyProviderError(lastError)) break;
-    const attemptPrompt = attempt.compact ? compactFallbackPrompt(prompt) : prompt;
-    let response;
-    try {
-      response = attempt.references.length
-        ? await requestImageEdit(env, attemptPrompt, size, attempt, attempt.references)
-        : await requestImageGeneration(env, attemptPrompt, size, attempt);
-    } catch (error) {
-      lastError = providerError(error.message || "Scene image provider request failed.", 503);
-      break;
-    }
-    let data;
-    try {
-      data = await readJsonResponse(response);
-    } catch (error) {
-      lastError = providerError(error.message, response.status);
-      continue;
-    }
-    const b64 = data.data?.[0]?.b64_json;
-    if (response.ok && b64) {
-      return {
-        b64,
-        model: attempt.model,
-        quality: attempt.quality,
-        mode: attempt.mode,
-      };
-    }
-    lastError = providerError(data.error?.message || `Scene image generation failed with ${attempt.model}.`, response.status);
-    if (response.status !== 400) break;
-  }
-
-  throw lastError || new Error("Scene image generation failed.");
-}
-
-async function readJsonResponse(response) {
-  const contentType = response.headers.get("content-type") || "";
-  const text = await response.text();
-  if (!contentType.includes("application/json")) {
-    const cleanText = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    throw new Error(`Image provider returned a non-JSON response${cleanText ? `: ${cleanText.slice(0, 160)}` : "."}`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error("Image provider returned unreadable JSON.");
-  }
-}
-
-async function requestImageGeneration(env, prompt, size, attempt) {
-  return openAiFetch(env, "/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: attempt.model,
-        prompt,
-        size,
-        quality: attempt.quality,
-        n: 1,
-      }),
-    }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 1, timeoutMs: 150000 });
-}
-
-async function requestImageEdit(env, prompt, size, attempt, referenceImages) {
-  const form = new FormData();
-  form.append("model", attempt.model);
-  form.append("prompt", prompt);
-  form.append("size", size);
-  form.append("quality", attempt.quality);
-  form.append("n", "1");
-
-  referenceImages.forEach((reference, index) => {
-    const file = dataUrlToFile(reference.imageDataUrl, `oprealm-reference-${index + 1}.png`);
-    form.append("image[]", file);
+  const [width, height] = String(imageMode.size).split("x").map(Number);
+  const result = await generateBflImage(env, {
+    prompt,
+    width,
+    height,
+    references: referenceImages,
+    model: imageMode.model,
+    timeoutMs: 180000,
   });
-
-  return openAiFetch(env, "/v1/images/edits", {
-    method: "POST",
-    body: form,
-  }, { seed: `${prompt}:${size}:${attempt.model}:${attempt.quality}`, retries: 1, timeoutMs: 150000 });
+  return {
+    ...result,
+    quality: imageMode.quality,
+    mode: referenceImages.length ? "reference edit" : "generation",
+  };
 }
 
 function providerError(message, status) {
@@ -413,7 +332,7 @@ function isTemporaryProviderError(error) {
 }
 
 function isBillingLimitMessage(message) {
-  return /billing hard limit|billing limit|insufficient[_\s-]*quota|exceeded.*quota|quota.*exceeded|check your plan and billing/i
+  return /billing hard limit|billing limit|insufficient[_\s-]*(quota|credits)|not enough credits|exceeded.*quota|quota.*exceeded|check your plan and billing/i
     .test(String(message || ""));
 }
 
@@ -448,12 +367,6 @@ function sceneImageErrorResponse(error) {
         : friendlyProviderError(error),
     retryable: status === 429 || status === 503,
   }, status, retryAfter ? { "retry-after": String(retryAfter) } : {});
-}
-
-function compactFallbackPrompt(prompt) {
-  const text = String(prompt || "").trim();
-  if (text.length <= 7000) return text;
-  return `${text.slice(0, 2200)}\n\nSCENE-SPECIFIC DETAILS:\n${text.slice(-4600)}`;
 }
 
 async function acquireProviderSlot(env, jobId) {
@@ -577,13 +490,6 @@ function normalizeReferenceImages(images) {
     .slice(0, MAX_REFERENCE_IMAGES);
 }
 
-function dataUrlToFile(dataUrl, filename) {
-  const match = String(dataUrl).match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
-  if (!match) throw new Error("Invalid reference image data.");
-  const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
-  return new File([bytes], filename, { type: match[1] });
-}
-
 async function logAiUsage(env, user, prompt, web, imageMode) {
   try {
     await env.OPREALM_DB.prepare(
@@ -611,7 +517,7 @@ async function logAiUsage(env, user, prompt, web, imageMode) {
         "story_scene_images",
         prompt.slice(0, 1500),
         imageMode.credits,
-        "openai",
+        web?.provider || imageMode.provider || "black_forest_labs",
         web?.model || imageMode.model,
         web?.quality || imageMode.quality,
         1,

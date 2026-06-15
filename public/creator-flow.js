@@ -243,8 +243,8 @@ const STORY_IMAGE_MODE_KEY = "oprealm_story_image_mode_v1";
 const STORY_TEST_MODE_KEY = "oprealm_story_test_mode_v1";
 const STORY_IMAGE_MODES = {
   mock: { label: "Mock", credits: 0, cost: "$0.000", button: "Create Mock Image (free)" },
-  draft: { label: "Draft", credits: 1, cost: "~$0.006", button: "Generate Draft (1 credit)" },
-  final: { label: "Final", credits: 24, cost: "~$0.20", button: "Generate Final (24 credits)" },
+  draft: { label: "Draft", credits: 1, cost: "~$0.045", button: "Generate Draft (1 credit)" },
+  final: { label: "Final", credits: 24, cost: "~$0.045", button: "Generate Final (24 credits)" },
 };
 const STORY_DIRECTION_DEFAULTS = {
   storyType: "epic-quest",
@@ -305,7 +305,7 @@ function setStoryTestMode(enabled) {
 
 function storyArtworkEstimate(project, mode = storyImageMode()) {
   const missing = (project?.scenes || []).filter((scene) => !scene.generatedImageUrl).length;
-  const unitCost = mode === "final" ? 0.2 : mode === "draft" ? 0.006 : 0;
+  const unitCost = mode === "final" || mode === "draft" ? 0.045 : 0;
   return { missing, unitCost, total: missing * unitCost };
 }
 
@@ -4003,8 +4003,8 @@ function bindStoryboardSceneControls(project) {
       const estimate = storyArtworkEstimate(project);
       const descriptions = {
         mock: `Creates instant local placeholders for ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"}. No API request, provider charge or Creator credits.`,
-        draft: `Uses GPT Image 1 Mini at low quality with character references. ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"} would cost about $${estimate.total.toFixed(3)} total.`,
-        final: "Uses GPT Image 1.5 at high quality. Estimated provider cost: $0.20 per image and confirmation is required.",
+        draft: `Uses FLUX.2 Pro with saved character and world references. ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"} would cost about $${estimate.total.toFixed(3)} total.`,
+        final: "Uses FLUX.2 Pro with saved references and the final Creator-credit tier. Estimated provider cost: about $0.045 per image.",
       };
       if (imageModeDescription) imageModeDescription.textContent = `${testMode ? "STORY TEST MODE: " : ""}${descriptions[storyImageMode()]}`;
     };
@@ -4254,7 +4254,7 @@ function bindStoryboardSceneControls(project) {
         return;
       }
       if (storyImageMode() === "final" && !window.confirm(
-        "Generate final-quality artwork?\n\nEstimated provider cost: about $0.20 per image\nCreator credits: 24\n\nUse Draft for prompt testing at about $0.006.",
+        "Generate final-quality FLUX.2 Pro artwork?\n\nEstimated provider cost: about $0.045 per image\nCreator credits: 24\n\nDraft uses the same provider with the lower 1-credit tier.",
       )) return;
       queueStoryboardSceneImage(button.dataset.generateSceneImage);
     });

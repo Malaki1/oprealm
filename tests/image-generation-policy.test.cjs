@@ -11,29 +11,31 @@ const jobsModule = import(pathToFileURL(
 ));
 const fs = require("node:fs");
 
-test("scene images default to low-cost draft generation", async () => {
+test("scene images default to FLUX.2 Pro generation", async () => {
   const { sceneImageMode } = await policyModule;
   assert.deepEqual(sceneImageMode(), {
     id: "draft",
     label: "Draft",
-    model: "gpt-image-1-mini",
-    quality: "low",
-    size: "1536x1024",
+    provider: "black_forest_labs",
+    model: "flux-2-pro-preview",
+    quality: "production",
+    size: "1344x768",
     credits: 1,
-    estimatedCostUsd: 0.006,
+    estimatedCostUsd: 0.045,
   });
 });
 
-test("final scene images preserve the existing premium settings", async () => {
+test("final scene images use FLUX.2 Pro with the premium credit tier", async () => {
   const { sceneImageMode } = await policyModule;
   assert.deepEqual(sceneImageMode("final"), {
     id: "final",
     label: "Final",
-    model: "gpt-image-1.5",
-    quality: "high",
-    size: "1536x1024",
+    provider: "black_forest_labs",
+    model: "flux-2-pro-preview",
+    quality: "production",
+    size: "1344x768",
     credits: 24,
-    estimatedCostUsd: 0.2,
+    estimatedCostUsd: 0.045,
   });
 });
 
@@ -45,7 +47,7 @@ test("unknown image modes cannot select an arbitrary provider model", async () =
 test("story test mode cannot request final-quality scene artwork", async () => {
   const { sceneImageMode } = await policyModule;
   assert.equal(sceneImageMode("final", { testMode: true }).id, "draft");
-  assert.equal(sceneImageMode("draft", { testMode: true }).model, "gpt-image-1-mini");
+  assert.equal(sceneImageMode("draft", { testMode: true }).model, "flux-2-pro-preview");
 });
 
 test("cached image responses never report a second credit charge", async () => {
