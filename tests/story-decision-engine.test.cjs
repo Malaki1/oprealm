@@ -76,6 +76,21 @@ test("choices requiring a clue stay hidden until it is discovered", () => {
   assert.equal(engine.availableChoices(node, state).length, 2);
 });
 
+test("a malformed decision cannot hide every route forward", () => {
+  const node = engine.normalizeDecisionNode({
+    id: "blocked-choice",
+    sceneId: "scene-1",
+    choices: [
+      { id: "left", label: "Go left", requiresClueIds: ["missing-left"] },
+      { id: "right", label: "Go right", requiresClueIds: ["missing-right"] },
+    ],
+  }, "scene-1");
+  assert.deepEqual(
+    engine.availableChoices(node, engine.createRunState()).map((choice) => choice.id),
+    ["left", "right"],
+  );
+});
+
 test("ending rules resolve using scores, flags and outcome tags", () => {
   const state = engine.createRunState("scene-final");
   state.scores.wisdom = 3;

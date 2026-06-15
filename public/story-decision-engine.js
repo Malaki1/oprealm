@@ -193,9 +193,11 @@
 
   function availableChoices(decision, runState) {
     const state = normalizeRunState(runState);
-    return (decision?.choices || []).filter((choice) =>
+    const choices = decision?.choices || [];
+    const available = choices.filter((choice) =>
       (choice.requiresClueIds || []).every((id) => state.discoveredClues.includes(id)),
     );
+    return available.length ? available : choices;
   }
 
   function resolveEnding(rules, runState, finalChoice = null) {

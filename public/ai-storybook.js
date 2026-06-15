@@ -216,9 +216,10 @@ function renderPlayer({ sceneChanged = false } = {}) {
 
   const atLastBeat = beatIndex >= beats.length - 1;
   const activeDecision = atLastBeat ? page.decisionNode : null;
-  setPlayerState(activeDecision ? "waiting_for_choice" : atLastBeat ? "waiting_for_continue" : "playing_beat");
-  renderChoices(atLastBeat ? page.decisions || [] : [], activeDecision);
-  continueButton.hidden = atLastBeat && Boolean((page.decisions || []).length) && !branchPage;
+  const visibleChoiceCount = renderChoices(atLastBeat ? page.decisions || [] : [], activeDecision);
+  const waitingForChoice = atLastBeat && visibleChoiceCount > 0 && !branchPage;
+  setPlayerState(waitingForChoice ? "waiting_for_choice" : atLastBeat ? "waiting_for_continue" : "playing_beat");
+  continueButton.hidden = waitingForChoice;
   continueButton.innerHTML = pageIndex >= pages.length - 1 && atLastBeat
     ? "Story Complete"
     : `Continue <span aria-hidden="true">&#8250;</span>`;
@@ -288,6 +289,7 @@ function renderChoices(decisions, decision = null) {
       : createBranch(currentPage(), label));
     choiceCards.appendChild(button);
   });
+  return choiceCards.children.length;
 }
 
 function renderDecisionHeading(decision) {
@@ -439,7 +441,7 @@ function advance() {
     renderPlayer();
     return;
   }
-  if ((page.decisions || []).length && !branchPage) return;
+  if (choiceCards.children.length && !branchPage) return;
   if (branchPage) {
     branchPage = null;
     pageIndex = Math.min(pages.length - 1, pageIndex + 1);
@@ -839,6 +841,7 @@ async function prepareStorybook() {
     window.setTimeout(() => {
       preparation.hidden = true;
       preparationRunning = false;
+      if (autoPlay) scheduleAutoPlay();
     }, 650);
   } catch (error) {
     preparationRunning = false;

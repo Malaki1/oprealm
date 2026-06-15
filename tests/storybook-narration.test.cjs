@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const narration = require("../public/storybook-narration.js");
+const fs = require("node:fs");
+const path = require("node:path");
+const storybookPlayerSource = fs.readFileSync(path.join(__dirname, "../public/ai-storybook.js"), "utf8");
 
 const characters = [
   { name: "Shark Girl", traits: ["brave", "kind"] },
@@ -139,4 +142,10 @@ test("autoplay advances beats and scenes but stops for choices", () => {
     narration.nextPlaybackPosition({ pageIndex: 1, beatIndex: 1, beatCount: 2, pageCount: 4, hasChoices: true }).stopped,
     true,
   );
+});
+
+test("storybook navigation only blocks for choices that are actually visible", () => {
+  assert.match(storybookPlayerSource, /const visibleChoiceCount = renderChoices/);
+  assert.match(storybookPlayerSource, /if \(choiceCards\.children\.length && !branchPage\) return;/);
+  assert.match(storybookPlayerSource, /if \(autoPlay\) scheduleAutoPlay\(\);/);
 });
