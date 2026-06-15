@@ -34,3 +34,12 @@ test("comparison model ids and costs are valid", async () => {
   assert.equal(new Set(IMAGE_COMPARISON_MODELS.map((item) => item.id)).size, IMAGE_COMPARISON_MODELS.length);
   assert.ok(IMAGE_COMPARISON_MODELS.every((item) => item.cost > 0 && item.cost <= 0.2));
 });
+
+test("Google image comparison uses the current stable REST API by default", async () => {
+  const moduleUrl = pathToFileURL(
+    path.join(__dirname, "../functions/api/admin-image-comparison.js"),
+  );
+  const { googleApiBase } = await import(moduleUrl);
+  assert.equal(googleApiBase({}), "https://generativelanguage.googleapis.com/v1");
+  assert.equal(googleApiBase({ GEMINI_API_BASE_URL: "https://example.test/v1/" }), "https://example.test/v1");
+});

@@ -222,8 +222,8 @@ function googleApiKey(env) {
   return String(env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GOOGLE_AI_API_KEY || "").trim();
 }
 
-function googleApiBase(env) {
-  return String(env.GEMINI_API_BASE_URL || "https://generativelanguage.googleapis.com/v1beta").replace(/\/+$/, "");
+export function googleApiBase(env) {
+  return String(env.GEMINI_API_BASE_URL || "https://generativelanguage.googleapis.com/v1").replace(/\/+$/, "");
 }
 
 function bflApiKey(env) {

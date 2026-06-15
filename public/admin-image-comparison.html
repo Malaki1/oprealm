@@ -72,8 +72,10 @@
       .small-actions button { padding: 8px 11px; background: rgba(255,255,255,.08); border: 1px solid var(--line); }
       .model-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
       .model-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border-radius: 16px; }
+      .model-card.is-unavailable { opacity: .58; }
       .model-card strong, .model-card small { display: block; }
       .model-card small { margin-top: 4px; color: var(--muted); }
+      .model-card .availability { color: var(--danger); }
       .provider { color: var(--cyan); font-size: .7rem; font-weight: 900; text-transform: uppercase; }
 
       .switch { position: relative; width: 48px; height: 28px; }
@@ -181,7 +183,7 @@
         { id: "google-gemini-3-pro-image", provider: "Google", name: "Gemini 3 Pro Image", quality: "1K, 16:9", cost: .134 },
         { id: "bfl-flux-2-klein-4b", provider: "Black Forest Labs", name: "FLUX.2 Klein 4B", quality: "About 1.2MP", cost: .014 },
         { id: "bfl-flux-2-pro", provider: "Black Forest Labs", name: "FLUX.2 Pro Preview", quality: "About 1.2MP", cost: .03 },
-      ];
+      ].map((item) => ({ ...item, configured: null }));
 
       const form = document.querySelector("#comparisonForm");
       const grid = document.querySelector("#modelGrid");
@@ -193,11 +195,12 @@
       const dialogImage = document.querySelector("#dialogImage");
 
       grid.innerHTML = models.map((item) => `
-        <article class="model-card">
+        <article class="model-card" data-model-card="${escapeHtml(item.id)}">
           <div>
             <span class="provider">${escapeHtml(item.provider)}</span>
             <strong>${escapeHtml(item.name)}</strong>
             <small>${escapeHtml(item.quality)} - ${money(item.cost)} listed output cost</small>
+            <small class="availability" data-availability="${escapeHtml(item.id)}"></small>
           </div>
           <label class="switch" title="Enable ${escapeHtml(item.name)}">
             <input type="checkbox" data-model-id="${escapeHtml(item.id)}" checked />
@@ -207,15 +210,20 @@
       `).join("");
 
       secret.value = sessionStorage.getItem("oprealm_admin_secret") || "";
+      let providerCheckTimer = 0;
       grid.addEventListener("change", updateEstimate);
       document.querySelector("#enableAll").addEventListener("click", () => setAll(true));
       document.querySelector("#disableAll").addEventListener("click", () => setAll(false));
       document.querySelector("#cheapOnly").addEventListener("click", () => {
         modelInputs().forEach((input) => {
           const model = models.find((item) => item.id === input.dataset.modelId);
-          input.checked = model.cost <= .015;
+          input.checked = model.configured !== false && model.cost <= .015;
         });
         updateEstimate();
+      });
+      secret.addEventListener("input", () => {
+        clearTimeout(providerCheckTimer);
+        providerCheckTimer = setTimeout(loadProviderStatus, 450);
       });
 
       form.addEventListener("submit", async (event) => {
@@ -291,7 +299,41 @@
         const ids = new Set(modelInputs().filter((input) => input.checked).map((input) => input.dataset.modelId));
         return models.filter((item) => ids.has(item.id));
       }
-      function setAll(checked) { modelInputs().forEach((input) => { input.checked = checked; }); updateEstimate(); }
+      function setAll(checked) {
+        modelInputs().forEach((input) => {
+          const model = models.find((item) => item.id === input.dataset.modelId);
+          input.checked = checked && model.configured !== false;
+        });
+        updateEstimate();
+      }
+      async function loadProviderStatus() {
+        const adminSecret = secret.value.trim();
+        if (!adminSecret) return;
+        try {
+          const response = await fetch("/api/admin-image-comparison", {
+            headers: { Authorization: `Bearer ${adminSecret}` },
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.error || "Could not check providers.");
+          const configuredById = new Map((data.models || []).map((item) => [item.id, item.configured !== false]));
+          models.forEach((model) => {
+            model.configured = configuredById.get(model.id) !== false;
+            const input = grid.querySelector(`[data-model-id="${model.id}"]`);
+            const card = grid.querySelector(`[data-model-card="${model.id}"]`);
+            const availability = grid.querySelector(`[data-availability="${model.id}"]`);
+            if (input) {
+              input.disabled = !model.configured;
+              if (!model.configured) input.checked = false;
+            }
+            card?.classList.toggle("is-unavailable", !model.configured);
+            if (availability) availability.textContent = model.configured ? "" : "Provider API key not configured";
+          });
+          sessionStorage.setItem("oprealm_admin_secret", adminSecret);
+          updateEstimate();
+        } catch (error) {
+          showNotice(error.message || "Could not check provider availability.", true);
+        }
+      }
       function updateEstimate() {
         const enabled = enabledModels();
         document.querySelector("#selectedCount").textContent = enabled.length;
@@ -301,7 +343,10 @@
       function setRunning(running) {
         runButton.disabled = running || !enabledModels().length;
         runButton.textContent = running ? "Generating All Models..." : "Generate Comparison";
-        modelInputs().forEach((input) => { input.disabled = running; });
+        modelInputs().forEach((input) => {
+          const model = models.find((item) => item.id === input.dataset.modelId);
+          input.disabled = running || model?.configured === false;
+        });
       }
       function showNotice(message, error = false) {
         notice.hidden = false;
@@ -314,6 +359,7 @@
         return String(value || "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]);
       }
       updateEstimate();
+      if (secret.value.trim()) loadProviderStatus();
     </script>
   </body>
 </html>
