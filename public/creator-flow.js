@@ -3104,7 +3104,7 @@ function recoverQueuedScenesAsMocks(project) {
   if (!storyTestMode() || storyImageMode() !== "mock") return project;
   let changed = false;
   (project.scenes || []).forEach((scene, sceneIndex) => {
-    if (scene.generatedImageUrl || !["image_queued", "generating"].includes(scene.status)) return;
+    if (scene.generatedImageUrl || !["image_error", "image_queued", "generating"].includes(scene.status)) return;
     scene.generatedImageUrl = createMockSceneImage(scene, sceneIndex);
     scene.imageMode = "mock";
     scene.imageWasCached = false;
