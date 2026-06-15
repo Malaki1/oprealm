@@ -215,7 +215,9 @@ export async function processQueuedSceneImageJob(env, jobId, { finalAttempt = fa
   } catch (error) {
     if (isTemporaryProviderError(error) && !finalAttempt) {
       if (error.pollingUrl) {
-        body.bflPollingUrl = error.pollingUrl;
+        const pollingAttempts = Number(body.bflPollingAttempts || 0) + 1;
+        body.bflPollingAttempts = pollingAttempts;
+        body.bflPollingUrl = pollingAttempts >= 2 ? "" : error.pollingUrl;
         await env.OPREALM_ASSETS.put(payloadKey, JSON.stringify(body), {
           httpMetadata: { contentType: "application/json", cacheControl: "no-store" },
           customMetadata: {

@@ -75,3 +75,9 @@ test("story test mode defaults to free mock images and blocks accidental final a
   assert.match(source, /finalOption\.disabled = testMode/);
   assert.match(source, /generateAllTestScenes/);
 });
+
+test("slow FLUX jobs abandon a persistently pending provider request", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../functions/api/story-scene-images.js"), "utf8");
+  assert.match(source, /bflPollingAttempts/);
+  assert.match(source, /pollingAttempts >= 2 \? "" : error\.pollingUrl/);
+});
