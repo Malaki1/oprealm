@@ -1,3 +1,5 @@
+import { withBasePath } from "@/lib/basePath";
+
 export type CategoryIconName =
   | "coastal"
   | "hinterland"
@@ -112,7 +114,7 @@ export type FooterColumn = {
   }[];
 };
 
-const asset = (fileName: string) => `/assets/images/luxe-roads/${fileName}`;
+const asset = (fileName: string) => withBasePath(`/assets/images/luxe-roads/${fileName}`);
 
 // Place final production imagery in /public/assets/images/luxe-roads/ using these filenames.
 // Every visual component includes a CSS scenic fallback so missing files never break layout.

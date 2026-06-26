@@ -1,5 +1,6 @@
 import type { AddOnIconName, CategoryIconName, ProcessIconName } from "@/data/luxeRoads";
 import Image from "next/image";
+import { withBasePath } from "@/lib/basePath";
 
 type IconProps = {
   className?: string;
@@ -40,7 +41,7 @@ function IconImage({ src, className }: IconProps & { src: string }) {
       alt=""
       className={`block object-contain ${className ?? ""}`}
       height={180}
-      src={src}
+      src={withBasePath(src)}
       width={180}
     />
   );
