@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Local deployment/cache output
+.wrangler/
+.vercel/
+
+# Logs and local build state
+*.log
+tsconfig.tsbuildinfo
+
+# Local QA artifacts
+qa-screenshots/
