@@ -30,3 +30,5 @@ npm.cmd run deploy
 ```
 
 The deploy command publishes the `public` folder to a Cloudflare Pages project called `oprealm`.
+
+Production deployment from GitHub Actions is guarded to run only from `main`. See [docs/production-deployment.md](docs/production-deployment.md).
