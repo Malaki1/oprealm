@@ -179,9 +179,9 @@ const entities = [
   ["workspaces", "Business, friend, or client containers for brands, assets, runs, tokens, and approvals."],
   ["workspace_members", "Scoped user membership and role records for workspaces."],
   ["friend_invites", "Tokenized access invitations for collaborators or clients."],
-  ["brands", "Business identities connected to Brand Brain, sources, design systems, campaigns, and assets."],
-  ["brand_sources", "Website pages, uploaded documents, logos, videos, testimonials, ads, and notes used for ingestion."],
-  ["brand_brains", "Approved business memory: offer, audience, CTAs, proof points, objections, tone, and visual identity."],
+  ["brands", "Workspace-scoped business identities connected to Brand Brain, source records, visual identity references, campaigns, and assets."],
+  ["brand_sources", "Workspace-scoped source records for URLs, notes, uploaded files, logos, product images, videos, testimonials, FAQs, ads, and competitor references."],
+  ["brand_brains", "Editable workspace-scoped business memory placeholder: offer, audience, CTAs, proof points, objections, tone, source references, and visual identity."],
   ["brand_design_systems", "Lightweight brand design rules for colors, fonts, logos, thumbnails, captions, and video style."],
   ["business_goals", "Objective, audience, offer, CTA, platforms, cadence, and content mix for a campaign."],
   ["creative_briefs", "Campaign-level operating brief used by generation and QA agents."],
@@ -219,10 +219,18 @@ const apiGroups = [
   ["Friend Invites", "POST /api/workspaces/:workspaceId/invites", "Owner/admin route to create a friend/client invite with optional token grant."],
   ["Friend Invites", "POST /api/invites/:inviteId/accept", "Accept a pending invite, create membership, and apply any grant once."],
   ["Friend Invites", "POST /api/invites/:inviteId/revoke", "Owner/admin route to revoke a pending invite."],
-  ["Brands", "POST /api/brands", "Create a brand shell for ingestion."],
-  ["Brand Sources", "POST /api/brands/:brandId/sources", "Attach website URLs, files, videos, testimonials, or notes."],
-  ["Brand Brain", "POST /api/brands/:brandId/brand-brain/ingest", "Queue Brand Brain ingestion."],
-  ["Brand Brain", "PUT /api/brand-brains/:brandBrainId", "Edit and approve extracted Brand Brain fields."],
+  ["Brands", "GET /api/brands?workspaceId=:workspaceId", "List active brands visible through workspace membership."],
+  ["Brands", "POST /api/brands", "Create a workspace-scoped brand foundation record and default Brand Brain placeholder."],
+  ["Brands", "GET /api/brands/:brandId", "Read a brand after workspace membership authorization."],
+  ["Brands", "PATCH /api/brands/:brandId", "Update editable brand profile fields and brand_json."],
+  ["Brands", "DELETE /api/brands/:brandId", "Archive a brand record without deleting source or brain history."],
+  ["Brand Sources", "GET /api/brands/:brandId/sources", "List non-archived source records for a brand."],
+  ["Brand Sources", "POST /api/brands/:brandId/sources", "Attach manual notes, URLs, uploaded assets, logos, product images, videos, testimonials, FAQs, ads, or social references."],
+  ["Brand Sources", "GET /api/brands/:brandId/sources/:sourceId", "Read a source record after brand/workspace authorization."],
+  ["Brand Sources", "PATCH /api/brands/:brandId/sources/:sourceId", "Update stored source metadata, raw text, URL, asset link, or status."],
+  ["Brand Sources", "DELETE /api/brands/:brandId/sources/:sourceId", "Archive a source record."],
+  ["Brand Brain", "GET /api/brands/:brandId/brain", "Read or lazily create the editable Brand Brain placeholder."],
+  ["Brand Brain", "PUT /api/brands/:brandId/brain", "Edit placeholder Brand Brain JSON, including sourceIds and visual identity asset references."],
   ["Campaigns", "POST /api/campaigns", "Create campaign strategy from Brand Brain and business goal."],
   ["Creative Briefs", "POST /api/campaigns/:campaignId/creative-brief", "Generate a campaign creative brief."],
   ["Creative Briefs", "GET /api/campaigns/:campaignId/creative-brief", "Read the active creative brief."],
@@ -267,7 +275,7 @@ const apiGroups = [
 ];
 
 const workers = [
-  ["brand-ingest-worker", "Fetches websites, stores sources, extracts Brand Brain, and marks low-confidence gaps."],
+  ["brand-ingest-worker", "Future worker: fetches websites, parses source files, extracts Brand Brain, and marks low-confidence gaps. Not part of Phase 3 Brand Foundation."],
   ["creative-brief-worker", "Creates creative brief and moodboard from Brand Brain, goal, offer, and platform plan."],
   ["campaign-worker", "Generates pillars, hooks, angles, platform plan, cadence, and token quote inputs."],
   ["content-blueprint-worker", "Creates blueprint items and Content Atoms for planned deliverables."],
@@ -494,7 +502,7 @@ ${workflowTable()}
 `);
 
   write("docs/oprealm-content-machine/04-user-input-to-brand-brain.md", `${generatedWarning}
-${docHeader("User Input To Brand Brain", "The first form creates a draft ContentMachineRun and enough source material for Brand Brain ingestion.")}
+${docHeader("User Input To Brand Brain", "The first form creates a workspace brand, source records, and an editable Brand Brain placeholder before later campaign automation.")}
 ## Required Fields
 
 ${mdList(firstInputFields.map((field) => `\`${field}\``))}
@@ -504,16 +512,16 @@ ${mdList(firstInputFields.map((field) => `\`${field}\``))}
 ${mdList([
   "Confirm user is authenticated.",
   "Confirm workspace exists or create one.",
-  "Confirm brand exists or create one.",
-  "Confirm website URL format if provided.",
-  "Confirm at least one business goal is selected.",
-  "Confirm at least one platform or manual export mode is selected.",
-  "Confirm at least one content pack is selected.",
-  "Confirm token wallet exists.",
-  "Confirm user has enough tokens or route to top-up.",
-  "Confirm social accounts are connected where auto-publishing is requested.",
-  "If no social accounts are connected, set `manualExportMode = true`.",
-  "Save draft `ContentMachineRun`.",
+  "Confirm user has workspace membership.",
+  "Confirm viewer role is read-only for mutations.",
+  "Create or update a workspace-scoped Brand record.",
+  "Confirm website URL format if provided; do not fetch it in Phase 3.",
+  "Create BrandSource records for manual notes, URLs, uploaded files, logos, product images, videos, testimonials, FAQs, ads, or social references.",
+  "Confirm linked asset IDs belong to the same workspace.",
+  "Create or read the editable Brand Brain placeholder.",
+  "Confirm Brand Brain `sourceIds` and `visualIdentity.logoAssetIds` reference the same brand/workspace.",
+  "Do not charge tokens, crawl sites, transcribe media, or run AI extraction in Phase 3.",
+  "Later phases create ContentMachineRun records, token quotes, social checks, and generation workflow state.",
 ])}
 
 ## Example
@@ -522,26 +530,29 @@ Business: Brisbane Solar Co. Goal: generate residential solar quote enquiries. A
 `);
 
   write("docs/oprealm-content-machine/05-brand-brain.md", `${generatedWarning}
-${docHeader("Brand Brain", "Brand Brain is the approved reusable business memory for generation, QA, campaign strategy, and analytics feedback.")}
+${docHeader("Brand Brain", "Brand Brain is the editable reusable business memory for generation, QA, campaign strategy, and analytics feedback.")}
 ## Inputs
 
 ${mdList(["Website URL", "Business notes", "Brand guide/logo", "Product images/videos", "Source videos", "Testimonials", "FAQs", "Pricing and offer details", "Social profile links", "Existing ads", "Competitor examples"])}
 
-## Workflow
+## Phase 3 Runtime Foundation
 
 ${mdList([
+  "Create a workspace-scoped Brand record.",
   "Create BrandSource records for each submitted source.",
-  "Queue `brand-ingest-worker`.",
-  "Fetch homepage and relevant internal pages.",
-  "Strip navigation, footer, cookie banners, and duplicate boilerplate where practical.",
-  "Extract raw source text and store it.",
-  "Parse documents and transcribe audio/video where available.",
-  "Extract category, products, offer, CTAs, audience, pain points, outcomes, proof points, objections, testimonials, FAQs, tone, colors, and visual style.",
-  "Create retrieval chunks and an initial Brand Brain.",
-  "Mark status `draft_ready`.",
-  "User edits or approves.",
-  "Mark status `approved_for_generation`.",
+  "Store website, YouTube, social, and competitor URLs as references only.",
+  "Store manual note text directly on the source record.",
+  "Link uploaded documents, logos, product images, and source videos through workspace asset IDs.",
+  "Create an editable Brand Brain placeholder for the brand.",
+  "Allow users with write roles to edit `brain_json`, `sourceIds`, and visual identity asset references.",
+  "Reject cross-workspace brand, source, brain, or asset references.",
+  "Keep viewer role read-only.",
+  "Do not crawl websites, fetch YouTube transcripts, transcribe files, run AI extraction, queue media work, or charge tokens in Phase 3.",
 ])}
+
+## Deferred Ingestion Workflow
+
+Later phases may queue \`brand-ingest-worker\`, fetch pages, parse documents, transcribe audio/video, extract structured brand fields, create retrieval chunks, run Brand Brain QA, and mark approval states. Those behaviors are intentionally outside Phase 3.
 
 ## Required Object Shape
 
@@ -549,7 +560,7 @@ See [schemas/brand-brain.schema.json](schemas/brand-brain.schema.json).
 
 ## Failure Handling
 
-Website failures retry with backoff. Parse failures are source-level errors. Transcription failures fall back to manual notes. Incomplete extraction marks the Brand Brain as \`needs_review\`.
+Phase 3 failures are request-level validation errors: invalid URLs, invalid JSON, invalid source types, missing required manual note text, missing required asset links, viewer writes, and cross-workspace references. Future website, parse, and transcription retries belong to the deferred ingestion workflow.
 `);
 
   write("docs/oprealm-content-machine/06-creative-brief.md", `${generatedWarning}
@@ -732,6 +743,10 @@ ${docHeader("Asset Library", "The Asset Library is OPREALM's private workspace r
 
 ${mdList(["Assets are private to the workspace by default.", "Each generated asset has version history.", "Assets reference source prompts, source inputs, provider job IDs, QA scores, token costs, and publishing usage.", "Calendar and publishing reference final approved asset versions, not mutable drafts."])}
 
+## Brand Source Links
+
+${mdList(["BrandSource records may link to workspace assets through `assetId`.", "Logo and product image BrandSource records require an asset from the same workspace.", "Brand Brain visual identity references use `visualIdentity.logoAssetIds` and must stay within the brand workspace.", "Cross-workspace asset references are rejected."])}
+
 ## Versioning
 
 ${codeBlock("txt", `Content Atom v1
@@ -890,13 +905,21 @@ created, reserved, partially_spent, spent, released, refunded, failed.
 ## Token Purchase States
 
 checkout_requested, checkout_created, payment_pending, checkout_completed, webhook_received, signature_verified, idempotency_checked, wallet_credited, transaction_recorded, processed, rejected_pack_missing, rejected_pack_inactive, rejected_invalid_signature, ignored_unsupported_event, failed_missing_metadata, ignored_duplicate.
+
+## Brand States
+
+draft, active, archived.
+
+## Brand Source States
+
+pending, active, archived, failed.
 `);
 
   write("docs/oprealm-content-machine/26-error-handling-and-retries.md", `${generatedWarning}
 ${docHeader("Error Handling And Retries", "Failures must be recoverable, visible, and financially correct.")}
 ## Categories
 
-${mdList(["validation_error: user or request must change.", "missing_input: ask for required business/source data.", "qa_blocker: revision or human override required.", "provider_retryable: retry with backoff.", "provider_terminal: fail job and release/refund unused reserve.", "stripe_checkout_error: do not credit wallet; show checkout creation failure.", "stripe_invalid_signature: reject webhook and do not persist or credit.", "stripe_duplicate_event: return success without duplicate credit.", "stripe_duplicate_checkout_session: return success without duplicate credit.", "stripe_metadata_failure: record failed webhook and do not credit.", "rate_limited: retry after provider/window reset.", "publishing_duplicate_guard: do not post again; surface existing attempt.", "analytics_unavailable: retry later without blocking completed publishing."])}
+${mdList(["validation_error: user or request must change.", "missing_input: ask for required business/source data.", "brand_reference_error: sourceIds and logoAssetIds must reference records in the same brand/workspace.", "brand_source_validation: invalid source type, URL, metadata JSON, manual note text, or required asset link.", "cross_workspace_reference: block brand, source, brain, or asset references across workspace boundaries.", "qa_blocker: revision or human override required.", "provider_retryable: retry with backoff.", "provider_terminal: fail job and release/refund unused reserve.", "stripe_checkout_error: do not credit wallet; show checkout creation failure.", "stripe_invalid_signature: reject webhook and do not persist or credit.", "stripe_duplicate_event: return success without duplicate credit.", "stripe_duplicate_checkout_session: return success without duplicate credit.", "stripe_metadata_failure: record failed webhook and do not credit.", "rate_limited: retry after provider/window reset.", "publishing_duplicate_guard: do not post again; surface existing attempt.", "analytics_unavailable: retry later without blocking completed publishing."])}
 
 ## QA Failure
 
@@ -918,7 +941,7 @@ Admin views must support user/workspace lookup, token grants, provider costs, gr
 ${docHeader("Security And Secrets", "Provider secrets, OAuth tokens, and business assets require strict server-side handling.")}
 ## Rules
 
-${mdList(["Never expose provider API keys to clients.", "Keep `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` server-only.", "Stripe webhooks do not require user auth, but must verify the raw body and Stripe-Signature header before parsing JSON.", "Checkout creation requires an authenticated user and accepts only server-defined active token packs.", "Users cannot self-credit tokens; wallet purchase credits come only from verified webhooks.", "Store OAuth tokens encrypted or in platform secret storage.", "Authorize every workspace-scoped read/write.", "Default assets to private workspace access.", "Separate approval, QA, and moderation concepts.", "Log manual overrides and admin grants.", "Avoid storing unnecessary raw secrets in analytics or logs."])}
+${mdList(["Never expose provider API keys to clients.", "Keep `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` server-only.", "Stripe webhooks do not require user auth, but must verify the raw body and Stripe-Signature header before parsing JSON.", "Checkout creation requires an authenticated user and accepts only server-defined active token packs.", "Users cannot self-credit tokens; wallet purchase credits come only from verified webhooks.", "Store OAuth tokens encrypted or in platform secret storage.", "Authorize every workspace-scoped read/write.", "Default assets to private workspace access.", "Keep brands, BrandSource records, Brand Brain JSON, and linked asset references inside one workspace boundary.", "Allow viewer role to read brand foundation records but not mutate them.", "Do not fetch user-submitted website, YouTube, social, or competitor URLs during Phase 3.", "Separate approval, QA, and moderation concepts.", "Log manual overrides and admin grants.", "Avoid storing unnecessary raw secrets in analytics or logs."])}
 `);
 
   write("docs/oprealm-content-machine/29-implementation-roadmap.md", `${generatedWarning}
@@ -950,21 +973,22 @@ ${table(["PR", "Scope", "Depends on"], [
   ["3", "Token wallet ledger and reservations", "PR 2"],
   ["4", "Stripe token top-ups", "PR 3"],
   ["5", "Asset library base and source uploads", "PR 2"],
-  ["6", "Brand Brain source ingestion", "PR 5"],
-  ["7", "Creative Brief and Campaign Engine", "PR 6"],
-  ["8", "Content Machine Run orchestration", "PR 7"],
-  ["9", "Agency QA schemas, workers, scorecards", "PR 8"],
-  ["10", "Revision engine and low-cost generation loop", "PR 9"],
-  ["11", "Pre-video gate enforcement", "PR 9"],
-  ["12", "Media generation adapter", "PR 11"],
-  ["13", "UGC Ad Pack", "PR 12"],
-  ["14", "Product Creative Pack", "PR 12"],
-  ["15", "YouTube Content Pack", "PR 12"],
-  ["16", "Calendar and approval", "PR 13-15"],
-  ["17", "Manual export", "PR 16"],
-  ["18", "Publishing connector 1", "PR 16"],
-  ["19", "Analytics feedback", "PR 18"],
-  ["20", "Admin cost/revenue dashboard", "PR 3, PR 12, PR 19"],
+  ["6", "Brand Foundation runtime", "PR 4"],
+  ["7", "Brand Brain source ingestion worker", "PR 6"],
+  ["8", "Creative Brief and Campaign Engine", "PR 7"],
+  ["9", "Content Machine Run orchestration", "PR 8"],
+  ["10", "Agency QA schemas, workers, scorecards", "PR 9"],
+  ["11", "Revision engine and low-cost generation loop", "PR 10"],
+  ["12", "Pre-video gate enforcement", "PR 10"],
+  ["13", "Media generation adapter", "PR 12"],
+  ["14", "UGC Ad Pack", "PR 13"],
+  ["15", "Product Creative Pack", "PR 13"],
+  ["16", "YouTube Content Pack", "PR 13"],
+  ["17", "Calendar and approval", "PR 14-16"],
+  ["18", "Manual export", "PR 17"],
+  ["19", "Publishing connector 1", "PR 17"],
+  ["20", "Analytics feedback", "PR 19"],
+  ["21", "Admin cost/revenue dashboard", "PR 3, PR 13, PR 20"],
 ])}
 `);
 
@@ -972,7 +996,7 @@ ${table(["PR", "Scope", "Depends on"], [
 ${docHeader("Acceptance Criteria", "These criteria define done for the OPREALM Content Machine build.")}
 ## System Criteria
 
-${mdList(["OPREALM can create a Content Machine Run from required first input.", "Authenticated users can buy active token packs through Stripe Checkout.", "Stripe checkout creation never credits wallets directly.", "Verified Stripe checkout.session.completed webhooks credit purchase tokens exactly once.", "Duplicate Stripe Event IDs and duplicate Checkout Session IDs do not double-credit wallets.", "Invalid Stripe signatures and invalid metadata never credit wallets.", "Brand ingestion produces editable Brand Brain.", "Creative Brief and Campaign Strategy are generated and QA reviewed.", "Token quote and reservation happen before generation spend.", "Content Blueprint creates Content Atoms.", "A generated video job cannot start until creative QA passes.", "UGC script is reviewed before storyboarding.", "Storyboard is reviewed before keyframes.", "Static keyframe is reviewed before image-to-video generation.", "Creative review produces numeric scorecard and structured findings.", "Revision Planner can turn findings into change instructions.", "OPREALM can revise low-cost assets before video generation.", "Blocker findings block video generation.", "Manual override is available with audit logging.", "QA status appears in the Content Machine Run UI.", "Post-render QA runs before calendar draft approval.", "Pre-publish QA runs before scheduled publishing.", "Publishing retries cannot create duplicate posts.", "Analytics feeds next-batch recommendations."])}
+${mdList(["OPREALM can create a Content Machine Run from required first input.", "Authenticated users can buy active token packs through Stripe Checkout.", "Stripe checkout creation never credits wallets directly.", "Verified Stripe checkout.session.completed webhooks credit purchase tokens exactly once.", "Duplicate Stripe Event IDs and duplicate Checkout Session IDs do not double-credit wallets.", "Invalid Stripe signatures and invalid metadata never credit wallets.", "Users can create, list, read, update, and archive workspace-scoped brands.", "Users can create BrandSource records for manual notes, URLs, and same-workspace asset links without crawling or transcription.", "Brand Brain placeholders can be read and edited with validated `sourceIds` and `visualIdentity.logoAssetIds`.", "Viewer role can read brand foundation records but cannot mutate them.", "Cross-workspace brand, source, brain, and asset access is blocked.", "Brand ingestion produces editable Brand Brain in a later phase.", "Creative Brief and Campaign Strategy are generated and QA reviewed.", "Token quote and reservation happen before generation spend.", "Content Blueprint creates Content Atoms.", "A generated video job cannot start until creative QA passes.", "UGC script is reviewed before storyboarding.", "Storyboard is reviewed before keyframes.", "Static keyframe is reviewed before image-to-video generation.", "Creative review produces numeric scorecard and structured findings.", "Revision Planner can turn findings into change instructions.", "OPREALM can revise low-cost assets before video generation.", "Blocker findings block video generation.", "Manual override is available with audit logging.", "QA status appears in the Content Machine Run UI.", "Post-render QA runs before calendar draft approval.", "Pre-publish QA runs before scheduled publishing.", "Publishing retries cannot create duplicate posts.", "Analytics feeds next-batch recommendations."])}
 `);
 
   write("docs/oprealm-content-machine/32-open-questions.md", `${generatedWarning}
@@ -981,7 +1005,8 @@ ${table(["Question", "Why it matters", "Current leaning"], [
   ["Which scheduling layer first?", "Determines OAuth and calendar architecture.", "Start with manual export, then one connector."],
   ["Which first paid customer workflow?", "Narrows MVP surface.", "UGC Ad Pack plus Monthly Social Calendar."],
   ["Which provider stack for video?", "Controls cost and QA detail.", "Adapter interface first; provider choice per task."],
-  ["How many friend/client roles?", "Affects permissions.", "owner, admin, editor, reviewer, viewer."],
+  ["How many friend/client roles?", "Affects permissions.", "Use owner, admin, member, viewer, client, and friend for the foundation runtime."],
+  ["When does URL crawling begin?", "Determines crawler safety and retry design.", "Deferred until Brand Brain source ingestion worker phase."],
   ["What is initial token pricing?", "Affects margins.", "Model with provider-cost records before public pricing."],
   ["Which Stripe payment methods are enabled?", "Delayed payment methods may need additional webhook events.", "Start with one-time Checkout payment mode and credit paid completed sessions."],
   ["Which analytics metrics are MVP?", "Avoids overbuilding.", "views, watch time, CTR, engagement, leads where available."],
@@ -1035,9 +1060,9 @@ const schemas = {
   "workspace-member.schema.json": schema("WorkspaceMember", ["id", "workspaceId", "userId", "role", "createdAt"], { id, workspaceId: id, userId: id, role: { enum: ["owner", "admin", "member", "viewer", "client", "friend"] }, email: str, displayName: str, createdAt: date, updatedAt: date }),
   "user.schema.json": schema("User", ["id", "email", "createdAt"], { id, email: str, name: str, role: { enum: ["owner", "admin", "member", "reviewer"] }, createdAt: date, updatedAt: date }),
   "friend-invite.schema.json": schema("FriendInvite", ["id", "workspaceId", "email", "status", "createdAt"], { id, workspaceId: id, email: str, role: { enum: ["admin", "member", "viewer", "client", "friend"] }, tokenGrantAmount: num, status: { enum: ["pending", "accepted", "expired", "revoked"] }, invitedByUserId: id, acceptedByUserId: str, expiresAt: date, acceptedAt: date, revokedAt: date, createdAt: date, updatedAt: date }),
-  "brand.schema.json": schema("Brand", ["id", "workspaceId", "name", "createdAt"], { id, workspaceId: id, name: str, websiteUrl: str, industry: str, createdAt: date, updatedAt: date }),
-  "brand-source.schema.json": schema("BrandSource", ["id", "workspaceId", "brandId", "type", "status", "createdAt"], { id, workspaceId: id, brandId: id, type: { enum: ["website", "upload", "logo", "image", "video", "testimonial", "note", "existing_ad", "social_profile"] }, uri: str, rawText: str, assetId: str, status: { enum: ["queued", "fetched", "parsed", "failed", "ignored"] }, error: str, createdAt: date }),
-  "brand-brain.schema.json": schema("BrandBrain", ["id", "workspaceId", "brandId", "status", "name", "productOrService", "offer", "primaryCTA", "targetAudience", "createdAt"], { id, workspaceId: id, brandId: id, status: { enum: ["draft_ready", "approved_for_generation", "needs_review", "archived"] }, name: str, industry: str, website: str, productOrService: str, offer: str, primaryCTA: str, targetAudience: str, painPoints: arrStr, objections: arrStr, desiredOutcomes: arrStr, proofPoints: arrStr, testimonials: arrStr, FAQs: arrStr, toneOfVoice: str, brandWords: arrStr, avoidWords: arrStr, visualIdentity: obj, sourceIds: arrStr, createdAt: date, updatedAt: date }),
+  "brand.schema.json": schema("Brand", ["id", "workspaceId", "createdByUserId", "name", "status", "brandJson", "createdAt"], { id, workspaceId: id, createdByUserId: id, name: str, website: str, industry: str, businessType: str, productOrService: str, offer: str, primaryCTA: str, targetAudience: str, toneOfVoice: str, status: { enum: ["draft", "active", "archived"] }, brandJson: obj, archivedAt: date, createdAt: date, updatedAt: date }),
+  "brand-source.schema.json": schema("BrandSource", ["id", "workspaceId", "brandId", "createdByUserId", "sourceType", "status", "createdAt"], { id, workspaceId: id, brandId: id, createdByUserId: id, sourceType: { enum: ["website_page", "manual_note", "uploaded_document", "source_video", "product_image", "logo", "testimonial", "faq", "existing_ad", "competitor_reference", "youtube_url", "social_profile", "other"] }, sourceUrl: str, assetId: str, title: str, rawText: str, metadata: obj, status: { enum: ["pending", "active", "archived", "failed"] }, archivedAt: date, createdAt: date, updatedAt: date }),
+  "brand-brain.schema.json": schema("BrandBrain", ["id", "workspaceId", "brandId", "brainJson", "createdAt"], { id, workspaceId: id, brandId: id, brainJson: { type: "object", additionalProperties: true, properties: { summary: str, offer: str, primaryCTA: str, audience: str, painPoints: arrStr, objections: arrStr, desiredOutcomes: arrStr, proofPoints: arrStr, testimonials: arrStr, faqs: arrStr, toneOfVoice: str, brandWords: arrStr, avoidWords: arrStr, visualIdentity: obj, contentNotes: str, agencyNotes: str, sourceIds: arrStr } }, createdAt: date, updatedAt: date }),
   "creative-brief.schema.json": schema("CreativeBrief", ["id", "brandId", "campaignId", "campaignObjective", "audience", "offer", "primaryCTA"], { id, workspaceId: id, brandId: id, campaignId: id, campaignObjective: str, audience: str, offer: str, primaryCTA: str, keyMessage: str, proofPoints: arrStr, emotionalAngle: str, contentPillars: arrStr, visualDirection: str, toneOfVoice: str, platformNotes: obj, mustInclude: arrStr, mustAvoid: arrStr, status: { enum: ["draft", "qa_pending", "approved", "needs_revision"] }, createdAt: date, updatedAt: date }),
   "business-goal.schema.json": schema("BusinessGoal", ["id", "workspaceId", "brandId", "objective", "targetAudience", "offer", "primaryCTA"], { id, workspaceId: id, brandId: id, objective: { enum: ["lead_generation", "sales", "bookings", "brand_awareness", "youtube_growth", "retargeting", "community_growth", "product_launch", "ugc_testing"] }, targetAudience: str, offer: str, primaryCTA: str, platforms: arrStr, postingCadence: obj, contentMix: obj }),
   "campaign.schema.json": schema("Campaign", ["id", "workspaceId", "brandId", "status", "createdAt"], { id, workspaceId: id, brandId: id, creativeBriefId: str, businessGoalId: str, status: { enum: ["draft", "strategy_ready", "qa_pending", "qa_passed", "active", "completed", "archived"] }, pillars: arrStr, angles: arrStr, hooks: arrStr, platforms: arrStr, createdAt: date, updatedAt: date }),

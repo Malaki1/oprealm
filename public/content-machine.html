@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Private OPREALM Content Machine foundation dashboard for brands, Brand Brain, sources, assets and token wallet state." />
+    <title>OPREALM Content Machine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/content-machine.css?v=1" />
+    <script src="/account-nav.js?v=1" defer></script>
+    <script src="/content-machine.js?v=1" defer></script>
+  </head>
+  <body class="content-machine-body">
+    <header class="cm-topbar">
+      <a class="cm-brand" href="/">
+        <span class="cm-mark" aria-hidden="true"><span></span></span>
+        <span>OPREALM</span>
+      </a>
+      <nav aria-label="Content Machine navigation">
+        <a href="/content-machine" aria-current="page">Content Machine</a>
+        <a href="/billing.html">Billing</a>
+        <a href="/account.html" data-account-link>Log In</a>
+      </nav>
+    </header>
+
+    <div class="cm-shell">
+      <aside class="cm-side" aria-label="Content Machine sections">
+        <a class="cm-side-brand" href="/content-machine">
+          <span class="cm-mark" aria-hidden="true"><span></span></span>
+          <strong>Content Machine</strong>
+        </a>
+        <nav>
+          <a href="#dashboard" data-cm-nav="dashboard">Dashboard</a>
+          <a href="#brands" data-cm-nav="brands">Brands</a>
+          <a href="#sources" data-cm-nav="sources">Brand Sources</a>
+          <a href="#assets" data-cm-nav="assets">Assets</a>
+          <a href="#billing" data-cm-nav="billing">Billing</a>
+          <a href="#deploy" data-cm-nav="deploy">Deploy Readiness</a>
+        </nav>
+        <div class="cm-side-card">
+          <span class="cm-pill cm-pill-live">Phase 3 Live</span>
+          <p>Brand foundation, source library and editable Brand Brain placeholder.</p>
+        </div>
+        <div class="cm-side-card cm-side-card-muted">
+          <span class="cm-pill">Coming next</span>
+          <p>Campaign Engine, Agency QA and media generation stay locked until later phases.</p>
+        </div>
+      </aside>
+
+      <main class="cm-main">
+        <section class="cm-hero">
+          <div>
+            <p class="cm-eyebrow">Private marketing operations dashboard</p>
+            <h1>Build campaign-ready business memory before generation starts.</h1>
+            <p>Manage workspaces, token wallet state, brand foundations, creative source records and Brand Brain placeholders without crawling, AI extraction or media spend.</p>
+          </div>
+          <aside class="cm-hero-card">
+            <span>System mode</span>
+            <strong>Foundation</strong>
+            <p>Safe setup layer for brands, sources and wallet readiness.</p>
+          </aside>
+        </section>
+
+        <div class="cm-alert" id="cmStatus" role="status">Loading Content Machine foundation...</div>
+
+        <section class="cm-auth-card" id="authCard" hidden>
+          <p class="cm-eyebrow">Sign in required</p>
+          <h2>Log in to use the private Content Machine workspace.</h2>
+          <p>These screens use real workspace, brand, source and billing APIs. Nothing is saved unless the authenticated API confirms it.</p>
+          <div class="cm-actions">
+            <a class="cm-button cm-button-primary" href="/login.html">Log In</a>
+            <a class="cm-button cm-button-secondary" href="/account.html">My Account</a>
+          </div>
+        </section>
+
+        <section class="cm-section" id="dashboard" data-cm-section>
+          <div class="cm-section-head">
+            <div>
+              <p class="cm-eyebrow">Dashboard</p>
+              <h2>Foundation command center</h2>
+              <p>One private view for workspace readiness, token position and brand setup progress.</p>
+            </div>
+            <div class="cm-workspace-picker">
+              <label for="workspaceSelect">Workspace</label>
+              <select id="workspaceSelect"></select>
+            </div>
+          </div>
+
+          <div class="cm-grid cm-stat-grid">
+            <article class="cm-card cm-stat-card">
+              <span>Selected workspace</span>
+              <strong id="workspaceName">No workspace</strong>
+              <p id="workspaceMeta">Create a workspace to start.</p>
+            </article>
+            <article class="cm-card cm-stat-card">
+              <span>Token balance</span>
+              <strong id="walletBalance">0</strong>
+              <p><span id="reservedBalance">0</span> reserved tokens</p>
+            </article>
+            <article class="cm-card cm-stat-card">
+              <span>Active brands</span>
+              <strong id="activeBrandCount">0</strong>
+              <p><span id="sourceRecordCount">0</span> source records attached</p>
+            </article>
+            <article class="cm-card cm-stat-card">
+              <span>Next build phase</span>
+              <strong>Campaign Engine</strong>
+              <p>Locked until Brand Foundation is reviewed and deployed.</p>
+            </article>
+          </div>
+
+          <div class="cm-grid cm-two-col">
+            <article class="cm-card">
+              <div class="cm-card-head">
+                <div>
+                  <h3>Latest brand updates</h3>
+                  <p>Recently changed brands in the selected workspace.</p>
+                </div>
+              </div>
+              <div class="cm-list" id="latestBrandList"></div>
+            </article>
+            <article class="cm-card">
+              <h3>System readiness checklist</h3>
+              <div class="cm-checklist" id="readinessList"></div>
+            </article>
+          </div>
+
+          <article class="cm-card cm-empty-workspace" id="workspaceCreateCard">
+            <div>
+              <p class="cm-eyebrow">Workspace setup</p>
+              <h3>Create a private workspace</h3>
+              <p>Brand records, sources, assets and Brand Brain placeholders stay scoped to the workspace.</p>
+            </div>
+            <form class="cm-inline-form" id="workspaceForm">
+              <input name="name" placeholder="Workspace name" required />
+              <select name="type" aria-label="Workspace type">
+                <option value="business">Business</option>
+                <option value="client">Client</option>
+                <option value="friend">Friend</option>
+                <option value="personal">Personal</option>
+              </select>
+              <button class="cm-button cm-button-primary" type="submit">Create Workspace</button>
+            </form>
+          </article>
+        </section>
+
+        <section class="cm-section" id="brands" data-cm-section>
+          <div class="cm-section-head">
+            <div>
+              <p class="cm-eyebrow">Brands</p>
+              <h2>Campaign-ready business foundations</h2>
+              <p>Create and manage the business memory that later campaign, QA and media systems will use.</p>
+            </div>
+            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Create Brand</button>
+          </div>
+
+          <div class="cm-toolbar">
+            <label>
+              Search brands
+              <input id="brandSearch" type="search" placeholder="Search by name, offer, CTA or industry" />
+            </label>
+            <label>
+              Status
+              <select id="brandStatusFilter">
+                <option value="">Active + draft</option>
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="cm-brand-grid" id="brandGrid"></div>
+
+          <article class="cm-card cm-form-card" id="createBrandPanel">
+            <div class="cm-card-head">
+              <div>
+                <p class="cm-eyebrow">Create brand</p>
+                <h3>Foundation profile</h3>
+                <p>Grouped setup for business basics, offer, voice and visual identity placeholders.</p>
+              </div>
+            </div>
+            <form class="cm-form-grid" id="brandForm">
+              <fieldset>
+                <legend>Step 1: Business basics</legend>
+                <label>Brand name <input name="name" required maxlength="120" /></label>
+                <label>Website <input name="website" type="url" placeholder="https://example.com" /></label>
+                <label>Industry <input name="industry" maxlength="160" /></label>
+                <label>Business type <input name="businessType" maxlength="160" /></label>
+              </fieldset>
+              <fieldset>
+                <legend>Step 2: Offer and audience</legend>
+                <label>Product or service <textarea name="productOrService" rows="3"></textarea></label>
+                <label>Offer <textarea name="offer" rows="3"></textarea></label>
+                <label>Primary CTA <input name="primaryCTA" placeholder="Book a strategy call" /></label>
+                <label>Target audience <textarea name="targetAudience" rows="3"></textarea></label>
+              </fieldset>
+              <fieldset>
+                <legend>Step 3: Brand voice</legend>
+                <label>Tone of voice <textarea name="toneOfVoice" rows="3"></textarea></label>
+                <label>Brand words <textarea name="brandWords" rows="3" placeholder="One per line or comma separated"></textarea></label>
+                <label>Avoid words <textarea name="avoidWords" rows="3" placeholder="One per line or comma separated"></textarea></label>
+                <label>Notes <textarea name="notes" rows="4"></textarea></label>
+              </fieldset>
+              <fieldset>
+                <legend>Step 4: Visual identity placeholder</legend>
+                <label>Colours <textarea name="colours" rows="3" placeholder="#111827, #8b5cf6"></textarea></label>
+                <label>Fonts <textarea name="fonts" rows="3" placeholder="Inter, Sora"></textarea></label>
+                <label>Logo asset IDs <textarea name="logoAssetIds" rows="3" placeholder="Paste same-workspace asset IDs if available"></textarea></label>
+              </fieldset>
+              <div class="cm-form-actions">
+                <button class="cm-button cm-button-primary" type="submit">Create Brand</button>
+                <p class="cm-form-note">Website and URL source fields are stored only. Phase 3 does not crawl, transcribe or run AI extraction.</p>
+              </div>
+            </form>
+          </article>
+        </section>
+
+        <section class="cm-section" id="sources" data-cm-section>
+          <div class="cm-section-head">
+            <div>
+              <p class="cm-eyebrow">Brand detail</p>
+              <h2 id="detailHeading">Select a brand</h2>
+              <p id="detailSubheading">Choose a brand to edit overview fields, Brand Brain and creative sources.</p>
+            </div>
+            <span class="cm-pill" id="detailStatusPill">No brand selected</span>
+          </div>
+
+          <div class="cm-empty-state" id="brandDetailEmpty">
+            <h3>Create your first brand to start building the Content Machine</h3>
+            <p>Brand detail panels unlock after a real brand record exists in the selected workspace.</p>
+            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Create Brand</button>
+          </div>
+
+          <div class="cm-detail-grid" id="brandDetailPanel" hidden>
+            <article class="cm-card cm-overview-card">
+              <div class="cm-card-head">
+                <div>
+                  <h3>Overview</h3>
+                  <p>Business fields stored on the brand record.</p>
+                </div>
+                <span class="cm-pill" id="brainCompleteness">Brain 0%</span>
+              </div>
+              <form class="cm-form-grid cm-compact-form" id="brandUpdateForm">
+                <label>Name <input name="name" required /></label>
+                <label>Status
+                  <select name="status">
+                    <option value="draft">Draft</option>
+                    <option value="active">Active</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </label>
+                <label>Website <input name="website" type="url" /></label>
+                <label>Industry <input name="industry" /></label>
+                <label>Business type <input name="businessType" /></label>
+                <label>Product or service <textarea name="productOrService" rows="3"></textarea></label>
+                <label>Offer <textarea name="offer" rows="3"></textarea></label>
+                <label>Primary CTA <input name="primaryCTA" /></label>
+                <label>Target audience <textarea name="targetAudience" rows="3"></textarea></label>
+                <label>Tone of voice <textarea name="toneOfVoice" rows="3"></textarea></label>
+                <div class="cm-form-actions">
+                  <button class="cm-button cm-button-primary" type="submit">Save Brand</button>
+                </div>
+              </form>
+            </article>
+
+            <article class="cm-card">
+              <div class="cm-card-head">
+                <div>
+                  <h3>Brand Brain</h3>
+                  <p>Editable placeholder. No AI extraction is required.</p>
+                </div>
+              </div>
+              <form class="cm-form-grid cm-compact-form" id="brainForm">
+                <label>Summary <textarea name="summary" rows="3"></textarea></label>
+                <label>Offer <textarea name="offer" rows="3"></textarea></label>
+                <label>Primary CTA <input name="primaryCTA" /></label>
+                <label>Audience <textarea name="audience" rows="3"></textarea></label>
+                <label>Pain points <textarea name="painPoints" rows="3"></textarea></label>
+                <label>Objections <textarea name="objections" rows="3"></textarea></label>
+                <label>Desired outcomes <textarea name="desiredOutcomes" rows="3"></textarea></label>
+                <label>Proof points <textarea name="proofPoints" rows="3"></textarea></label>
+                <label>Testimonials <textarea name="testimonials" rows="3"></textarea></label>
+                <label>FAQs <textarea name="faqs" rows="3"></textarea></label>
+                <label>Tone of voice <textarea name="toneOfVoice" rows="3"></textarea></label>
+                <label>Brand words <textarea name="brandWords" rows="3"></textarea></label>
+                <label>Avoid words <textarea name="avoidWords" rows="3"></textarea></label>
+                <label>Visual colours <textarea name="colours" rows="2"></textarea></label>
+                <label>Fonts <textarea name="fonts" rows="2"></textarea></label>
+                <label>Logo asset IDs <textarea name="logoAssetIds" rows="2"></textarea></label>
+                <label>Image style <textarea name="imageStyle" rows="2"></textarea></label>
+                <label>Video style <textarea name="videoStyle" rows="2"></textarea></label>
+                <label>Source IDs <textarea name="sourceIds" rows="2"></textarea></label>
+                <label>Content notes <textarea name="contentNotes" rows="3"></textarea></label>
+                <label>Agency notes <textarea name="agencyNotes" rows="3"></textarea></label>
+                <div class="cm-form-actions">
+                  <button class="cm-button cm-button-primary" type="submit">Save Brand Brain</button>
+                </div>
+              </form>
+            </article>
+
+            <article class="cm-card">
+              <div class="cm-card-head">
+                <div>
+                  <h3>Creative source library</h3>
+                  <p>Add manual notes, URL records and same-workspace asset links.</p>
+                </div>
+              </div>
+              <form class="cm-form-grid cm-compact-form" id="sourceForm">
+                <label>Source type
+                  <select name="sourceType" id="sourceTypeSelect"></select>
+                </label>
+                <label>Title <input name="title" /></label>
+                <label>URL <input name="sourceUrl" type="url" placeholder="https://example.com/page" /></label>
+                <label>Asset link
+                  <select name="assetId" id="sourceAssetSelect"></select>
+                </label>
+                <label>Raw text <textarea name="rawText" rows="4" placeholder="Manual note, testimonial, FAQ or source summary"></textarea></label>
+                <label>Metadata JSON <textarea name="metadata" rows="3" placeholder='{"owner":"marketing"}'></textarea></label>
+                <div class="cm-form-actions">
+                  <button class="cm-button cm-button-primary" type="submit">Add Source</button>
+                </div>
+              </form>
+              <div class="cm-source-list" id="sourceList"></div>
+            </article>
+
+            <article class="cm-card" id="assets">
+              <div class="cm-card-head">
+                <div>
+                  <h3>Workspace assets</h3>
+                  <p>Same-workspace asset IDs can be linked to sources and visual identity.</p>
+                </div>
+              </div>
+              <div class="cm-list" id="assetList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="cm-section" id="billing" data-cm-section>
+          <div class="cm-section-head">
+            <div>
+              <p class="cm-eyebrow">Token wallet</p>
+              <h2>Internal usage credits, not crypto</h2>
+              <p>View wallet position, active token packs and recent ledger activity.</p>
+            </div>
+            <a class="cm-button cm-button-secondary" href="/billing.html">Existing Billing Page</a>
+          </div>
+          <div class="cm-grid cm-stat-grid">
+            <article class="cm-card cm-stat-card"><span>Available</span><strong id="walletAvailable">0</strong><p>Ready to reserve later.</p></article>
+            <article class="cm-card cm-stat-card"><span>Reserved</span><strong id="walletReserved">0</strong><p>Held for planned work.</p></article>
+            <article class="cm-card cm-stat-card"><span>Lifetime purchased</span><strong id="walletPurchased">0</strong><p>Total bought or credited.</p></article>
+            <article class="cm-card cm-stat-card"><span>Lifetime spent</span><strong id="walletSpent">0</strong><p>Provider spend recorded later.</p></article>
+          </div>
+          <div class="cm-grid cm-two-col">
+            <article class="cm-card">
+              <h3>Token packs</h3>
+              <div class="cm-pack-grid" id="tokenPackList"></div>
+            </article>
+            <article class="cm-card">
+              <h3>Recent token transactions</h3>
+              <div class="cm-list" id="transactionList"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="cm-section" id="deploy" data-cm-section>
+          <div class="cm-section-head">
+            <div>
+              <p class="cm-eyebrow">Deployment readiness</p>
+              <h2>Guarded live release checklist</h2>
+              <p>Production deployment stays blocked until the PR/merge, domain and D1 migration checks are unambiguous.</p>
+            </div>
+            <span class="cm-pill cm-pill-warn">Deploy guarded</span>
+          </div>
+          <div class="cm-grid cm-two-col">
+            <article class="cm-card">
+              <h3>Detected provider</h3>
+              <p>Cloudflare Pages with `public` output, Pages Functions, D1 binding `OPREALM_DB`, R2 bucket `OPREALM_ASSETS`, and project name `oprealm`.</p>
+              <ul class="cm-plain-list">
+                <li>Production domain: `oprealm.com`.</li>
+                <li>Migration `0024_brand_foundation.sql` is additive.</li>
+              </ul>
+            </article>
+            <article class="cm-card">
+              <h3>Locked modules</h3>
+              <div class="cm-lock-grid">
+                <span>Campaign Engine <b>Coming soon</b></span>
+                <span>Agency QA <b>Coming soon</b></span>
+                <span>Media Generation <b>Coming soon</b></span>
+                <span>Publishing <b>Coming soon</b></span>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

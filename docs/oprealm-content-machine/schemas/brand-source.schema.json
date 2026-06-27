@@ -7,7 +7,8 @@
     "id",
     "workspaceId",
     "brandId",
-    "type",
+    "createdByUserId",
+    "sourceType",
     "status",
     "createdAt"
   ],
@@ -24,41 +25,60 @@
       "type": "string",
       "minLength": 1
     },
-    "type": {
+    "createdByUserId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceType": {
       "enum": [
-        "website",
-        "upload",
+        "website_page",
+        "manual_note",
+        "uploaded_document",
+        "source_video",
+        "product_image",
         "logo",
-        "image",
-        "video",
         "testimonial",
-        "note",
+        "faq",
         "existing_ad",
-        "social_profile"
+        "competitor_reference",
+        "youtube_url",
+        "social_profile",
+        "other"
       ]
     },
-    "uri": {
-      "type": "string"
-    },
-    "rawText": {
+    "sourceUrl": {
       "type": "string"
     },
     "assetId": {
       "type": "string"
     },
-    "status": {
-      "enum": [
-        "queued",
-        "fetched",
-        "parsed",
-        "failed",
-        "ignored"
-      ]
-    },
-    "error": {
+    "title": {
       "type": "string"
     },
+    "rawText": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "active",
+        "archived",
+        "failed"
+      ]
+    },
+    "archivedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
       "type": "string",
       "format": "date-time"
     }

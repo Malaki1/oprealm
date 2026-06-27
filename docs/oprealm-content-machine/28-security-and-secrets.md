@@ -16,6 +16,9 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Store OAuth tokens encrypted or in platform secret storage.
 - Authorize every workspace-scoped read/write.
 - Default assets to private workspace access.
+- Keep brands, BrandSource records, Brand Brain JSON, and linked asset references inside one workspace boundary.
+- Allow viewer role to read brand foundation records but not mutate them.
+- Do not fetch user-submitted website, YouTube, social, or competitor URLs during Phase 3.
 - Separate approval, QA, and moderation concepts.
 - Log manual overrides and admin grants.
 - Avoid storing unnecessary raw secrets in analytics or logs.

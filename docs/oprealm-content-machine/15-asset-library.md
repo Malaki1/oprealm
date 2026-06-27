@@ -13,6 +13,13 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Assets reference source prompts, source inputs, provider job IDs, QA scores, token costs, and publishing usage.
 - Calendar and publishing reference final approved asset versions, not mutable drafts.
 
+## Brand Source Links
+
+- BrandSource records may link to workspace assets through `assetId`.
+- Logo and product image BrandSource records require an asset from the same workspace.
+- Brand Brain visual identity references use `visualIdentity.logoAssetIds` and must stay within the brand workspace.
+- Cross-workspace asset references are rejected.
+
 ## Versioning
 
 ```txt

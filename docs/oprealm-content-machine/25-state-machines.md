@@ -98,3 +98,11 @@ created, reserved, partially_spent, spent, released, refunded, failed.
 ## Token Purchase States
 
 checkout_requested, checkout_created, payment_pending, checkout_completed, webhook_received, signature_verified, idempotency_checked, wallet_credited, transaction_recorded, processed, rejected_pack_missing, rejected_pack_inactive, rejected_invalid_signature, ignored_unsupported_event, failed_missing_metadata, ignored_duplicate.
+
+## Brand States
+
+draft, active, archived.
+
+## Brand Source States
+
+pending, active, archived, failed.
