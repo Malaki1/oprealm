@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "PublishingAttempt",
+  "required": [
+    "id",
+    "workspaceId",
+    "calendarItemId",
+    "idempotencyKey",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "calendarItemId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "socialAccountId": {
+      "type": "string"
+    },
+    "idempotencyKey": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "publishing",
+        "published",
+        "failed_retryable",
+        "failed_terminal",
+        "duplicate_guarded"
+      ]
+    },
+    "platformPostId": {
+      "type": "string"
+    },
+    "platformUrl": {
+      "type": "string"
+    },
+    "error": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

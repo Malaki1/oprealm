@@ -1,0 +1,13 @@
+flowchart TD
+  A[Token wallet] --> B[Quote run]
+  B --> C{Enough available?}
+  C -- No --> D[Top up]
+  C -- Yes --> E[Reserve tokens]
+  E --> F[Low-cost QA and revisions]
+  F --> G{Pre-video QA passed?}
+  G -- No --> H[Release video reserve or continue low-cost revisions]
+  G -- Yes --> I[Queue video job]
+  I --> J{Provider result}
+  J -- Success --> K[Capture tokens]
+  J -- Retryable fail --> I
+  J -- Terminal fail --> L[Refund or release unused reserve]

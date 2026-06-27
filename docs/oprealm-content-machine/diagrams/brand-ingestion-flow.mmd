@@ -1,0 +1,10 @@
+flowchart TD
+  A[First input and sources] --> B[Create BrandSource records]
+  B --> C[Fetch website pages]
+  C --> D[Parse uploads and transcripts]
+  D --> E[Extract offer audience CTAs proof tone visuals]
+  E --> F[Create Brand Brain draft]
+  F --> G[Brand Brain QA]
+  G --> H{Pass?}
+  H -- Yes --> I[approved_for_generation]
+  H -- No --> J[needs_review]

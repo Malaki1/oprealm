@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "BusinessGoal",
+  "required": [
+    "id",
+    "workspaceId",
+    "brandId",
+    "objective",
+    "targetAudience",
+    "offer",
+    "primaryCTA"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "enum": [
+        "lead_generation",
+        "sales",
+        "bookings",
+        "brand_awareness",
+        "youtube_growth",
+        "retargeting",
+        "community_growth",
+        "product_launch",
+        "ugc_testing"
+      ]
+    },
+    "targetAudience": {
+      "type": "string"
+    },
+    "offer": {
+      "type": "string"
+    },
+    "primaryCTA": {
+      "type": "string"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "postingCadence": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "contentMix": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

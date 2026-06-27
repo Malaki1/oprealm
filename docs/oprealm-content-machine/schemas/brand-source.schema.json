@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "BrandSource",
+  "required": [
+    "id",
+    "workspaceId",
+    "brandId",
+    "type",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "enum": [
+        "website",
+        "upload",
+        "logo",
+        "image",
+        "video",
+        "testimonial",
+        "note",
+        "existing_ad",
+        "social_profile"
+      ]
+    },
+    "uri": {
+      "type": "string"
+    },
+    "rawText": {
+      "type": "string"
+    },
+    "assetId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "fetched",
+        "parsed",
+        "failed",
+        "ignored"
+      ]
+    },
+    "error": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

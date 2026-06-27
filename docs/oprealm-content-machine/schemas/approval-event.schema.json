@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "ApprovalEvent",
+  "required": [
+    "id",
+    "workspaceId",
+    "calendarItemId",
+    "action",
+    "actorUserId",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "calendarItemId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "enum": [
+        "approve",
+        "reject",
+        "request_changes",
+        "bulk_approve",
+        "override",
+        "lock_version"
+      ]
+    },
+    "actorUserId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reason": {
+      "type": "string"
+    },
+    "previousStatus": {
+      "type": "string"
+    },
+    "nextStatus": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

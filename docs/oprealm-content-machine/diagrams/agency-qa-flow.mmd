@@ -1,0 +1,18 @@
+flowchart TD
+  A[Draft creative stage] --> B[Creative QA Worker]
+  B --> C[Creative Director]
+  B --> D[Brand Consistency]
+  B --> E[Copy Chief]
+  B --> F[Art Director]
+  B --> G[Platform Native]
+  C --> H[Scorecard]
+  D --> H
+  E --> H
+  F --> H
+  G --> H
+  H --> I{Pass threshold?}
+  I -- Yes --> J[Approve next stage]
+  I -- No --> K[Structured findings]
+  K --> L[Revision Planner]
+  L --> M[Low-cost revision]
+  M --> B

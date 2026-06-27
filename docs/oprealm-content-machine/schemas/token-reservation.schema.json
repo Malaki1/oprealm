@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenReservation",
+  "required": [
+    "id",
+    "workspaceId",
+    "status",
+    "amount",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "mediaJobId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "quoted",
+        "reserved",
+        "partially_captured",
+        "captured",
+        "released",
+        "refunded",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "amount": {
+      "type": "number"
+    },
+    "protectedVideoReserve": {
+      "type": "boolean"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

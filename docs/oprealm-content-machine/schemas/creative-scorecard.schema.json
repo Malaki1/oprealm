@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "CreativeScorecard",
+  "required": [
+    "id",
+    "reviewJobId",
+    "overallScore",
+    "pass",
+    "decision",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewJobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "brandId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "contentAtomId": {
+      "type": "string"
+    },
+    "overallScore": {
+      "type": "number"
+    },
+    "pass": {
+      "type": "boolean"
+    },
+    "requiredChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "recommendedChanges": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "scores": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "decision": {
+      "enum": [
+        "pass",
+        "pass_with_minor_notes",
+        "revise_and_recheck",
+        "blocked",
+        "approved_for_video",
+        "approved_for_calendar",
+        "approved_for_publish"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

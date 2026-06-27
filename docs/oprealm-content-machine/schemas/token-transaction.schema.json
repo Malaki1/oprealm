@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenTransaction",
+  "required": [
+    "id",
+    "workspaceId",
+    "type",
+    "amount",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "walletId": {
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "purchase",
+        "grant",
+        "reserve",
+        "capture",
+        "release",
+        "refund",
+        "adjustment"
+      ]
+    },
+    "amount": {
+      "type": "number"
+    },
+    "reservationId": {
+      "type": "string"
+    },
+    "mediaJobId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

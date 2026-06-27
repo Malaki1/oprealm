@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "Asset",
+  "required": [
+    "id",
+    "workspaceId",
+    "type",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "qa_pending",
+        "approved",
+        "rejected",
+        "archived"
+      ]
+    },
+    "currentVersionId": {
+      "type": "string"
+    },
+    "visibility": {
+      "enum": [
+        "workspace_private",
+        "shared_review",
+        "public_after_publish"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "ProviderCostRecord",
+  "required": [
+    "id",
+    "workspaceId",
+    "provider",
+    "costCents",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mediaJobId": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "operation": {
+      "type": "string"
+    },
+    "costCents": {
+      "type": "number"
+    },
+    "tokensCharged": {
+      "type": "number"
+    },
+    "marginCents": {
+      "type": "number"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

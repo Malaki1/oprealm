@@ -1,0 +1,11 @@
+flowchart TD
+  A[QA findings] --> B[Revision Planner]
+  B --> C[Patch instructions]
+  C --> D[Apply low-cost revision]
+  D --> E[Create new asset version]
+  E --> F[QA re-check]
+  F --> G{Pass?}
+  G -- Yes --> H[Advance]
+  G -- No --> I{Max loops reached?}
+  I -- No --> B
+  I -- Yes --> J[Needs human review]

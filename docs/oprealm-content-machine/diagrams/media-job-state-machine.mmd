@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> queued
+  queued --> running
+  running --> provider_pending
+  provider_pending --> succeeded
+  provider_pending --> failed_retryable
+  failed_retryable --> queued
+  provider_pending --> failed_terminal
+  failed_terminal --> refunded
+  queued --> cancelled
+  succeeded --> [*]

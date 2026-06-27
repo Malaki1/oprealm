@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenWallet",
+  "required": [
+    "id",
+    "workspaceId",
+    "available",
+    "reserved",
+    "spent",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "available": {
+      "type": "number"
+    },
+    "reserved": {
+      "type": "number"
+    },
+    "spent": {
+      "type": "number"
+    },
+    "granted": {
+      "type": "number"
+    },
+    "refunded": {
+      "type": "number"
+    },
+    "currency": {
+      "const": "OPREALM_TOKEN"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

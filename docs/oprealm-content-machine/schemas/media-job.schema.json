@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "MediaJob",
+  "required": [
+    "id",
+    "workspaceId",
+    "assetType",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "contentAtomId": {
+      "type": "string"
+    },
+    "assetType": {
+      "enum": [
+        "image",
+        "video",
+        "audio",
+        "caption",
+        "thumbnail",
+        "export"
+      ]
+    },
+    "provider": {
+      "type": "string"
+    },
+    "providerJobId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "running",
+        "provider_pending",
+        "succeeded",
+        "failed_retryable",
+        "failed_terminal",
+        "cancelled",
+        "refunded"
+      ]
+    },
+    "tokenReservationId": {
+      "type": "string"
+    },
+    "costTokens": {
+      "type": "number"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

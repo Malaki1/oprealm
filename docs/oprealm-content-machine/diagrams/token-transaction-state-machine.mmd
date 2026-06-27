@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> quoted
+  quoted --> reserved
+  reserved --> partially_captured
+  partially_captured --> captured
+  reserved --> captured
+  reserved --> released
+  reserved --> refunded
+  reserved --> expired
+  reserved --> cancelled
+  captured --> [*]
+  released --> [*]
+  refunded --> [*]

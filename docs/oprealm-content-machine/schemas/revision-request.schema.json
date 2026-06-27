@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "RevisionRequest",
+  "required": [
+    "id",
+    "workspaceId",
+    "sourceReviewJobId",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contentAtomId": {
+      "type": "string"
+    },
+    "sourceReviewJobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revisionNumber": {
+      "type": "number"
+    },
+    "changeInstructions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "beforeJson": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "afterJson": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "status": {
+      "enum": [
+        "created",
+        "queued",
+        "applied",
+        "qa_pending",
+        "accepted",
+        "needs_human_review",
+        "failed"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
