@@ -73,8 +73,12 @@ jobs:
       - name: Verify generated docs are committed
         run: git diff --exit-code -- AGENTS.md docs
 
-      - name: Verify Cloudflare authentication
-        run: npx wrangler whoami
+      - name: Verify Cloudflare production targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 info "${OPREALM_D1_DATABASE}"
+          npx wrangler pages deployment list --project-name "${OPREALM_PAGES_PROJECT}"
 
       - name: Apply production D1 migrations
         run: npx wrangler d1 migrations apply "${OPREALM_D1_DATABASE}" --remote
