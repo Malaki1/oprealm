@@ -8,7 +8,7 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 
 | Worker | Responsibility |
 | --- | --- |
-| brand-ingest-worker | Future worker: fetches websites, parses source files, extracts Brand Brain, and marks low-confidence gaps. Not part of Phase 3 Brand Foundation. |
+| brand-ingest-worker | Fetches approved website/source URLs, extracts readable source material and metadata, records attempts, and leaves AI Brand Brain extraction to the next phase. |
 | creative-brief-worker | Creates creative brief and moodboard from Brand Brain, goal, offer, and platform plan. |
 | campaign-worker | Generates pillars, hooks, angles, platform plan, cadence, and token quote inputs. |
 | content-blueprint-worker | Creates blueprint items and Content Atoms for planned deliverables. |

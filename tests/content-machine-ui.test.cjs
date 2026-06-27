@@ -16,6 +16,8 @@ test("Content Machine UI shell exposes the Phase 3 private dashboard", () => {
   assert.match(html, /Creative source library/);
   assert.match(html, /Upload brand evidence/);
   assert.match(html, /brandAssetFiles/);
+  assert.match(html, /Ingest website\/source URL after adding/);
+  assert.match(html, /Website pages can now be safely ingested/);
   assert.match(html, /Save Existing Brand/);
   assert.match(html, /Deploy Readiness/);
   assert.match(html, /Campaign Engine/);
@@ -43,6 +45,9 @@ test("Content Machine UI calls real foundation APIs instead of fake persistence"
   assert.match(js, /uploadBrandAssets/);
   assert.match(js, /attachBrandEvidenceSources/);
   assert.match(js, /fileToDataUrl/);
+  assert.match(js, /data-ingest-source/);
+  assert.match(js, /\/ingest/);
+  assert.match(js, /sourceMetadataHtml/);
   assert.match(js, /throw error/);
   assert.doesNotMatch(js, /localStorage\.setItem\([^)]*brand.*JSON/i);
 });

@@ -14,18 +14,19 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | 4 | Stripe token top-ups | PR 3 |
 | 5 | Asset library base and source uploads | PR 2 |
 | 6 | Brand Foundation runtime | PR 4 |
-| 7 | Brand Brain source ingestion worker | PR 6 |
-| 8 | Creative Brief and Campaign Engine | PR 7 |
-| 9 | Content Machine Run orchestration | PR 8 |
-| 10 | Agency QA schemas, workers, scorecards | PR 9 |
-| 11 | Revision engine and low-cost generation loop | PR 10 |
-| 12 | Pre-video gate enforcement | PR 10 |
-| 13 | Media generation adapter | PR 12 |
-| 14 | UGC Ad Pack | PR 13 |
-| 15 | Product Creative Pack | PR 13 |
-| 16 | YouTube Content Pack | PR 13 |
-| 17 | Calendar and approval | PR 14-16 |
-| 18 | Manual export | PR 17 |
-| 19 | Publishing connector 1 | PR 17 |
-| 20 | Analytics feedback | PR 19 |
-| 21 | Admin cost/revenue dashboard | PR 3, PR 13, PR 20 |
+| 7 | Brand Ingestion runtime | PR 6 |
+| 8 | Brand Brain Extraction | PR 7 |
+| 9 | Creative Brief and Campaign Engine | PR 8 |
+| 10 | Content Machine Run orchestration | PR 9 |
+| 11 | Agency QA schemas, workers, scorecards | PR 10 |
+| 12 | Revision engine and low-cost generation loop | PR 11 |
+| 13 | Pre-video gate enforcement | PR 11 |
+| 14 | Media generation adapter | PR 13 |
+| 15 | UGC Ad Pack | PR 14 |
+| 16 | Product Creative Pack | PR 14 |
+| 17 | YouTube Content Pack | PR 14 |
+| 18 | Calendar and approval | PR 15-17 |
+| 19 | Manual export | PR 18 |
+| 20 | Publishing connector 1 | PR 18 |
+| 21 | Analytics feedback | PR 20 |
+| 22 | Admin cost/revenue dashboard | PR 3, PR 14, PR 21 |

@@ -16,9 +16,12 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Store OAuth tokens encrypted or in platform secret storage.
 - Authorize every workspace-scoped read/write.
 - Default assets to private workspace access.
-- Keep brands, BrandSource records, Brand Brain JSON, and linked asset references inside one workspace boundary.
-- Allow viewer role to read brand foundation records but not mutate them.
-- Do not fetch user-submitted website, YouTube, social, or competitor URLs during Phase 3.
+- Keep brands, BrandSource records, Brand Brain JSON, ingestion attempts, and linked asset references inside one workspace boundary.
+- Allow viewer role to read brand foundation records but not mutate or trigger ingestion.
+- Website/source URL ingestion must reject unsupported protocols, localhost, private IP ranges, link-local ranges, metadata service hosts, and internal hostnames before each fetch and redirect.
+- The Cloudflare Pages runtime implementation does not perform pre-fetch DNS resolution; it enforces strong hostname and IP-literal protection and should add DNS resolution if the runtime later exposes a safe resolver.
+- Website/source URL ingestion must use conservative timeout, redirect, response-size, and allowed content-type limits.
+- Do not store cookies, authorization headers, provider secrets, or raw binary content in ingestion attempts.
 - Separate approval, QA, and moderation concepts.
 - Log manual overrides and admin grants.
 - Avoid storing unnecessary raw secrets in analytics or logs.

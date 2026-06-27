@@ -37,9 +37,10 @@ const readinessItems = [
   ["Brand foundation records available", () => cmState.brands.length > 0],
   ["Brand Brain placeholder editable", () => Boolean(cmState.brain)],
   ["Source library ready", () => cmState.sources.length > 0],
+  ["Website source ingestion ready", () => true],
   ["Campaign Engine locked", () => true],
   ["Agency QA locked", () => true],
-  ["No URL crawling in Phase 3", () => true],
+  ["AI Brand Brain extraction locked", () => true],
 ];
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -74,7 +75,7 @@ function bindUi() {
   });
 
   document.addEventListener("click", async (event) => {
-    const target = event.target.closest("[data-scroll-target], [data-brand-id], [data-archive-source], [data-token-pack], [data-cm-nav]");
+    const target = event.target.closest("[data-scroll-target], [data-brand-id], [data-ingest-source], [data-archive-source], [data-token-pack], [data-cm-nav]");
     if (!target) return;
     if (target.dataset.scrollTarget) {
       event.preventDefault();
@@ -87,6 +88,10 @@ function bindUi() {
     if (target.dataset.archiveSource) {
       event.preventDefault();
       await archiveSource(target.dataset.archiveSource);
+    }
+    if (target.dataset.ingestSource) {
+      event.preventDefault();
+      await ingestSource(target.dataset.ingestSource);
     }
     if (target.dataset.tokenPack) {
       event.preventDefault();
@@ -353,24 +358,28 @@ function renderBrandDetail() {
 function renderSourceList() {
   $("#sourceList").innerHTML = cmState.sources.length
     ? cmState.sources.map((source) => `
-      <article class="cm-source-card">
+      <article class="cm-source-card cm-source-card-${escapeHtml(source.status || "pending")}">
         <header>
           <div>
             <strong>${escapeHtml(source.title || labelForSource(source.sourceType))}</strong>
             <span>${escapeHtml(labelForSource(source.sourceType))} - ${escapeHtml(source.status)}</span>
           </div>
-          <span class="cm-pill">${escapeHtml(source.status)}</span>
+          <span class="cm-pill cm-source-status">${escapeHtml(source.status)}</span>
         </header>
         ${source.sourceUrl ? `<code>${escapeHtml(source.sourceUrl)}</code>` : ""}
         ${source.assetId ? `<code>Asset: ${escapeHtml(source.assetId)}</code>` : ""}
-        ${source.rawText ? `<p>${escapeHtml(source.rawText.slice(0, 220))}${source.rawText.length > 220 ? "..." : ""}</p>` : ""}
+        ${sourcePreviewHtml(source)}
+        ${sourceMetadataHtml(source)}
         <footer>
-          <span>Created ${formatDate(source.createdAt)}</span>
-          ${source.status !== "archived" ? `<button class="cm-button cm-button-danger" type="button" data-archive-source="${escapeHtml(source.id)}">Archive</button>` : ""}
+          <span>${source.lastIngestedAt ? `Last ingested ${formatDateTime(source.lastIngestedAt)}` : `Created ${formatDate(source.createdAt)}`}</span>
+          <div class="cm-row-actions">
+            ${source.sourceUrl && source.status !== "archived" ? `<button class="cm-button cm-button-secondary" type="button" data-ingest-source="${escapeHtml(source.id)}" ${source.status === "ingesting" ? "disabled" : ""}>${source.status === "active" ? "Re-ingest" : "Ingest source"}</button>` : ""}
+            ${source.status !== "archived" ? `<button class="cm-button cm-button-danger" type="button" data-archive-source="${escapeHtml(source.id)}">Archive</button>` : ""}
+          </div>
         </footer>
       </article>
     `).join("")
-    : emptyHtml("No source records yet.", "Upload brand files, add URLs, or attach same-workspace assets.");
+    : emptyHtml("No source records yet.", "Upload brand files, add URLs, or attach same-workspace assets. Website URLs can be ingested when you are ready.");
 }
 
 function renderAssets() {
@@ -419,6 +428,38 @@ function renderSourceTypeOptions() {
   const select = $("#sourceTypeSelect");
   if (!select) return;
   select.innerHTML = sourceTypes.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+}
+
+function sourcePreviewHtml(source) {
+  if (source.rawText) {
+    return `<p class="cm-source-preview">${escapeHtml(source.rawText.slice(0, 520))}${source.rawText.length > 520 ? "..." : ""}</p>`;
+  }
+  if (source.status === "failed") return `<p class="cm-source-preview">This source failed to ingest. Check the error details below, then adjust the URL or try again.</p>`;
+  if (source.status === "ingesting") return `<p class="cm-source-preview">Reading this source now...</p>`;
+  if (source.sourceUrl) return `<p class="cm-source-preview">URL saved. Ingest it to store readable text and metadata for later Brand Brain extraction.</p>`;
+  return "";
+}
+
+function sourceMetadataHtml(source) {
+  const metadata = source.metadata || {};
+  const error = metadata.lastIngestionError;
+  const headings = Array.isArray(metadata.headings) ? metadata.headings.slice(0, 3).map((item) => item.text || item).filter(Boolean) : [];
+  const pieces = [
+    metadata.httpStatus ? `HTTP ${metadata.httpStatus}` : "",
+    metadata.contentType || "",
+    metadata.fetchDurationMs ? `${metadata.fetchDurationMs} ms` : "",
+    metadata.finalUrl && metadata.finalUrl !== source.sourceUrl ? `Final: ${metadata.finalUrl}` : "",
+    metadata.canonicalUrl ? `Canonical: ${metadata.canonicalUrl}` : "",
+  ].filter(Boolean);
+  return `
+    <div class="cm-source-metadata">
+      ${metadata.title ? `<span>Title: ${escapeHtml(metadata.title)}</span>` : ""}
+      ${metadata.metaDescription ? `<span>Description: ${escapeHtml(metadata.metaDescription)}</span>` : ""}
+      ${headings.length ? `<span>Headings: ${escapeHtml(headings.join(" | "))}</span>` : ""}
+      ${pieces.length ? `<span>${escapeHtml(pieces.join(" | "))}</span>` : ""}
+      ${error ? `<span class="cm-source-error">Error: ${escapeHtml(error.message || "Ingestion failed.")}</span>` : ""}
+    </div>
+  `;
 }
 
 async function createWorkspace(event) {
@@ -529,6 +570,7 @@ async function createSource(event) {
         assetId: data.assetId,
         rawText: data.rawText,
         metadata,
+        ingestNow: data.ingestNow === "true",
       },
     });
     event.currentTarget.reset();
@@ -536,7 +578,17 @@ async function createSource(event) {
     renderAssetOptions();
     await loadBrandDetail(cmState.selectedBrand.id);
     renderAll();
-    return "Source record added.";
+    return data.ingestNow === "true" ? "Source added and ingested." : "Source record added.";
+  });
+}
+
+async function ingestSource(sourceId) {
+  if (!cmState.selectedBrand) return;
+  await submitAction("Reading source page safely...", async () => {
+    await api(`/api/brands/${encodeURIComponent(cmState.selectedBrand.id)}/sources/${encodeURIComponent(sourceId)}/ingest`, { method: "POST" });
+    await loadBrandDetail(cmState.selectedBrand.id);
+    renderAll();
+    return "Source ingested.";
   });
 }
 
@@ -817,6 +869,13 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatDateTime(value) {
+  if (!value) return "not recorded";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 function formatBytes(value) {
