@@ -7,7 +7,8 @@
   const PLAYER_STATES = ["playing_beat", "waiting_for_continue", "waiting_for_choice", "transitioning", "complete"];
   const DECISION_TYPES = [
     "trust_choice", "sacrifice_choice", "courage_choice", "mercy_choice",
-    "mystery_deduction", "loyalty_choice", "betrayal_choice", "final_fate_choice",
+    "moral_choice", "mystery_deduction", "loyalty_choice", "betrayal_choice",
+    "power_choice", "final_fate_choice",
   ];
 
   /**
@@ -114,13 +115,19 @@
       sceneId: String(value.sceneId || sceneId),
       title: String(value.title || "A Difficult Choice"),
       setupText: String(value.setupText || ""),
-      questionText: String(value.questionText || "What should happen next?"),
+      questionText: String(value.questionText || "Which concrete action answers the evidence already discovered?"),
       decisionType: DECISION_TYPES.includes(value.decisionType) ? value.decisionType : "courage_choice",
       emotionalTone: String(value.emotionalTone || "tense"),
       choices,
       clueReferences: uniqueStrings(value.clueReferences),
       visualPrompt: String(value.visualPrompt || ""),
       consequenceMode: value.consequenceMode === "ending" ? "ending" : "branch_and_converge",
+      whyChoiceMatters: String(value.whyChoiceMatters || ""),
+      whatPlayerKnows: String(value.whatPlayerKnows || ""),
+      helpfulClueId: String(value.helpfulClueId || ""),
+      wrongChoiceConsequence: String(value.wrongChoiceConsequence || ""),
+      wiseChoiceConsequence: String(value.wiseChoiceConsequence || ""),
+      influencesEndingIds: uniqueStrings(value.influencesEndingIds),
     };
   }
 
@@ -222,7 +229,7 @@
     return score;
   }
 
-  function buildDecisionVisualPrompt(decision, heroName = "the hero") {
+  function buildDecisionVisualPrompt(decision, heroName = "the protagonist") {
     const clue = decision?.clueReferences?.length
       ? "Keep the relevant clue object clearly visible but subtle in the composition."
       : "Make the physical dilemma immediately readable without symbolic abstraction.";
@@ -235,22 +242,36 @@
     ].filter(Boolean).join(" ");
   }
 
-  function deterministicFallbackPlan(sceneIds = []) {
+  function deterministicFallbackPlan(sceneIds = [], context = {}) {
     const ids = sceneIds.filter(Boolean);
     const at = (ratio) => ids[Math.min(ids.length - 1, Math.max(0, Math.floor((ids.length - 1) * ratio)))] || "";
+    const heroName = String(context.heroName || "the protagonist");
+    const worldName = String(context.worldName || "the selected realm");
+    const mystery = String(context.centralMystery || `who forged the warning that endangered ${worldName}`);
+    const antagonist = String(context.antagonisticForce || "the masked saboteur");
+    const allies = uniqueStrings(context.supportingCharacters);
+    const firstAlly = allies[0] || "the map keeper";
+    const secondAlly = allies[1] || "the gate scout";
+    const clueObjects = uniqueStrings(context.clues).length >= 3
+      ? uniqueStrings(context.clues).slice(0, 3)
+      : ["a snapped bronze compass needle", "a black-threaded route map", "a wax seal stamped backwards"];
     const decisions = [
-      mockDecision("decision-trust", at(.3), "trust_choice", at(.4), at(.45), "Who has earned the hero's trust?"),
-      mockDecision("decision-courage", at(.62), "courage_choice", at(.72), at(.76), "Which risk is worth taking now?"),
-      mockDecision("decision-fate", at(.84), "final_fate_choice", at(.92), at(.95), "What should the hero protect in the final moment?", true),
+      mockDecision("decision-trust", at(.3), "trust_choice", at(.4), at(.45), `${firstAlly} and ${secondAlly} give conflicting accounts of ${mystery}. Whose route matches ${clueObjects[0]}?`, clueObjects[0], false, heroName),
+      mockDecision("decision-courage", at(.62), "courage_choice", at(.72), at(.76), `${antagonist} has blocked the road. Should ${heroName} follow ${clueObjects[1]} or stay to protect ${firstAlly}?`, clueObjects[1], false, heroName),
+      mockDecision("decision-fate", at(.84), "final_fate_choice", at(.92), at(.95), `${clueObjects[2]} proves the truth about ${mystery}. Should ${heroName} expose it now or keep the promise made to ${secondAlly}?`, clueObjects[2], true, heroName),
     ];
     return {
-      centralMystery: "A trusted account of the danger does not match the evidence found along the journey.",
-      heroEmotionalFlaw: "The hero tries to carry every responsibility alone.",
+      centralMystery: mystery,
+      heroEmotionalFlaw: `${heroName} tries to carry every responsibility alone.`,
       clues: decisions.slice(0, 3).map((decision, index) => ({
         id: `clue-${index + 1}`,
         introducedInSceneId: at(.12 + index * .22),
-        clueText: ["A witness remembers one detail differently.", "A familiar mark appears where it should not.", "An ally knows something they were never told."][index],
-        visualObject: ["damaged map", "matching insignia", "sealed message"][index],
+        clueText: [
+          `${clueObjects[0]} is bent toward the forbidden northern road, contradicting the guide's directions.`,
+          `${clueObjects[1]} carries fresh mud from the route ${antagonist} claimed was impassable.`,
+          `${clueObjects[2]} uses the private crest known only to ${secondAlly} and the person who forged the warning.`,
+        ][index],
+        visualObject: clueObjects[index],
         linkedDecisionId: decision.id,
         helpsChoiceId: decision.choices[0].id,
         subtlety: "subtle",
@@ -261,23 +282,31 @@
         { id: "ending-wise", endingType: "wise_ending", sceneId: ids.at(-1) || "", minimumScores: { wisdom: 2 }, requiredFlags: [], requiredClueIds: [], preferredOutcomeTags: ["wise"] },
         { id: "ending-friendship", endingType: "friendship_ending", sceneId: ids.at(-1) || "", minimumScores: { trust: 1, loyalty: 1 }, requiredFlags: [], requiredClueIds: [], preferredOutcomeTags: ["loyal"] },
       ],
+      routeMap: decisions.map((decision) => `${decision.sceneId} branches through ${decision.choices.map((choice) => choice.nextSceneId).join(" or ")} before reconverging.`),
     };
   }
 
-  function mockDecision(id, sceneId, type, firstNext, secondNext, question, final = false) {
+  function mockDecision(id, sceneId, type, firstNext, secondNext, question, clueObject, final = false, heroName = "the protagonist") {
+    const clueId = `clue-${id.includes("trust") ? 1 : id.includes("courage") ? 2 : 3}`;
     return normalizeDecisionNode({
       id,
       sceneId,
       title: final ? "The Final Choice" : "The Story Turns",
-      setupText: "The danger closes in, and every available action carries a real cost.",
+      setupText: `${clueObject} changes what the group believed, and every available action now carries a different cost.`,
       questionText: question,
       decisionType: type,
       emotionalTone: "urgent",
       consequenceMode: final ? "ending" : "branch_and_converge",
-      clueReferences: [],
+      clueReferences: [clueId],
+      helpfulClueId: clueId,
+      whyChoiceMatters: `This choice tests whether ${heroName} can act on the truth revealed by ${clueObject}.`,
+      whatPlayerKnows: `${clueObject} contradicts the safest-looking explanation.`,
+      wrongChoiceConsequence: "The saboteur gains time and an ally's trust is damaged.",
+      wiseChoiceConsequence: "The group uses the physical evidence and reaches the next danger prepared.",
+      influencesEndingIds: ["ending-heroic", "ending-wise", "ending-friendship"],
       choices: [
-        { id: `${id}-a`, label: "Act on the evidence", description: "Trust what the clues reveal.", nextSceneId: firstNext, emotionalHook: "Take responsibility", visibleHint: "A careful path", hiddenConsequence: "Raises wisdom and trust.", outcomeTag: "wise", scoreEffects: { wisdom: 2, trust: 1 }, setsFlags: [`${id}-evidence`] },
-        { id: `${id}-b`, label: "Take the dangerous route", description: "Move before the opportunity disappears.", nextSceneId: secondNext, emotionalHook: "Risk everything", visibleHint: "A bold path", hiddenConsequence: "Raises courage and danger.", outcomeTag: "brave", scoreEffects: { courage: 2, danger: 1 }, setsFlags: [`${id}-bold`] },
+        { id: `${id}-proof`, label: `Follow the proof on ${clueObject}`, description: "Challenge the safest-looking account with the physical contradiction.", nextSceneId: firstNext, emotionalHook: "Trust the visible evidence", visibleHint: "A careful but confrontational path", hiddenConsequence: "Raises wisdom and trust.", outcomeTag: "wise", scoreEffects: { wisdom: 2, trust: 1 }, setsFlags: [`${id}-proof`] },
+        { id: `${id}-ally`, label: "Protect the threatened ally", description: "Put the endangered relationship ahead of the quickest route.", nextSceneId: secondNext, emotionalHook: "Risk time to preserve loyalty", visibleHint: "A loyal but costly path", hiddenConsequence: "Raises courage and loyalty.", outcomeTag: "loyal", scoreEffects: { courage: 1, loyalty: 2 }, setsFlags: [`${id}-ally`] },
       ],
     }, sceneId);
   }

@@ -1,0 +1,1 @@
+export function validateReelSafety(text: string) { const blocked = /gore|sexualized|self-harm|graphic violence|predatory/i.test(text); return { valid: !blocked, errors: blocked ? ["Unsafe reel content."] : [] }; }

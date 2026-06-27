@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "Asset",
+  "required": [
+    "id",
+    "workspaceId",
+    "assetType",
+    "title",
+    "storageUrl",
+    "visibility",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "userId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "mediaJobId": {
+      "type": "string"
+    },
+    "assetType": {
+      "enum": [
+        "image",
+        "video",
+        "audio",
+        "document",
+        "logo",
+        "product_image",
+        "source_video",
+        "generated_image",
+        "generated_video",
+        "thumbnail",
+        "export_package"
+      ]
+    },
+    "title": {
+      "type": "string"
+    },
+    "storageUrl": {
+      "type": "string"
+    },
+    "thumbnailUrl": {
+      "type": "string"
+    },
+    "visibility": {
+      "enum": [
+        "private",
+        "workspace",
+        "public_link",
+        "archived"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "archivedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

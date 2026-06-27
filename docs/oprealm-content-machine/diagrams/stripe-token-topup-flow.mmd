@@ -1,0 +1,15 @@
+flowchart TD
+  A[User selects token pack] --> B[POST /api/billing/token-topup]
+  B --> C[Require authenticated user]
+  C --> D[Load active token pack]
+  D --> E{Pack active?}
+  E -- No --> F[Reject request]
+  E -- Yes --> G[Create Stripe Checkout Session]
+  G --> H[Return checkoutUrl]
+  H --> I[User pays in Stripe Checkout]
+  I --> J[Stripe emits checkout.session.completed]
+  J --> K[POST /api/webhooks/stripe]
+  K --> L[Verify raw-body signature]
+  L --> M[Idempotency checks]
+  M --> N[Credit wallet exactly once]
+  N --> O[Create purchase transaction]

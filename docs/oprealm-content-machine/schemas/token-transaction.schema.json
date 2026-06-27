@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenTransaction",
+  "required": [
+    "id",
+    "userId",
+    "walletId",
+    "type",
+    "amount",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "userId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "walletId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "enum": [
+        "purchase",
+        "admin_grant",
+        "reservation",
+        "reservation_release",
+        "spend",
+        "refund",
+        "adjustment"
+      ]
+    },
+    "amount": {
+      "type": "number"
+    },
+    "balanceAfter": {
+      "type": "number"
+    },
+    "reservedBalanceAfter": {
+      "type": "number"
+    },
+    "relatedReservationId": {
+      "type": "string"
+    },
+    "relatedMediaJobId": {
+      "type": "string"
+    },
+    "stripeCheckoutSessionId": {
+      "type": "string"
+    },
+    "stripePaymentIntentId": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

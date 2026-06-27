@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "ContentBlueprintItem",
+  "required": [
+    "id",
+    "workspaceId",
+    "campaignId",
+    "platform",
+    "format",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaignId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "format": {
+      "type": "string"
+    },
+    "contentPack": {
+      "type": "string"
+    },
+    "angle": {
+      "type": "string"
+    },
+    "hook": {
+      "type": "string"
+    },
+    "targetDurationSeconds": {
+      "type": "number"
+    },
+    "aspectRatio": {
+      "type": "string"
+    },
+    "requiredAssets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "approved",
+        "converted_to_atom",
+        "cancelled"
+      ]
+    },
+    "estimatedTokenCost": {
+      "type": "number"
+    }
+  }
+}

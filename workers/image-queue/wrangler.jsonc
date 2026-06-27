@@ -6,6 +6,19 @@
   "vars": {
     "OPREALM_INTERNAL_IMAGE_URL": "https://oprealm.com/api/internal-scene-image-worker"
   },
+  "d1_databases": [
+    {
+      "binding": "OPREALM_DB",
+      "database_name": "oprealm-discord",
+      "database_id": "36bdaaf2-db1a-45c3-ae05-20edb77bea67"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "OPREALM_ASSETS",
+      "bucket_name": "oprealm-assets"
+    }
+  ],
   "queues": {
     "consumers": [
       {
@@ -16,6 +29,11 @@
         "max_concurrency": 3,
         "retry_delay": 15
       }
+    ]
+  },
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
     ]
   }
 }

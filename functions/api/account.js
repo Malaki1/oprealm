@@ -48,7 +48,7 @@ async function handleAccountPost(request, env) {
   }
 
   const action = body.action || "";
-  if (["register", "login", "request_reset"].includes(action)) {
+  if (["register", "request_reset"].includes(action)) {
     const turnstile = await verifyTurnstile(request, env, body.turnstileToken || body["cf-turnstile-response"] || "");
     if (!turnstile.ok) return json({ ok: false, error: turnstile.error }, 403);
   }

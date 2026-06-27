@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "CreativeReviewJob",
+  "required": [
+    "id",
+    "workspaceId",
+    "stage",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string"
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "contentAtomId": {
+      "type": "string"
+    },
+    "mediaJobId": {
+      "type": "string"
+    },
+    "stage": {
+      "enum": [
+        "brand_brain",
+        "creative_brief",
+        "campaign_strategy",
+        "concept",
+        "copy_script",
+        "visual_direction",
+        "storyboard",
+        "static_keyframe",
+        "platform_native",
+        "pre_video",
+        "post_render",
+        "pre_publish",
+        "campaign_coherence"
+      ]
+    },
+    "status": {
+      "enum": [
+        "queued",
+        "running",
+        "passed",
+        "passed_with_minor_notes",
+        "revise_and_recheck",
+        "blocked",
+        "needs_human_review",
+        "overridden",
+        "failed"
+      ]
+    },
+    "force": {
+      "type": "boolean"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

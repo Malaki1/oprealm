@@ -4,6 +4,7 @@ const {
   buildSceneVisualPrompt,
   buildSceneVisualPromptSummary,
   createContinuityBible,
+  validateSceneVisualPrompt,
 } = require("../public/scene-visual-prompt.js");
 
 function fixture(overrides = {}) {
@@ -99,4 +100,60 @@ test("manual visual direction becomes the visible action", () => {
 
   assert.match(prompt, /Bucky slides beneath a closing brass gate/i);
   assert.doesNotMatch(prompt, /\bthe hero\b|\bstory world\b/i);
+});
+
+test("decision scenes use confrontation camera language and visible pressure", () => {
+  const base = fixture();
+  const prompt = buildSceneVisualPrompt({
+    ...base,
+    scene: {
+      ...base.scene,
+      sourcePassage: 'Mara raised her spear. "Show the map and risk the traitor, or hide it and make us follow blind." Bucky gripped the cracked brass gear.',
+      sceneType: "choice_setup",
+      cinematicSceneType: "choice_setup",
+      charactersPresent: ["Bucky", "Mara"],
+      location: "Platform Seven",
+      keyObject: "cracked brass gear",
+      cameraDirection: "Over Shoulder",
+    },
+  });
+  assert.match(prompt, /Decision pressure/i);
+  assert.match(prompt, /Over Shoulder/i);
+  assert.match(prompt, /cracked brass gear/i);
+});
+
+test("clue and spectacle prompts include concrete staging and scale", () => {
+  const base = fixture();
+  const cluePrompt = buildSceneVisualPrompt({
+    ...base,
+    scene: {
+      ...base.scene,
+      sceneType: "clue_discovery",
+      keyObject: "cracked brass gear",
+      location: "Platform Seven",
+    },
+  });
+  const spectaclePrompt = buildSceneVisualPrompt({
+    ...base,
+    scene: {
+      ...base.scene,
+      sceneType: "final_spectacle",
+      sourcePassage: "Bucky raises the brass scanner as the entire Neon Clock unfolds over Clockhaven.",
+      location: "The Neon Clock",
+      cameraDirection: "Drone Shot",
+    },
+  });
+  assert.match(cluePrompt, /partially hidden/i);
+  assert.match(cluePrompt, /cracked brass gear/i);
+  assert.match(spectaclePrompt, /huge scale|characters small/i);
+});
+
+test("visual prompt validation requires specificity and continuity", () => {
+  const input = fixture();
+  const prompt = buildSceneVisualPrompt(input);
+  const valid = validateSceneVisualPrompt(prompt, input);
+  const invalid = validateSceneVisualPrompt("The hero finds a mysterious clue in the story world.", input);
+  assert.equal(valid.passed, true);
+  assert.equal(invalid.passed, false);
+  assert.match(invalid.warnings.join(" "), /generic placeholder|unnamed clue|missing camera|missing continuity/i);
 });

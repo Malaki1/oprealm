@@ -4,7 +4,7 @@ const MUTATION_LIMIT = 60;
 const LOGIN_LIMIT = 5;
 const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-character-image", 180],
-  ["/api/story-scene-images", 180],
+  ["/api/story-scene-images", 600],
   ["/api/internal-scene-image-worker", 180],
   ["/api/story-scene-video", 90],
   ["/api/story-world-image", 180],
@@ -16,9 +16,11 @@ const ROUTE_MUTATION_LIMITS = new Map([
   ["/api/story-branch", 120],
   ["/api/story-image-download", 240],
   ["/api/roblox-wallpaper", 120],
+  ["/api/realm-reels", 240],
+  ["/api/asset-forge", 240],
 ]);
 const DEFAULT_MAX_BODY_BYTES = 256 * 1024;
-const LARGE_BODY_MAX_BYTES = 14 * 1024 * 1024;
+const LARGE_BODY_MAX_BYTES = 22 * 1024 * 1024;
 const LARGE_BODY_PATHS = new Set([
   "/api/story-scene-images",
   "/api/story-scene-video",
@@ -28,6 +30,8 @@ const LARGE_BODY_PATHS = new Set([
   "/api/story-game-cover",
   "/api/story-image-download",
   "/api/creations",
+  "/api/realm-reels",
+  "/api/asset-forge",
 ]);
 
 export async function onRequest(context) {
@@ -92,10 +96,23 @@ async function enforceRateLimits(request, env) {
   await ensureRateLimitTable(env);
   const url = new URL(request.url);
   const ip = clientIp(request);
-  const routeKey = `${request.method}:${url.pathname}`;
-  const generalLimit = request.method === "GET"
+  let routeKey = `${request.method}:${url.pathname}`;
+  let generalLimit = request.method === "GET"
     ? GENERAL_LIMIT
     : ROUTE_MUTATION_LIMITS.get(url.pathname) || MUTATION_LIMIT;
+
+  if (request.method === "GET" && url.pathname === "/api/generation-job") {
+    routeKey = `${request.method}:${url.pathname}:poll`;
+    generalLimit = 1800;
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/story-draft") {
+    const body = await safeJson(request);
+    if (String(body.providerResponseId || "").trim()) {
+      routeKey = `${routeKey}:poll`;
+      generalLimit = 600;
+    }
+  }
 
   await hitRateLimit(env, `ip:${ip}:route:${routeKey}`, generalLimit, WINDOW_SECONDS);
 
@@ -205,7 +222,8 @@ function validateSafeString(value, { label, maxLength, dataUrlCount }) {
 
 function stringLimit(value, path = "") {
   if (isDataImage(value)) return 8 * 1024 * 1024;
-  if (path === "body.approvedStory" || path === "body.text") return 40000;
+  if (path === "body.approvedStory") return 100000;
+  if (path === "body.text") return 40000;
   if (path === "body.storyLogicPlan") return 12000;
   return 5000;
 }

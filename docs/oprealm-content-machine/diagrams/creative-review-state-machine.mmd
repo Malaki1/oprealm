@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> queued
+  queued --> running
+  running --> passed
+  running --> passed_with_minor_notes
+  running --> revise_and_recheck
+  running --> blocked
+  running --> failed
+  revise_and_recheck --> queued
+  blocked --> needs_human_review
+  needs_human_review --> overridden
+  passed --> [*]
+  overridden --> [*]

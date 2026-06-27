@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "FriendInvite",
+  "required": [
+    "id",
+    "workspaceId",
+    "email",
+    "status",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "email": {
+      "type": "string"
+    },
+    "role": {
+      "enum": [
+        "admin",
+        "member",
+        "viewer",
+        "client",
+        "friend"
+      ]
+    },
+    "tokenGrantAmount": {
+      "type": "number"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "accepted",
+        "expired",
+        "revoked"
+      ]
+    },
+    "invitedByUserId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptedByUserId": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "acceptedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revokedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Turn any interface mockup into a reusable, production-ready design asset pack." />
+    <title>Mockup Asset Forge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/asset-forge.css?v=5" />
+    <script src="/asset-forge.js?v=5" type="module"></script>
+  </head>
+  <body>
+    <div class="forge-shell">
+      <aside class="forge-sidebar">
+        <a class="forge-brand" href="/dashboard"><span class="forge-mark">◆</span><span><strong>Mockup Asset Forge</strong><small>Turn any UI mockup into clean, reusable assets</small></span></a>
+        <nav aria-label="Asset Forge navigation">
+          <a href="/dashboard" data-route="dashboard"><span>⌂</span>Dashboard</a>
+          <a href="/upload" data-route="upload"><span>⇧</span>Upload Mockup</a>
+          <a href="/style-analysis" data-route="style-analysis"><span>◉</span>Style Analysis</a>
+          <a href="/design-system" data-route="design-system"><span>◇</span>Design System</a>
+          <a href="/asset-map" data-route="asset-map"><span>▦</span>Asset Map</a>
+          <a href="/asset-checklist" data-route="asset-checklist"><span>☑</span>Asset Checklist</a>
+          <a href="/design-director" data-route="design-director"><span>✦</span>Design Director</a>
+          <a href="/generation-queue" data-route="generation-queue"><span>☷</span>Generation Queue</a>
+          <a href="/asset-gallery" data-route="asset-gallery"><span>▧</span>Asset Gallery</a>
+          <a href="/export" data-route="export"><span>⇩</span>Export Pack</a>
+          <a href="/settings" data-route="settings"><span>⚙</span>Settings</a>
+        </nav>
+        <section class="forge-project-mini" id="forgeProjectMini">
+          <small>Current Project</small><strong>No project selected</strong><span>Upload a mockup to begin</span>
+          <div class="mini-progress"><i></i></div><a href="/projects">View Projects</a>
+        </section>
+        <div class="forge-user"><span class="avatar">A</span><span><strong>Creator</strong><small>Workspace owner</small></span></div>
+      </aside>
+      <section class="forge-workspace">
+        <header class="forge-topbar">
+          <button class="mobile-menu" id="forgeMenu" aria-label="Open navigation">☰</button>
+          <div class="forge-steps" aria-label="Project progress">
+            <a href="/upload"><i>1</i>Upload</a><a href="/style-analysis"><i>2</i>Style Analysis</a>
+            <a href="/asset-map"><i>3</i>Asset Map</a><a href="/asset-checklist"><i>4</i>Checklist</a>
+            <a href="/generation-queue"><i>5</i>Generate</a><a href="/asset-gallery"><i>6</i>Gallery</a>
+            <a href="/export"><i>7</i>Export</a>
+          </div>
+          <div class="top-actions"><button title="Help">?</button><button title="Notifications">♧<b>3</b></button></div>
+        </header>
+        <main id="forgeMain"><div class="forge-loader"><span></span><strong>Opening Asset Forge...</strong></div></main>
+      </section>
+    </div>
+    <div class="forge-toast" id="forgeToast" hidden></div>
+  </body>
+</html>

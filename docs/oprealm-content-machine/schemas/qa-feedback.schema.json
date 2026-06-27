@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "QAFeedback",
+  "required": [
+    "id",
+    "reviewJobId",
+    "severity",
+    "category",
+    "finding",
+    "suggestedFix",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewJobId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": [
+        "info",
+        "minor",
+        "major",
+        "blocker"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "finding": {
+      "type": "string"
+    },
+    "whyItMatters": {
+      "type": "string"
+    },
+    "suggestedFix": {
+      "type": "string"
+    },
+    "targetEntityType": {
+      "type": "string"
+    },
+    "targetEntityId": {
+      "type": "string"
+    },
+    "targetField": {
+      "type": "string"
+    },
+    "requiresRegeneration": {
+      "type": "boolean"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

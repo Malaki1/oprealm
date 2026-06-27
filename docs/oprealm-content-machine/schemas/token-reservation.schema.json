@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenReservation",
+  "required": [
+    "id",
+    "userId",
+    "walletId",
+    "status",
+    "amountReserved",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "userId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "walletId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "created",
+        "reserved",
+        "partially_spent",
+        "spent",
+        "released",
+        "refunded",
+        "failed"
+      ]
+    },
+    "amountReserved": {
+      "type": "number"
+    },
+    "amountSpent": {
+      "type": "number"
+    },
+    "amountReleased": {
+      "type": "number"
+    },
+    "amountRefunded": {
+      "type": "number"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

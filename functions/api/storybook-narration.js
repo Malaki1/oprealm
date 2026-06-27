@@ -272,7 +272,9 @@ function publicBeat(row) {
     voiceId: row.voice_id,
     deliveryDirection: row.delivery_direction,
     audioHash: row.audio_hash,
-    audioUrl: row.status === "ready" ? `/api/storybook-audio?id=${encodeURIComponent(row.id)}` : "",
+    audioUrl: row.status === "ready"
+      ? `/api/storybook-audio?id=${encodeURIComponent(row.id)}&storybookId=${encodeURIComponent(row.storybook_id)}`
+      : "",
     durationMs: Number(row.duration_ms || 0),
     status: row.status,
     generatedAt: row.generated_at,

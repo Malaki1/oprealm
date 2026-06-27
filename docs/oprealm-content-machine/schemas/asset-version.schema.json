@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "AssetVersion",
+  "required": [
+    "id",
+    "assetId",
+    "version",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "number"
+    },
+    "sourcePrompt": {
+      "type": "string"
+    },
+    "sourceAssetIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "qaScorecardId": {
+      "type": "string"
+    },
+    "tokenCost": {
+      "type": "number"
+    },
+    "uri": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

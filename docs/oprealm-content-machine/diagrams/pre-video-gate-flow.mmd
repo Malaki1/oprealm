@@ -1,0 +1,15 @@
+flowchart TD
+  A[Content Atom ready for video] --> B{Script QA passed?}
+  B -- No --> X[Block video job]
+  B -- Yes --> C{Storyboard QA passed?}
+  C -- No --> X
+  C -- Yes --> D{Visual direction QA passed?}
+  D -- No --> X
+  D -- Yes --> E{Static keyframe QA passed?}
+  E -- No --> X
+  E -- Yes --> F{Token reservation valid?}
+  F -- No --> Y[Requote tokens]
+  F -- Yes --> G{Platform specs valid?}
+  G -- No --> X
+  G -- Yes --> H[Mark approved_for_video]
+  H --> I[Queue video media job]

@@ -334,8 +334,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
 }
-.story-game.is-waiting-for-choice .scene-art { filter: brightness(.58) blur(2px); transform: scale(1.035); }
-.story-game.is-waiting-for-choice .scene-vignette { background: rgba(1,5,18,.38); }
+.story-game.is-waiting-for-choice .scene-art { filter: none; }
+.story-game.is-waiting-for-choice .scene-vignette { background: rgba(1, 5, 18, 0.06); }
 .decision-heading { margin: 0 0 12px; padding: 12px 14px; border-left: 3px solid #ffd34e; background: rgba(17,10,43,.72); }
 .decision-heading span { color: #ffd34e; font-size: .68rem; font-weight: 900; text-transform: uppercase; }
 .decision-heading strong { display: block; margin-top: 4px; font-size: 1.08rem; }
@@ -666,8 +666,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .scene-vignette {
   background:
-    linear-gradient(180deg, rgba(1, 5, 14, 0.62) 0%, transparent 18%, transparent 60%, rgba(1, 5, 14, 0.82) 100%),
-    linear-gradient(90deg, rgba(1, 5, 14, 0.36), transparent 18%, transparent 82%, rgba(1, 5, 14, 0.34));
+    linear-gradient(180deg, rgba(1, 5, 14, 0.24) 0%, transparent 15%, transparent 72%, rgba(1, 5, 14, 0.36) 100%),
+    linear-gradient(90deg, rgba(1, 5, 14, 0.14), transparent 12%, transparent 88%, rgba(1, 5, 14, 0.14));
 }
 
 .beat-transition {

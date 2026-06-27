@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "AnalyticsRecord",
+  "required": [
+    "id",
+    "workspaceId",
+    "platform",
+    "capturedAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaignId": {
+      "type": "string"
+    },
+    "contentAtomId": {
+      "type": "string"
+    },
+    "calendarItemId": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "hook": {
+      "type": "string"
+    },
+    "angle": {
+      "type": "string"
+    },
+    "cta": {
+      "type": "string"
+    },
+    "format": {
+      "type": "string"
+    },
+    "capturedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

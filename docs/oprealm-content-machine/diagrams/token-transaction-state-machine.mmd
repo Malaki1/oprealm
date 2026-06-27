@@ -1,0 +1,16 @@
+stateDiagram-v2
+  [*] --> created
+  created --> reserved
+  reserved --> partially_spent
+  partially_spent --> spent
+  reserved --> spent
+  reserved --> released
+  partially_spent --> released
+  reserved --> refunded
+  partially_spent --> refunded
+  reserved --> failed
+  spent --> refunded
+  spent --> [*]
+  released --> [*]
+  refunded --> [*]
+  failed --> [*]

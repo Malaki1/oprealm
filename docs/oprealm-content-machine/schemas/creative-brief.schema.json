@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "CreativeBrief",
+  "required": [
+    "id",
+    "brandId",
+    "campaignId",
+    "campaignObjective",
+    "audience",
+    "offer",
+    "primaryCTA"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaignId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaignObjective": {
+      "type": "string"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "offer": {
+      "type": "string"
+    },
+    "primaryCTA": {
+      "type": "string"
+    },
+    "keyMessage": {
+      "type": "string"
+    },
+    "proofPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "emotionalAngle": {
+      "type": "string"
+    },
+    "contentPillars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "visualDirection": {
+      "type": "string"
+    },
+    "toneOfVoice": {
+      "type": "string"
+    },
+    "platformNotes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "mustInclude": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "mustAvoid": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "qa_pending",
+        "approved",
+        "needs_revision"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

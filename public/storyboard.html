@@ -8,11 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/creator-flow.css?v=47" />
+    <link rel="stylesheet" href="/creator-flow.css?v=48" />
     <script src="/storyboard-account.js?v=5" defer></script>
-    <script src="/scene-visual-prompt.js?v=2" defer></script>
+    <script src="/scene-visual-prompt.js?v=3" defer></script>
     <script src="/story-decision-engine.js?v=1" defer></script>
-    <script src="/creator-flow.js?v=82" defer></script>
+    <script src="/creator-flow.js?v=102" defer></script>
   </head>
   <body class="storyboard-body">
     <header class="storyboard-topbar">
@@ -183,7 +183,7 @@
             </div>
             <span class="story-approval-state" id="storyApprovalState">Not written yet</span>
           </div>
-          <p class="story-approval-intro">Review or edit the complete story here. After approval, OPREALM will create a detailed visual plan with at least sixteen scenes.</p>
+          <p class="story-approval-intro">Review or edit the complete story here. After approval, OPREALM will select every cinematic moment needed to tell it visually.</p>
           <div class="story-writing-loader" id="storyWritingLoader" hidden aria-live="polite" aria-busy="true">
             <span class="image-loader-dotfield"></span>
             <span class="image-loader-dotfield is-second"></span>
@@ -251,6 +251,22 @@
             <button class="add-scene-inline" id="addSceneTopButton" type="button">+ Add Scene</button>
           </div>
         </div>
+
+        <section class="artwork-test-mode" aria-labelledby="artworkModeTitle">
+          <div>
+            <p class="spark-eyebrow">Low-cost testing</p>
+            <h3 id="artworkModeTitle">Artwork generation mode</h3>
+            <p id="artworkModeDescription">Draft is the default: character references stay enabled while generation costs about $0.006 per image.</p>
+          </div>
+          <label>
+            <span>Mode</span>
+            <select id="storyImageMode">
+              <option value="mock">Mock - free placeholder</option>
+              <option value="draft">Draft - ~$0.006 / 1 credit</option>
+              <option value="final">Final - ~$0.20 / 24 credits</option>
+            </select>
+          </label>
+        </section>
 
         <div class="scene-list" id="scenes">
           <div id="storyboardSceneList">
@@ -378,11 +394,20 @@
         <span class="image-loader-dotfield"></span>
         <span class="image-loader-dotfield is-second"></span>
         <span class="image-loader-wave"></span>
-        <img src="/assets/homepage/mascot/orbit.png" alt="" />
+        <div class="story-setup-progress-ring" id="storySetupProgress" style="--story-setup-progress: 14deg;" aria-hidden="true">
+          <img src="/assets/homepage/mascot/orbit.png" alt="" />
+          <strong id="storySetupPercent">4%</strong>
+        </div>
         <p class="spark-eyebrow">Story approved</p>
-        <h2>Building your scenes...</h2>
-        <p id="storySetupLoadingMessage">Orbit is reading the story, finding the best scene breaks and preparing cinematic visual prompts.</p>
-        <div class="story-setup-progress" aria-hidden="true"><span></span></div>
+        <h2 id="storySetupHeading">Preparing Story Scenes...</h2>
+        <p id="storySetupLoadingMessage">Reading your approved story and preparing the adventure...</p>
+        <div class="story-setup-progress-track" aria-hidden="true"><span></span></div>
+        <small>Your approved story is safe while OPREALM prepares the next step.</small>
+        <p class="story-setup-error-detail" id="storySetupErrorDetail" hidden></p>
+        <div class="story-setup-error-actions" id="storySetupErrorActions" hidden>
+          <button class="scene-action primary" id="retryStorySetupButton" type="button">Try Again</button>
+          <button class="scene-action" id="backFromStorySetupButton" type="button">Back to Story</button>
+        </div>
       </div>
     </div>
 

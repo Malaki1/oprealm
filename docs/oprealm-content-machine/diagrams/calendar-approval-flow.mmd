@@ -1,0 +1,9 @@
+flowchart TD
+  A[Packaged assets] --> B[Calendar drafts]
+  B --> C[Business review]
+  C --> D{Decision}
+  D -- Approve --> E[Scheduled]
+  D -- Reject --> F[Archived]
+  D -- Changes --> G[Revision request]
+  D -- Override --> H[Approved with audit]
+  E --> I[Publishing worker]

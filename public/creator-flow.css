@@ -3822,10 +3822,71 @@ button {
   font-weight: 750;
 }
 
+.artwork-test-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 12px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(63, 224, 170, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(14, 69, 67, 0.44), rgba(9, 20, 54, 0.9));
+}
+
+.artwork-test-mode h3,
+.artwork-test-mode p {
+  margin: 0;
+}
+
+.artwork-test-mode h3 {
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.artwork-test-mode > div > p:last-child {
+  color: rgba(218, 240, 245, 0.78);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.artwork-test-mode label {
+  display: grid;
+  gap: 5px;
+  min-width: 245px;
+  color: #a8ffd2;
+  font-size: 0.74rem;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.artwork-test-mode select {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(143, 240, 255, 0.28);
+  border-radius: 12px;
+  background: #07142f;
+  color: #fff;
+  font: inherit;
+  text-transform: none;
+}
+
 .storyboard-body:not(.storyboard-scenes-body) .story-scenes-step-head,
 .storyboard-body:not(.storyboard-scenes-body) .scene-list,
+.storyboard-body:not(.storyboard-scenes-body) .artwork-test-mode,
 .storyboard-body:not(.storyboard-scenes-body) #clearStoryboardButton {
   display: none !important;
+}
+
+@media (max-width: 720px) {
+  .artwork-test-mode {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .artwork-test-mode label {
+    min-width: 0;
+  }
 }
 
 .storyboard-scenes-body .story-direction-panel,
@@ -4197,11 +4258,50 @@ body.is-story-setup-loading {
   overflow: hidden;
 }
 
-.story-setup-loading-stage img {
-  width: 92px;
-  height: 92px;
+.story-setup-progress-ring {
+  --story-setup-progress: 14deg;
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(#22d9ff 0deg, #8a5cff var(--story-setup-progress), rgba(255, 255, 255, 0.09) var(--story-setup-progress) 360deg);
+  box-shadow: 0 0 34px rgba(34, 217, 255, 0.22);
+}
+
+.story-setup-progress-ring::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: inherit;
+  background: #081130;
+  box-shadow: inset 0 0 24px rgba(34, 217, 255, 0.08);
+}
+
+.story-setup-progress-ring img {
+  position: relative;
+  z-index: 1;
+  width: 72px;
+  height: 72px;
   object-fit: contain;
   filter: drop-shadow(0 0 24px rgba(34, 217, 255, 0.34));
+}
+
+.story-setup-progress-ring strong {
+  position: absolute;
+  z-index: 2;
+  right: -12px;
+  bottom: 5px;
+  min-width: 50px;
+  padding: 6px 8px;
+  border: 1px solid rgba(143, 240, 255, 0.32);
+  border-radius: 999px;
+  background: #0c183e;
+  color: #ffffff;
+  font-size: 0.8rem;
+  line-height: 1;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.34);
 }
 
 .story-setup-loading-stage h2,
@@ -4220,7 +4320,7 @@ body.is-story-setup-loading {
   font-weight: 800;
 }
 
-.story-setup-progress {
+.story-setup-progress-track {
   width: min(360px, 100%);
   height: 8px;
   overflow: hidden;
@@ -4229,19 +4329,54 @@ body.is-story-setup-loading {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.story-setup-progress span {
+.story-setup-progress-track span {
   display: block;
-  width: 42%;
+  width: var(--story-setup-width, 4%);
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #22d9ff, #8855ff, #f641d5);
   box-shadow: 0 0 18px rgba(34, 217, 255, 0.38);
-  animation: storySetupProgress 1.8s ease-in-out infinite;
+  transition: width 420ms ease;
 }
 
-@keyframes storySetupProgress {
-  0% { transform: translateX(-110%); }
-  100% { transform: translateX(340%); }
+.story-setup-loading-stage small {
+  max-width: 430px;
+  color: rgba(168, 186, 222, 0.76);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.story-setup-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.story-setup-error-actions[hidden] {
+  display: none;
+}
+
+.story-setup-loading.has-error .story-setup-progress-ring {
+  background: conic-gradient(#ff6f91 0deg, #ffb45e var(--story-setup-progress), rgba(255, 255, 255, 0.09) var(--story-setup-progress) 360deg);
+}
+
+.story-setup-loading.has-error .story-setup-progress-track {
+  opacity: 0.45;
+}
+
+.story-setup-error-detail {
+  max-width: 470px;
+  margin: 2px 0 0;
+  color: #ffb6c8;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.story-setup-loading.has-error .story-setup-error-detail {
+  display: block;
 }
 
 .story-direction-head {

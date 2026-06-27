@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "ContentAtom",
+  "required": [
+    "id",
+    "workspaceId",
+    "campaignId",
+    "type",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "brandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "campaignId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "blueprintItemId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "videoGenerationStatus": {
+      "enum": [
+        "not_applicable",
+        "planned",
+        "approved_for_video",
+        "video_generation_queued",
+        "video_generated",
+        "blocked",
+        "overridden"
+      ]
+    },
+    "latestScorecardId": {
+      "type": "string"
+    },
+    "assetVersionIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

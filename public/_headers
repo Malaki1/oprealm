@@ -19,3 +19,75 @@
 
 /account-nav.js
   Cache-Control: no-store
+
+/storyboard.html
+  Cache-Control: no-store
+
+/storyboard
+  Cache-Control: no-store
+
+/storyboard-scenes.html
+  Cache-Control: no-store
+
+/storyboard-scenes
+  Cache-Control: no-store
+
+/creator-flow.js
+  Cache-Control: no-cache, must-revalidate
+
+/creator-flow.css
+  Cache-Control: no-cache, must-revalidate
+
+/realmreels*
+  Cache-Control: no-store
+
+/realmreels.js
+  Cache-Control: no-cache, must-revalidate
+
+/realmreels.css
+  Cache-Control: no-cache, must-revalidate
+
+/asset-forge.js
+  Cache-Control: no-cache, must-revalidate
+
+/asset-forge.css
+  Cache-Control: no-cache, must-revalidate
+
+/asset-forge-app/*
+  Cache-Control: no-cache, must-revalidate
+
+/dashboard
+  Cache-Control: no-store
+
+/upload
+  Cache-Control: no-store
+
+/style-analysis
+  Cache-Control: no-store
+
+/design-system
+  Cache-Control: no-store
+
+/asset-map
+  Cache-Control: no-store
+
+/asset-checklist
+  Cache-Control: no-store
+
+/design-director
+  Cache-Control: no-store
+
+/generation-queue
+  Cache-Control: no-store
+
+/asset-gallery
+  Cache-Control: no-store
+
+/export
+  Cache-Control: no-store
+
+/settings
+  Cache-Control: no-store
+
+/projects*
+  Cache-Control: no-store

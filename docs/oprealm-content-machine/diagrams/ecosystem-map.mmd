@@ -1,0 +1,15 @@
+flowchart TD
+  U[Users and Workspaces] --> O[OPREALM Orchestration]
+  O --> BB[Brand Brain]
+  O --> CE[Campaign Engine]
+  O --> QA[Agency QA Layer]
+  O --> TW[Token Wallet]
+  O --> AL[Asset Library]
+  O --> CAL[Calendar and Approval]
+  CE --> BP[Content Blueprint]
+  BP --> MG[Media Generation Adapter]
+  MG --> GMS[Generative-Media-Skills Reference]
+  CAL --> SL[Scheduling Layer Abstraction]
+  SL --> SP[Social Platforms]
+  SP --> AN[Analytics]
+  AN --> BB

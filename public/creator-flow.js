@@ -236,8 +236,16 @@ if (creatorFlowParams.get("voice") === "1") {
 const STORYBOARD_PROJECT_KEY = "oprealm_storyboard_project_v1";
 const STORYBOARD_MOVIE_DB = "oprealm_storyboard_movie_v1";
 const STORYBOARD_MOVIE_STORE = "movie_previews";
-const MIN_STORY_SCENES = 16;
+const MIN_STORY_SCENES = 1;
+const FALLBACK_STORY_SCENES = 16;
 const STORY_SCENES_PAGE = /\/storyboard-scenes(?:\.html)?$/i.test(window.location.pathname);
+const STORY_IMAGE_MODE_KEY = "oprealm_story_image_mode_v1";
+const STORY_TEST_MODE_KEY = "oprealm_story_test_mode_v1";
+const STORY_IMAGE_MODES = {
+  mock: { label: "Mock", credits: 0, cost: "$0.000", button: "Create Mock Image (free)" },
+  draft: { label: "Draft", credits: 1, cost: "~$0.006", button: "Generate Draft (1 credit)" },
+  final: { label: "Final", credits: 24, cost: "~$0.20", button: "Generate Final (24 credits)" },
+};
 const STORY_DIRECTION_DEFAULTS = {
   storyType: "epic-quest",
   endingType: "happy",
@@ -257,8 +265,66 @@ let storyReaderGenerationToken = 0;
 const sceneImageProgressTimers = new Map();
 const sceneImageGenerationQueue = [];
 let sceneImageQueueActive = false;
+let sceneImageStatusMonitor = 0;
 const STORY_SCENE_MOODS = ["Wonder", "Mystery", "Action", "Epic", "Funny", "Emotional", "Tense", "Peaceful"];
 const STORY_SCENE_CAMERAS = ["Wide Shot", "Medium Shot", "Close Up", "Low Angle", "POV", "Drone Shot", "Over Shoulder", "Tracking Shot"];
+
+function storyImageMode() {
+  const value = localStorage.getItem(STORY_IMAGE_MODE_KEY) || (storyTestMode() ? "mock" : "draft");
+  return STORY_IMAGE_MODES[value] ? value : "draft";
+}
+
+function setStoryImageMode(value) {
+  localStorage.setItem(STORY_IMAGE_MODE_KEY, STORY_IMAGE_MODES[value] ? value : "draft");
+}
+
+function storyTestMode() {
+  const requested = creatorFlowParams.get("test");
+  if (requested === "1") {
+    const alreadyEnabled = localStorage.getItem(STORY_TEST_MODE_KEY) === "true";
+    localStorage.setItem(STORY_TEST_MODE_KEY, "true");
+    if (!alreadyEnabled) setStoryImageMode("mock");
+    return true;
+  }
+  if (requested === "0") {
+    localStorage.removeItem(STORY_TEST_MODE_KEY);
+    return false;
+  }
+  return localStorage.getItem(STORY_TEST_MODE_KEY) === "true";
+}
+
+function setStoryTestMode(enabled) {
+  if (enabled) {
+    localStorage.setItem(STORY_TEST_MODE_KEY, "true");
+    setStoryImageMode("mock");
+  } else {
+    localStorage.removeItem(STORY_TEST_MODE_KEY);
+    if (storyImageMode() === "mock") setStoryImageMode("draft");
+  }
+}
+
+function storyArtworkEstimate(project, mode = storyImageMode()) {
+  const missing = (project?.scenes || []).filter((scene) => !scene.generatedImageUrl).length;
+  const unitCost = mode === "final" ? 0.2 : mode === "draft" ? 0.006 : 0;
+  return { missing, unitCost, total: missing * unitCost };
+}
+
+function createMockSceneImage(scene, sceneIndex) {
+  const title = escapeHtml(scene.title || `Scene ${sceneIndex + 1}`);
+  const summary = escapeHtml(String(scene.prompt || "Scene layout placeholder").slice(0, 100));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024" viewBox="0 0 1536 1024">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10295f"/><stop offset="1" stop-color="#431d72"/></linearGradient></defs>
+    <rect width="1536" height="1024" fill="url(#g)"/>
+    <circle cx="1260" cy="180" r="240" fill="#25d9ff" opacity=".14"/>
+    <circle cx="230" cy="850" r="300" fill="#ff3cc7" opacity=".12"/>
+    <rect x="118" y="122" width="1300" height="780" rx="42" fill="none" stroke="#8ff0ff" stroke-width="8" stroke-dasharray="24 20" opacity=".75"/>
+    <text x="768" y="410" text-anchor="middle" fill="#8ff0ff" font-family="Arial,sans-serif" font-size="42" font-weight="700">FREE TEST PLACEHOLDER</text>
+    <text x="768" y="505" text-anchor="middle" fill="#ffffff" font-family="Arial,sans-serif" font-size="72" font-weight="800">${title}</text>
+    <foreignObject x="300" y="570" width="936" height="180"><div xmlns="http://www.w3.org/1999/xhtml" style="color:#dce9ff;font:32px/1.4 Arial,sans-serif;text-align:center">${summary}</div></foreignObject>
+    <text x="768" y="840" text-anchor="middle" fill="#b9cae9" font-family="Arial,sans-serif" font-size="28">No API call or Creator credits used</text>
+  </svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>"']/g, (char) => ({
@@ -324,6 +390,7 @@ function sanitizeStoryboardProject(project = {}) {
   project.scenes = (project.scenes || []).map((scene) => {
     const generationStartedAt = Date.parse(scene.imageGenerationStartedAt || "");
     const generationIsStale = scene.status === "generating"
+      && !scene.imageRequestId
       && (!Number.isFinite(generationStartedAt) || Date.now() - generationStartedAt > 3 * 60 * 1000);
     const savedRecoveryQueue = scene.status === "image_queued" && Boolean(scene.imageNextRetryAt);
     return {
@@ -534,6 +601,8 @@ function renderStoryboardScenes(project) {
     });
   const queuePositionById = new Map(queuedScenes.map((scene, index) => [scene.id, index + 1]));
   const queuedTotal = queuedScenes.length;
+  const imageMode = storyImageMode();
+  const imageModePolicy = STORY_IMAGE_MODES[imageMode];
   const characterById = new Map((project.characters || []).map((character) => [character.id, character]));
   const worldById = new Map((project.worlds || []).map((world) => [world.id, world]));
   if (!orderedScenes.length) {
@@ -656,7 +725,7 @@ function renderStoryboardScenes(project) {
             <textarea class="scene-prompt-input" data-scene-prompt="${escapeHtml(scene.id)}" placeholder="Describe what the image or video should show.">${escapeHtml(scene.prompt || "")}</textarea>
             <div class="scene-chip-row">${chips.map((chip, chipIndex) => `<span class="scene-chip ${chipIndex === 0 ? "is-active" : ""}">${escapeHtml(chip)}</span>`).join("")}</div>
             <div class="scene-image-tools">
-              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? "Try Again (24 credits)" : "Generate Image (24 credits)"}</button>
+              <button class="scene-action scene-image-generate-button" data-generate-scene-image="${escapeHtml(scene.id)}" type="button" ${status === "generating" || status === "queued" ? "disabled" : ""}>${status === "generating" ? "Generating Image..." : status === "queued" ? "Image Queued" : status === "image-error" ? `Try Again: ${imageModePolicy.button}` : imageModePolicy.button}</button>
               <button class="scene-action scene-video-button" data-bring-scene-to-life="${escapeHtml(scene.id)}" type="button" ${!hasImage || videoStatus === "generating" ? "disabled" : ""}>${videoButtonText}</button>
               <span class="scene-image-status" data-scene-image-status="${escapeHtml(scene.id)}">${status === "queued" ? `${escapeHtml(queueLabel)}: Scene ${index + 1} will generate automatically.` : status === "needs-image" ? "Ready for artwork." : status === "image-error" ? escapeHtml(scene.imageError || "Image generation failed. Press Try Again to retry manually.") : ""}</span>
               <span class="scene-video-status" data-scene-video-status="${escapeHtml(scene.id)}">${videoStatus === "generating" ? escapeHtml(scene.videoMessage || "Creating video...") : videoStatus === "complete" ? "Scene video ready." : videoStatus === "video_ready" ? "Scene video canvas is ready." : videoStatus === "video_error" ? escapeHtml(scene.videoError || "Video setup failed. Try again.") : ""}</span>
@@ -749,13 +818,123 @@ function chapterSummarySentence(value, index) {
   return sentence.length > 240 ? `${sentence.slice(0, 237).trim()}...` : sentence;
 }
 
+let storySetupProgressValue = 0;
+let storySetupProgressTimer = null;
+let storySetupStartedAt = 0;
+
+const STORY_SETUP_PHASES = [
+  { at: 4, message: "Reading your approved story and preparing the adventure..." },
+  { at: 24, message: "Finding the moments that deserve their own scene..." },
+  { at: 48, message: "Arranging the story in a clear visual sequence..." },
+  { at: 70, message: "Matching each moment with a mood and camera view..." },
+  { at: 88, message: "Checking the scene order and character continuity..." },
+  { at: 100, message: "Your scenes are ready. Opening Story Scenes..." },
+];
+
+function renderStorySetupProgress(message = "") {
+  const progress = document.querySelector("#storySetupProgress");
+  const percent = document.querySelector("#storySetupPercent");
+  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  const safePercent = Math.max(0, Math.min(100, Math.round(storySetupProgressValue)));
+  const phase = [...STORY_SETUP_PHASES].reverse().find((item) => safePercent >= item.at);
+  if (progress) {
+    progress.style.setProperty("--story-setup-progress", `${safePercent * 3.6}deg`);
+    progress.style.setProperty("--story-setup-width", `${safePercent}%`);
+  }
+  if (percent) percent.textContent = `${safePercent}%`;
+  if (messageNode) messageNode.textContent = message || phase?.message || STORY_SETUP_PHASES[0].message;
+}
+
 function setStorySetupLoading(isLoading, message = "") {
   const loading = document.querySelector("#storySetupLoading");
-  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  const actions = document.querySelector("#storySetupErrorActions");
+  const heading = document.querySelector("#storySetupHeading");
+  const detail = document.querySelector("#storySetupErrorDetail");
   if (!loading) return;
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
   loading.hidden = !isLoading;
   document.body.classList.toggle("is-story-setup-loading", isLoading);
-  if (messageNode && message) messageNode.textContent = message;
+  if (!isLoading) return;
+  loading.classList.remove("has-error");
+  if (actions) actions.hidden = true;
+  if (detail) detail.hidden = true;
+  if (heading) heading.textContent = "Preparing Story Scenes...";
+  storySetupStartedAt = Date.now();
+  storySetupProgressValue = 4;
+  renderStorySetupProgress(message);
+  storySetupProgressTimer = window.setInterval(() => {
+    storySetupProgressValue = Math.min(
+      92,
+      storySetupProgressValue + Math.max(1, Math.ceil((92 - storySetupProgressValue) * 0.08)),
+    );
+    renderStorySetupProgress();
+    if (storySetupProgressValue >= 92) {
+      window.clearInterval(storySetupProgressTimer);
+      storySetupProgressTimer = null;
+    }
+  }, 420);
+}
+
+function showStorySetupError(message = "") {
+  const loading = document.querySelector("#storySetupLoading");
+  const actions = document.querySelector("#storySetupErrorActions");
+  const heading = document.querySelector("#storySetupHeading");
+  const messageNode = document.querySelector("#storySetupLoadingMessage");
+  if (!loading) return;
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
+  loading.hidden = false;
+  loading.classList.add("has-error");
+  document.body.classList.add("is-story-setup-loading");
+  if (heading) heading.textContent = "Scene preparation paused";
+  if (messageNode) {
+    const friendlyMessage = /too many requests|rate limit/i.test(message)
+      ? "OPREALM needs a short moment before preparing the scenes. Your approved story is safe."
+      : /request body is too large|input is too large/i.test(message)
+        ? "This story needs to be prepared in smaller sections. Your approved story is safe."
+        : /sign in|log in|session/i.test(message)
+          ? "Your session needs refreshing before OPREALM can prepare the scenes. Your approved story is safe."
+          : "OPREALM could not finish preparing the scenes. Your approved story is safe and ready to try again.";
+    messageNode.textContent = friendlyMessage;
+  }
+  const detailNode = document.querySelector("#storySetupErrorDetail");
+  if (detailNode) {
+    detailNode.textContent = cleanStorySetupError(message);
+    detailNode.hidden = false;
+  }
+  if (actions) actions.hidden = false;
+}
+
+function cleanStorySetupError(message = "") {
+  const value = String(message || "").replace(/\s+/g, " ").trim();
+  if (!value) return "No additional details were returned.";
+  if (/too many requests|rate limit/i.test(value)) return "The preparation service is briefly busy. Wait a few seconds, then press Try Again.";
+  if (/request body is too large|input is too large/i.test(value)) return "The approved story will be prepared in smaller sections on the next attempt.";
+  if (/sign in|log in|session|unauthor/i.test(value)) return "Refresh your session, then press Try Again.";
+  if (/database|not connected|configuration/i.test(value)) return "A required OPREALM service is temporarily unavailable.";
+  return value.slice(0, 220);
+}
+
+async function finishStorySetupLoading() {
+  window.clearInterval(storySetupProgressTimer);
+  storySetupProgressTimer = null;
+  const minimumDisplayMs = 3200;
+  const elapsed = Date.now() - storySetupStartedAt;
+  const remaining = Math.max(700, minimumDisplayMs - elapsed);
+  const completionStages = [
+    { percent: 28, message: STORY_SETUP_PHASES[1].message },
+    { percent: 52, message: STORY_SETUP_PHASES[2].message },
+    { percent: 74, message: STORY_SETUP_PHASES[3].message },
+    { percent: 91, message: STORY_SETUP_PHASES[4].message },
+    { percent: 100, message: STORY_SETUP_PHASES[5].message },
+  ].filter((stage) => stage.percent > storySetupProgressValue);
+  const stageDelay = Math.max(140, Math.floor(remaining / Math.max(1, completionStages.length)));
+  for (const stage of completionStages) {
+    storySetupProgressValue = stage.percent;
+    renderStorySetupProgress(stage.message);
+    await new Promise((resolve) => window.setTimeout(resolve, stageDelay));
+  }
 }
 
 let storyWritingProgressValue = 0;
@@ -802,6 +981,13 @@ function finishStoryWritingLoading() {
   });
 }
 
+function setStoryWritingStage(percent, message = "") {
+  storyWritingProgressValue = Math.max(storyWritingProgressValue, Math.min(94, Number(percent) || 0));
+  renderStoryWritingProgress();
+  const status = document.querySelector("#fullStoryStatus");
+  if (status && message) status.textContent = message;
+}
+
 function storyDraftPayload(project, mode = "write") {
   const character = activeCharacter(project);
   const world = activeWorld(project);
@@ -812,7 +998,7 @@ function storyDraftPayload(project, mode = "write") {
     title: project.storyDraft?.title || project.title || "My OPREALM Story",
     approvedStory: mode === "split" ? preserveStoryFormatting(project.storyDraft?.story) : "",
     character: JSON.stringify({
-      name: character.name || "The hero",
+      name: character.name || "The protagonist",
       type: character.characterType || character.type || "original hero",
       traits: character.traits || [],
       description: character.prompt || character.description || "",
@@ -836,7 +1022,7 @@ function storyDraftPayload(project, mode = "write") {
         })),
     ].filter((item) => item.name)),
     world: JSON.stringify({
-      name: world.name || "the story world",
+      name: world.name || "the selected realm",
       description: world.description || world.prompt || world.hook || "",
       mood: world.mood || [],
     }),
@@ -847,6 +1033,12 @@ function storyDraftPayload(project, mode = "write") {
   };
   if (mode === "split" && project.storyDraft?.logicPlan) {
     payload.storyLogicPlan = project.storyDraft.logicPlan;
+  }
+  if (mode === "split" && project.storyDraft?.storySpine) {
+    payload.storySpine = project.storyDraft.storySpine;
+  }
+  if (mode === "split" && project.storyDraft?.signatureMomentsPlan) {
+    payload.signatureMomentsPlan = project.storyDraft.signatureMomentsPlan;
   }
   return payload;
 }
@@ -868,27 +1060,98 @@ async function requestFullStory(project, mode = "write") {
     ? "Reading the approved story and choosing scene boundaries..."
     : "Writing the complete story...";
   if (mode === "split") {
-    setStorySetupLoading(true, "Orbit is reading the approved story, choosing the strongest scene breaks and preparing cinematic visual prompts.");
+    setStorySetupLoading(true, "Reading your approved story and preparing the adventure...");
   } else {
     setStoryWritingLoading(true);
   }
   try {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 4 * 60 * 1000);
-    const response = await fetch("/api/story-draft", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify(storyDraftPayload(project, mode)),
-    }).finally(() => window.clearTimeout(timeoutId));
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.draft?.story) {
+    const basePayload = storyDraftPayload(project, mode);
+    const saveBackgroundStage = (stageLabel) => (pending) => {
+      project.storyDraft = {
+        ...(project.storyDraft || {}),
+        backgroundGeneration: pending?.providerResponseId ? {
+          stageLabel,
+          providerResponseId: pending.providerResponseId,
+          status: pending.status || "in_progress",
+          updatedAt: new Date().toISOString(),
+        } : null,
+      };
+      writeStoryboardProject(project);
+    };
+    let result;
+    if (mode === "write") {
+      setStoryWritingStage(8, "Building the story foundation...");
+      const spineResult = await requestStoryDraftStage(
+        { ...basePayload, stage: "spine" },
+        "story foundation",
+        15 * 60 * 1000,
+        saveBackgroundStage("story foundation"),
+      );
+      setStoryWritingStage(34, "Designing clues, choices and possible endings...");
+      const logicResult = await requestStoryDraftStage({
+        ...basePayload,
+        stage: "logic",
+        storySpine: spineResult.storySpine,
+      }, "choice plan", 15 * 60 * 1000, saveBackgroundStage("choice plan"));
+      setStoryWritingStage(52, "Planning the moments readers will remember...");
+      let bestMomentsPlan = {};
+      try {
+        const momentsResult = await requestStoryDraftStage({
+          ...basePayload,
+          stage: "moments",
+          storySpine: spineResult.storySpine,
+          storyLogicPlan: logicResult.logicPlan,
+        }, "best moments plan", 15 * 60 * 1000, saveBackgroundStage("best moments plan"));
+        bestMomentsPlan = momentsResult.bestMomentsPlan || {};
+      } catch {
+        bestMomentsPlan = {};
+      }
+      setStoryWritingStage(64, "Designing signature moments and impossible locations...");
+      let signaturePlanning = {};
+      try {
+        const signatureResult = await requestStoryDraftStage({
+          ...basePayload,
+          stage: "signature",
+          storySpine: spineResult.storySpine,
+          storyLogicPlan: logicResult.logicPlan,
+          bestMomentsPlan,
+        }, "signature moments plan", 15 * 60 * 1000, saveBackgroundStage("signature moments plan"));
+        signaturePlanning = {
+          signatureMomentsPlan: signatureResult.signatureMomentsPlan || {},
+          emotionalRhythmPlan: signatureResult.emotionalRhythmPlan || [],
+          storyLocations: signatureResult.storyLocations || [],
+        };
+      } catch {
+        signaturePlanning = {};
+      }
+      setStoryWritingStage(76, "Writing the complete chapter story...");
+      result = await requestStoryDraftStage({
+        ...basePayload,
+        stage: "prose",
+        storySpine: spineResult.storySpine,
+        storyLogicPlan: logicResult.logicPlan,
+        bestMomentsPlan,
+        ...signaturePlanning,
+      }, "chapter story", 20 * 60 * 1000, saveBackgroundStage("chapter story"));
+    } else {
+      result = await requestStoryDraftStage(basePayload, "scene breakdown", 5 * 60 * 1000);
+    }
+    if (!result.ok || !result.draft?.story) {
       throw new Error(result.error || "Story writing failed.");
     }
     project.storyDraft = {
       title: result.draft.title,
       summary: result.draft.summary || previousDraft.summary || "",
+      storySpine: result.draft.storySpine || previousDraft.storySpine || null,
+      bestMomentsPlan: result.draft.bestMomentsPlan || previousDraft.bestMomentsPlan || null,
+      signatureMomentsPlan: result.draft.signatureMomentsPlan || previousDraft.signatureMomentsPlan || null,
+      emotionalRhythmPlan: result.draft.emotionalRhythmPlan || previousDraft.emotionalRhythmPlan || [],
+      storyLocations: result.draft.storyLocations || previousDraft.storyLocations || [],
       logicPlan: result.draft.logicPlan || previousDraft.logicPlan || null,
+      quality: result.draft.quality || previousDraft.quality || null,
+      payoffQuality: result.draft.payoffQuality || previousDraft.payoffQuality || null,
+      signatureQuality: result.draft.signatureQuality || previousDraft.signatureQuality || null,
+      sceneSetQuality: result.draft.sceneSetQuality || previousDraft.sceneSetQuality || null,
       chapters: result.draft.chapters || previousDraft.chapters || [],
       story: mode === "split" ? preserveStoryFormatting(previousDraft.story) : preserveStoryFormatting(result.draft.story),
       scenePlan: result.draft.scenes || [],
@@ -898,12 +1161,14 @@ async function requestFullStory(project, mode = "write") {
       generationStartedAt: "",
       generationError: "",
       updatedAt: new Date().toISOString(),
+      backgroundGeneration: null,
     };
     project.title = result.draft.title || project.title || "My OPREALM Story";
     if (mode === "split") buildScenesFromApprovedStory(project);
     writeStoryboardProject(project);
     if (mode === "write") await finishStoryWritingLoading();
     rerenderStoryboard(project);
+    if (mode === "split") await finishStorySetupLoading();
     setStorySetupLoading(false);
     const currentStatus = document.querySelector("#fullStoryStatus") || status;
     if (currentStatus) currentStatus.textContent = mode === "split"
@@ -914,7 +1179,8 @@ async function requestFullStory(project, mode = "write") {
       return;
     }
   } catch (error) {
-    setStorySetupLoading(false);
+    if (mode === "split") showStorySetupError(error.message);
+    else setStorySetupLoading(false);
     setStoryWritingLoading(false);
     const message = error.name === "AbortError"
       ? "Story writing took too long and was stopped. Please press Regenerate Story to try again."
@@ -933,6 +1199,51 @@ async function requestFullStory(project, mode = "write") {
   }
 }
 
+async function requestStoryDraftStage(payload, stageLabel, timeoutMs = 15 * 60 * 1000, onPending = null) {
+  const startedAt = Date.now();
+  let requestPayload = { ...payload };
+  while (Date.now() - startedAt < timeoutMs) {
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 45 * 1000);
+    let response;
+    try {
+      response = await fetch("/api/story-draft", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify(requestPayload),
+      });
+    } catch (error) {
+      if (error.name === "AbortError") {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        continue;
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(requestTimeout);
+    }
+    const raw = await response.text();
+    let result = {};
+    try {
+      result = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(`The ${stageLabel} connection returned an unreadable response. Please try again.`);
+    }
+    if (response.status === 202 && result.providerResponseId) {
+      requestPayload = { ...payload, providerResponseId: result.providerResponseId };
+      onPending?.(result);
+      await new Promise((resolve) => window.setTimeout(resolve, Number(result.pollAfterMs || 3500)));
+      continue;
+    }
+    if (!response.ok || !result.ok) {
+      throw new Error(result.error || `The ${stageLabel} could not be generated.`);
+    }
+    onPending?.(null);
+    return result;
+  }
+  throw new Error(`The ${stageLabel} is still processing. Your progress has been saved; return shortly to continue.`);
+}
+
 function buildScenesFromApprovedStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
@@ -942,23 +1253,48 @@ function buildScenesFromApprovedStory(project) {
   const generatedCameras = new Set(plan.map((beat) => String(beat.camera || "").trim().toLowerCase()).filter(Boolean));
   const repeatedMood = plan.length > 2 && generatedMoods.size <= 1;
   const repeatedCamera = plan.length > 2 && generatedCameras.size <= 1;
+  const allowExactArtworkReuse = Number(project.storyDraft?.cinematicExtractionVersion || 0) >= 3;
   updateProjectContinuityBible(project);
   project.scenes = plan.map((beat, index) => {
-    const existing = existingScenes[index] || {};
+    const sourcePassage = cleanStoryText(beat.sourcePassage || beat.passage);
+    const existing = allowExactArtworkReuse && existingScenes.find((scene) =>
+      sourcePassage
+      && cleanStoryText(scene.sourcePassage || scene.storyExcerpt) === sourcePassage
+    ) || {};
     const scene = {
       ...existing,
       id: beat.id || existing.id || uid("scene"),
       order: index + 1,
       title: beat.title || `Scene ${index + 1}`,
-      storyExcerpt: beat.passage || "",
+      chapterNumber: beat.chapterNumber || 1,
+      sceneNumber: beat.sceneNumber || index + 1,
+      cinematicSceneType: beat.cinematicSceneType || beat.sceneType || "",
+      sceneType: beat.sceneType || beat.cinematicSceneType || "",
+      sourcePassage,
+      storyExcerpt: sourcePassage,
+      emotionalPurpose: beat.emotionalPurpose || "",
+      storyImportance: Number(beat.storyImportance || 0),
+      charactersPresent: Array.isArray(beat.charactersPresent) ? beat.charactersPresent : [],
+      location: beat.location || "",
+      keyObject: beat.keyObject || "",
+      decisionNodeId: beat.decisionNodeId || "",
+      clueIds: Array.isArray(beat.clueIds) ? beat.clueIds : [],
+      lightingMood: beat.lightingMood || "",
+      continuityNotes: beat.continuityNotes || "",
       script: normalizeSceneScriptForProject(beat.script, character, project),
-      visualDirection: beat.visualDirection || "",
-      userVisualDirection: beat.visualDirection || "",
+      visualDirection: beat.visualPromptFull || beat.visualDirection || "",
+      userVisualDirection: sourcePassage,
+      visualPromptSummary: beat.visualPromptSummary || "",
+      visualPromptFull: beat.visualPromptFull || "",
       choices: (Array.isArray(beat.choices) ? beat.choices : []).filter(Boolean).slice(0, 3),
       decisionNode: beat.decisionNode || null,
       mood: normalizeSceneMood(repeatedMood ? "" : beat.mood, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
-      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera, `${beat.passage || ""} ${beat.visualDirection || ""}`, index),
-      selectedCharacterIds: character.id ? [character.id] : [],
+      camera: normalizeSceneCamera(repeatedCamera ? "" : beat.camera || beat.cameraDirection, `${beat.sourcePassage || beat.passage || ""} ${beat.visualDirection || ""}`, index),
+      selectedCharacterIds: currentStoryCharacters(project)
+        .filter((item) => (beat.charactersPresent || []).some((name) => cleanStoryText(name).toLowerCase() === cleanStoryText(item.name).toLowerCase()))
+        .map((item) => item.id)
+        .concat(character.id && !(beat.charactersPresent || []).length ? [character.id] : [])
+        .filter(Boolean),
       selectedWorldId: world.id || "",
       selectedObjectIds: activeObjects(project)
         .filter((item) => new RegExp(`\\b${escapeRegExp(storyObjectName(item))}\\b`, "i").test(beat.passage || ""))
@@ -967,15 +1303,16 @@ function buildScenesFromApprovedStory(project) {
     };
     if (scene.decisionNode && window.OPREALMStoryDecisionEngine) {
       scene.decisionNode = window.OPREALMStoryDecisionEngine.normalizeDecisionNode(scene.decisionNode, scene.id);
-      scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the hero");
+      scene.visualDirection = window.OPREALMStoryDecisionEngine.buildDecisionVisualPrompt(scene.decisionNode, character.name || "the protagonist");
       scene.userVisualDirection = scene.visualDirection;
     }
-    refreshSceneVisualPrompts(project, scene, index);
+    refreshSceneVisualPrompts(project, scene, index, { preserveSummary: true });
     return scene;
   });
   project.storyDraft.sceneCount = project.scenes.length;
   project.storyDraft.approved = true;
   project.storyDraft.cinematicSettingsVersion = 2;
+  project.storyDraft.cinematicExtractionVersion = 3;
 }
 
 function normalizeSceneScriptForProject(script, hero, project) {
@@ -1156,6 +1493,9 @@ function refreshSceneVisualPrompts(project, scene, sceneIndex, { preserveSummary
   scene.prompt = scene.visualPromptSummary;
   scene.visualPrompt = scene.visualPromptFull;
   scene.imagePromptInternal = scene.visualPromptFull;
+  scene.promptQuality = builder?.validateSceneVisualPrompt
+    ? builder.validateSceneVisualPrompt(scene.visualPromptFull, sceneVisualPromptInput(project, scene, sceneIndex))
+    : scene.promptQuality || null;
   return scene;
 }
 
@@ -1712,7 +2052,7 @@ function storyMoralForCharacter(character = {}) {
 }
 
 function storyArcForCount(count) {
-  const safeCount = Math.max(MIN_STORY_SCENES, Number(count) || MIN_STORY_SCENES);
+  const safeCount = Math.max(5, Number(count) || FALLBACK_STORY_SCENES);
   if (safeCount === 5) return ["Intro", "Chapter 1", "Chapter 2", "Climax", "Ending"];
   const middleCount = safeCount - 3;
   return [
@@ -1819,7 +2159,7 @@ function storyPlanForCount(project, count) {
 }
 
 function storyPromptForIndex(project, index, previousPrompt = "") {
-  const count = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || MIN_STORY_SCENES);
+  const count = Math.max(5, (project.scenes || []).length || FALLBACK_STORY_SCENES);
   const plan = storyPlanForCount(project, count)[index] || storyPlanForCount(project, index + 1)[index];
   if (!previousPrompt || !plan?.prompt) return plan?.prompt || "";
   return `After the previous moment, ${plan.prompt.charAt(0).toLowerCase()}${plan.prompt.slice(1)}`;
@@ -2488,6 +2828,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
   const world = (project.worlds || []).find((item) => item.id === scene.selectedWorldId) || activeWorld(project);
   const prompt = String(scene.prompt || "").trim() || storyPromptForIndex(project, sceneIndex, project.scenes?.[sceneIndex - 1]?.prompt || "");
   const storyContext = cleanStoryText(scene.storyExcerpt, prompt);
+  const imageMode = storyImageMode();
 
   scene.prompt = prompt;
   refreshSceneVisualPrompts(project, scene, sceneIndex);
@@ -2517,6 +2858,8 @@ async function generateStoryboardSceneImage(project, sceneId) {
   try {
     const requestBody = JSON.stringify({
         sceneId,
+        imageMode,
+        testMode: storyTestMode(),
         idempotencyKey: scene.imageRequestId || "",
         prompt: storyContext,
         visualPrompt: scene.imagePromptInternal,
@@ -2575,8 +2918,19 @@ async function generateStoryboardSceneImage(project, sceneId) {
       window.clearTimeout(timeout);
     }
     if (response.status === 202 && result.jobId) {
-      result = await waitForExistingSceneImageJob({ jobId: result.jobId, sceneId });
-      response = { ok: Boolean(result?.ok && result?.status === "completed"), status: result?.status === "completed" ? 200 : 202 };
+      const queuedProject = ensureSceneList(readStoryboardProject());
+      const queuedScene = (queuedProject.scenes || []).find((item) => item.id === sceneId);
+      if (!queuedScene) return;
+      stopSceneImageProgress(sceneId);
+      queuedScene.status = result.status === "processing" ? "generating" : "image_queued";
+      queuedScene.imageJobId = result.jobId;
+      queuedScene.imageQueuedAt = queuedScene.imageQueuedAt || new Date().toISOString();
+      queuedScene.imageProgress = result.status === "processing" ? Math.max(8, Number(queuedScene.imageProgress || 0)) : 3;
+      queuedScene.imageError = "";
+      writeStoryboardProject(queuedProject);
+      rerenderStoryboard(queuedProject);
+      startSceneImageStatusMonitor();
+      return;
     }
     const generatedImageSource = result.webImageUrl || result.webImageDataUrl || "";
     if (!response.ok || !result.ok || !generatedImageSource) {
@@ -2586,7 +2940,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
         : response.status === 402
           ? "Not enough Creator credits for this scene image."
           : response.status === 429
-            ? result.error || "Several creators are generating artwork. Wait a moment, then press Try Again."
+            ? "The artwork queue is receiving many scenes. Wait briefly, then press Try Again; your completed images are safe."
           : [503, 504].includes(response.status)
             ? "The image service is temporarily busy. Press Try Again when you are ready."
             : "";
@@ -2601,6 +2955,8 @@ async function generateStoryboardSceneImage(project, sceneId) {
     latestScene.generatedImageUrl = result.webImageUrl
       ? result.webImageUrl
       : await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+    latestScene.imageMode = result.imageMode || imageMode;
+    latestScene.imageWasCached = Boolean(result.cached);
     stopSceneImageProgress(sceneId);
     latestScene.imageProgress = 100;
     latestScene.imageGenerationStartedAt = "";
@@ -2608,6 +2964,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
     latestScene.imageRetryCount = 0;
     latestScene.imageNextRetryAt = "";
     latestScene.imageRequestId = "";
+    latestScene.imageJobId = "";
     setSceneImageProgress(sceneId, 100);
     await sleep(350);
     latestScene.status = "complete";
@@ -2644,7 +3001,7 @@ async function generateStoryboardSceneImage(project, sceneId) {
 
 async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", sceneId = "" } = {}) {
   const statusTarget = document.querySelector(`[data-scene-image-status="${CSS.escape(sceneId)}"]`);
-  if (statusTarget) statusTarget.textContent = "Image created. Saving it safely...";
+  if (statusTarget) statusTarget.textContent = "Waiting in the artwork queue...";
   const startedAt = Date.now();
   while (Date.now() - startedAt < 12 * 60 * 1000) {
     const query = jobId
@@ -2653,6 +3010,11 @@ async function waitForExistingSceneImageJob({ jobId = "", idempotencyKey = "", s
     const response = await fetch(`/api/generation-job?${query}`, { cache: "no-store" });
     const result = await response.json().catch(() => ({}));
     if (response.ok && result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) return result;
+    if (response.ok && statusTarget) {
+      statusTarget.textContent = result.status === "processing"
+        ? "Creating scene artwork..."
+        : "Waiting in the artwork queue...";
+    }
     if (response.ok && result.status === "failed") {
       throw new Error(result.error || "Scene image generation failed. Press Try Again.");
     }
@@ -2669,6 +3031,27 @@ function queueStoryboardSceneImage(sceneId) {
   const project = ensureSceneList(readStoryboardProject());
   const scene = (project.scenes || []).find((item) => item.id === sceneId);
   if (!scene || scene.status === "generating" || scene.status === "image_queued") return;
+  const imageMode = storyImageMode();
+  if (imageMode === "mock") {
+    const sceneIndex = (project.scenes || []).findIndex((item) => item.id === sceneId);
+    scene.generatedImageUrl = createMockSceneImage(scene, sceneIndex);
+    scene.imageMode = "mock";
+    scene.imageWasCached = false;
+    scene.status = "complete";
+    scene.completed = true;
+    scene.imageProgress = 100;
+    scene.imageError = "";
+    scene.imageRequestId = "";
+    scene.imageJobId = "";
+    writeStoryboardProject(project);
+    rerenderStoryboard(project);
+    return;
+  }
+  if (scene.requestedImageMode !== imageMode) {
+    scene.imageRequestId = "";
+    scene.imageJobId = "";
+  }
+  scene.requestedImageMode = imageMode;
   scene.status = "image_queued";
   scene.imageQueuedAt = new Date().toISOString();
   scene.imageRetryCount = 0;
@@ -2690,17 +3073,17 @@ async function processSceneImageQueue() {
     await generateStoryboardSceneImage(readStoryboardProject(), sceneId);
   } finally {
     sceneImageQueueActive = false;
-    if (sceneImageGenerationQueue.length) await sleep(2500);
+    if (sceneImageGenerationQueue.length) await sleep(120);
     processSceneImageQueue();
   }
 }
 
 function resumeQueuedSceneImages(project) {
   [...(project.scenes || [])]
-    .filter((scene) => scene.status === "image_queued" && !scene.generatedImageUrl)
+    .filter((scene) => ["image_queued", "generating"].includes(scene.status) && !scene.generatedImageUrl && scene.imageRequestId)
     .sort((a, b) => {
-      const aQueuedAt = Date.parse(a.imageQueuedAt || "");
-      const bQueuedAt = Date.parse(b.imageQueuedAt || "");
+      const aQueuedAt = Date.parse(a.imageQueuedAt || a.imageGenerationStartedAt || "");
+      const bQueuedAt = Date.parse(b.imageQueuedAt || b.imageGenerationStartedAt || "");
       if (Number.isFinite(aQueuedAt) && Number.isFinite(bQueuedAt) && aQueuedAt !== bQueuedAt) return aQueuedAt - bQueuedAt;
       if (Number.isFinite(aQueuedAt) !== Number.isFinite(bQueuedAt)) return Number.isFinite(aQueuedAt) ? -1 : 1;
       return Number(a.order || 0) - Number(b.order || 0);
@@ -2713,11 +3096,97 @@ function resumeQueuedSceneImages(project) {
   processSceneImageQueue();
 }
 
+async function recoverExistingSceneImageJobs(project) {
+  const candidates = (project.scenes || []).filter((scene) => (
+    ["image_error", "image_queued", "generating"].includes(scene.status)
+    && !scene.generatedImageUrl
+    && (scene.imageJobId || scene.imageRequestId)
+  ));
+  if (!candidates.length) return project;
+
+  const recoveredProject = ensureSceneList(readStoryboardProject());
+  let changed = false;
+  await Promise.all(candidates.map(async (candidate) => {
+    try {
+      const response = await fetch(
+        candidate.imageJobId
+          ? `/api/generation-job?id=${encodeURIComponent(candidate.imageJobId)}`
+          : `/api/generation-job?tool=story_scene_images&idempotencyKey=${encodeURIComponent(candidate.imageRequestId)}`,
+        { cache: "no-store" },
+      );
+      const result = await response.json().catch(() => ({}));
+      const scene = (recoveredProject.scenes || []).find((item) => item.id === candidate.id);
+      if (!scene || !response.ok) return;
+
+      if (result.status === "completed" && (result.webImageUrl || result.webImageDataUrl)) {
+        scene.generatedImageUrl = result.webImageUrl
+          || await compressImageDataUrl(result.webImageDataUrl, 720, 480, 0.74);
+        scene.status = "complete";
+        scene.completed = true;
+        scene.imageProgress = 100;
+        scene.imageGenerationStartedAt = "";
+        scene.imageQueuedAt = "";
+        scene.imageError = "";
+        scene.imageRequestId = "";
+        scene.imageJobId = "";
+        changed = true;
+      } else if (result.status === "queued") {
+        scene.status = "image_queued";
+        scene.imageJobId = result.jobId || scene.imageJobId;
+        scene.imageError = "";
+        changed = true;
+      } else if (result.status === "processing") {
+        scene.status = "generating";
+        scene.imageJobId = result.jobId || scene.imageJobId;
+        scene.imageGenerationStartedAt = scene.imageGenerationStartedAt || new Date().toISOString();
+        scene.imageProgress = Math.max(8, Number(scene.imageProgress || 0));
+        scene.imageError = "";
+        changed = true;
+      } else if (result.status === "failed") {
+        scene.status = "image_error";
+        scene.imageProgress = 0;
+        scene.imageGenerationStartedAt = "";
+        scene.imageQueuedAt = "";
+        scene.imageError = result.error || "Image generation stopped. Press Try Again when you are ready.";
+        scene.imageJobId = "";
+        changed = true;
+      }
+    } catch (error) {
+      console.warn("Could not recover existing scene image job", error);
+    }
+  }));
+
+  if (changed) {
+    writeStoryboardProject(recoveredProject);
+    rerenderStoryboard(recoveredProject);
+  }
+  return recoveredProject;
+}
+
+function startSceneImageStatusMonitor() {
+  if (sceneImageStatusMonitor) return;
+  const check = async () => {
+    const project = ensureSceneList(readStoryboardProject());
+    const hasActiveJobs = (project.scenes || []).some((scene) => (
+      ["image_queued", "generating"].includes(scene.status)
+      && !scene.generatedImageUrl
+      && (scene.imageJobId || scene.imageRequestId)
+    ));
+    if (!hasActiveJobs) {
+      window.clearInterval(sceneImageStatusMonitor);
+      sceneImageStatusMonitor = 0;
+      return;
+    }
+    await recoverExistingSceneImageJobs(project);
+  };
+  sceneImageStatusMonitor = window.setInterval(check, 6000);
+}
+
 function quickPopulateStory(project) {
   const character = activeCharacter(project);
   const world = activeWorld(project);
   project.storySettings = storySettings(project);
-  const targetCount = Math.max(MIN_STORY_SCENES, (project.scenes || []).length || 0);
+  const targetCount = Math.max(5, (project.scenes || []).length || FALLBACK_STORY_SCENES);
   const plan = storyPlanForCount(project, targetCount);
   const existingScenes = [...(project.scenes || [])].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   project.scenes = plan.map((beat, index) => {
@@ -2896,18 +3365,42 @@ function renderStoryOutputChooser(project) {
 function launchAiStoryBook(project) {
   const scenes = project.scenes || [];
   if (scenes.length < MIN_STORY_SCENES || scenes.some((scene) => !scene.generatedImageUrl)) return;
-  if (!project.storybookId) {
-    project.storybookId = `storybook-${project.id || Date.now()}`;
-  }
+  const storyIdentity = storybookIdentity(project);
+  project.storybookId = `storybook-${project.id || "local"}-${storyIdentity}`;
+  project.storybookIdentity = storyIdentity;
   project.storybookAudioStatus = project.storybookAudioStatus || "pending";
   writeStoryboardProject(project);
   localStorage.setItem("oprealm_ai_storybook_source", JSON.stringify({
     projectId: project.id || "",
     storybookId: project.storybookId,
+    storybookIdentity: storyIdentity,
     createdAt: new Date().toISOString(),
   }));
   window.OPREALMRefreshCreatorSteps?.();
   window.location.href = "/ai-storybook.html";
+}
+
+function storybookIdentity(project) {
+  const source = JSON.stringify({
+    projectId: project.id || "",
+    title: project.storyDraft?.title || project.title || "",
+    characters: (project.characters || []).map((character) => ({
+      id: character.id || "",
+      name: character.name || "",
+      type: character.characterType || character.type || "",
+    })),
+    scenes: (project.scenes || []).map((scene) => ({
+      id: scene.id || "",
+      title: scene.title || "",
+      text: scene.storyExcerpt || scene.passage || scene.prompt || "",
+    })),
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function bindStoryboardMovieControls(project) {
@@ -3499,6 +3992,59 @@ function bindStoryboardTitle(project) {
 
 function bindStoryboardSceneControls(project) {
   let draggedSceneId = "";
+  const imageModeSelect = document.querySelector("#storyImageMode");
+  const imageModeDescription = document.querySelector("#artworkModeDescription");
+  if (imageModeSelect) {
+    const testMode = storyTestMode();
+    const finalOption = imageModeSelect.querySelector('option[value="final"]');
+    if (finalOption) finalOption.disabled = testMode;
+    imageModeSelect.value = storyImageMode();
+    const updateDescription = () => {
+      const estimate = storyArtworkEstimate(project);
+      const descriptions = {
+        mock: `Creates instant local placeholders for ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"}. No API request, provider charge or Creator credits.`,
+        draft: `Uses GPT Image 1 Mini at low quality with character references. ${estimate.missing} missing scene${estimate.missing === 1 ? "" : "s"} would cost about $${estimate.total.toFixed(3)} total.`,
+        final: "Uses GPT Image 1.5 at high quality. Estimated provider cost: $0.20 per image and confirmation is required.",
+      };
+      if (imageModeDescription) imageModeDescription.textContent = `${testMode ? "STORY TEST MODE: " : ""}${descriptions[storyImageMode()]}`;
+    };
+    updateDescription();
+    if (!imageModeSelect.dataset.modeBound) {
+      imageModeSelect.dataset.modeBound = "true";
+      imageModeSelect.addEventListener("change", () => {
+        setStoryImageMode(imageModeSelect.value);
+        updateDescription();
+        rerenderStoryboard(readStoryboardProject());
+      });
+    }
+    let testActions = document.querySelector("#storyTestActions");
+    if (!testActions) {
+      testActions = document.createElement("div");
+      testActions.id = "storyTestActions";
+      testActions.className = "story-scenes-step-actions";
+      imageModeSelect.closest(".artwork-test-mode")?.append(testActions);
+    }
+    const estimate = storyArtworkEstimate(project);
+    testActions.innerHTML = `
+      <button class="add-scene-inline" id="toggleStoryTestMode" type="button">${testMode ? "Exit Story Test Mode" : "Enable Story Test Mode"}</button>
+      <button class="add-scene-inline" id="generateAllTestScenes" type="button" ${estimate.missing ? "" : "disabled"}>
+        Generate ${estimate.missing || "No"} Missing ${storyImageMode() === "mock" ? "Mock" : "Draft"} Images
+      </button>
+    `;
+    document.querySelector("#toggleStoryTestMode")?.addEventListener("click", () => {
+      setStoryTestMode(!testMode);
+      rerenderStoryboard(readStoryboardProject());
+    });
+    document.querySelector("#generateAllTestScenes")?.addEventListener("click", () => {
+      const current = readStoryboardProject();
+      if (storyTestMode() && storyImageMode() === "final") {
+        setStoryImageMode("mock");
+      }
+      for (const scene of current.scenes || []) {
+        if (!scene.generatedImageUrl) queueStoryboardSceneImage(scene.id);
+      }
+    });
+  }
 
   document.querySelectorAll(".scene-card").forEach((card) => {
     card.addEventListener("dragstart", (event) => {
@@ -3702,6 +4248,14 @@ function bindStoryboardSceneControls(project) {
 
   document.querySelectorAll("[data-generate-scene-image]").forEach((button) => {
     button.addEventListener("click", () => {
+      if (storyTestMode() && storyImageMode() === "final") {
+        setStoryImageMode("mock");
+        rerenderStoryboard(readStoryboardProject());
+        return;
+      }
+      if (storyImageMode() === "final" && !window.confirm(
+        "Generate final-quality artwork?\n\nEstimated provider cost: about $0.20 per image\nCreator credits: 24\n\nUse Draft for prompt testing at about $0.006.",
+      )) return;
       queueStoryboardSceneImage(button.dataset.generateSceneImage);
     });
   });
@@ -3748,8 +4302,10 @@ async function hydrateStoryboardPage() {
   }
   bindStoryboardTitle(project);
   rerenderStoryboard(project);
-  resumeQueuedSceneImages(project);
-  resumeStoryboardVideoJobs(project);
+  const recoveredProject = await recoverExistingSceneImageJobs(project);
+  resumeQueuedSceneImages(recoveredProject);
+  startSceneImageStatusMonitor();
+  resumeStoryboardVideoJobs(recoveredProject);
   bindStoryDirectionControls(project);
   bindStoryboardMovieControls(project);
   restoreSavedStoryboardMovie(project);
@@ -3817,6 +4373,12 @@ async function hydrateStoryboardPage() {
   storyReaderAudio?.addEventListener("ended", updateStoryReaderTime);
   document.querySelector("#approveFullStoryButton")?.addEventListener("click", () => {
     requestFullStory(project, "split");
+  });
+  document.querySelector("#retryStorySetupButton")?.addEventListener("click", () => {
+    requestFullStory(project, "split");
+  });
+  document.querySelector("#backFromStorySetupButton")?.addEventListener("click", () => {
+    setStorySetupLoading(false);
   });
   document.querySelector("#clearStoryboardButton")?.addEventListener("click", () => {
     openClearScenesModal();

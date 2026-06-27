@@ -1,0 +1,11 @@
+flowchart TD
+  A[Calendar item approved] --> B[Scheduled time due]
+  B --> C[Publishing worker]
+  C --> D{Idempotency key exists?}
+  D -- Yes --> E[Return existing attempt]
+  D -- No --> F[Validate account assets metadata]
+  F --> G{Valid?}
+  G -- No --> H[Fail with actionable error]
+  G -- Yes --> I[Publish to platform]
+  I --> J[Store post ID URL attempt]
+  J --> K[Analytics pending]

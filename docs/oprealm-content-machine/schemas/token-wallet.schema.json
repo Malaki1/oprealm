@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "TokenWallet",
+  "required": [
+    "id",
+    "userId",
+    "balance",
+    "reservedBalance",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "userId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "balance": {
+      "type": "number"
+    },
+    "reservedBalance": {
+      "type": "number"
+    },
+    "lifetimePurchased": {
+      "type": "number"
+    },
+    "lifetimeSpent": {
+      "type": "number"
+    },
+    "currency": {
+      "const": "OPREALM_TOKEN"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

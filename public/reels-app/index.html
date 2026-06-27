@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Create, edit, preview and export short-form interactive choice reels with OPRealm RealmReels." />
+    <title>RealmReels | OPRealm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/realmreels.css?v=1" />
+    <script src="/realmreels.js?v=1" type="module"></script>
+  </head>
+  <body>
+    <div class="reels-app">
+      <aside class="reels-sidebar">
+        <a class="reels-brand" href="/"><span class="reels-crown">&#9819;</span><strong>OPRealm</strong></a>
+        <nav aria-label="RealmReels navigation">
+          <p>Main</p>
+          <a href="/account"><span>&#8962;</span>Dashboard</a>
+          <a href="/storyboard"><span>&#9827;</span>My Stories</a>
+          <a href="/realmreels" data-reels-nav="library"><span>&#9635;</span>My Reels <em>New</em></a>
+          <a href="/realmverse"><span>&#9673;</span>RealmVerse</a>
+          <a href="/realmreels?view=analytics"><span>&#9676;</span>Analytics</a>
+          <hr />
+          <p>Create</p>
+          <a href="/story-game"><span>&#9639;</span>AI Story Game</a>
+          <a href="/storyboard"><span>&#9636;</span>AI Story Book</a>
+          <a href="/realmreels/create" data-reels-nav="create"><span>&#9635;</span>RealmReels <em>New</em></a>
+          <a href="/storyboard-character"><span>&#9817;</span>Characters</a>
+          <a href="/storyboard-world"><span>&#9678;</span>World Builder</a>
+          <hr />
+          <p>Library</p>
+          <a href="/realmverse"><span>&#9827;</span>My Library</a>
+          <a href="/realmverse"><span>&#9639;</span>My Assets</a>
+          <a href="/realmreels/create"><span>&#9649;</span>Templates</a>
+          <a href="/realmreels/exports" data-reels-nav="exports"><span>&#8679;</span>Exports</a>
+        </nav>
+        <section class="reels-upsell">
+          <span>&#128640;</span><h3>Go Bigger</h3>
+          <p>Turn your reel into a full interactive story.</p>
+          <a href="/storyboard">Expand to Story</a>
+        </section>
+      </aside>
+      <main class="reels-main" id="realmReelsMain">
+        <div class="reels-loading"><span></span><strong>Opening RealmReels...</strong></div>
+      </main>
+    </div>
+    <div class="reels-toast" id="reelsToast" hidden></div>
+  </body>
+</html>

@@ -17,6 +17,7 @@ let autoPlayTimer = null;
 let narrationEnabled = false;
 let narrationGenerating = false;
 let narrationManifest = new Map();
+let narrationRequestToken = 0;
 let voiceProfiles = [];
 let highlightedWordIndex = -1;
 let preparedBranches = new Map();
@@ -141,6 +142,7 @@ async function initialize() {
       decisions: decisionChoices(scene, index, scenes.length),
     };
   });
+  ensureCurrentStorybookIdentity();
 
   restorePlayerState();
   storyRunState = decisionEngine.discoverClues(storyRunState, storyClues(), pages[pageIndex]?.id);
@@ -242,7 +244,7 @@ function updateNarrationControls(beat) {
   const playing = !narrationAudio.paused && narrationAudio.src;
   speakBeatButton.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
   speakBeatButton.setAttribute("aria-label", playing ? "Pause narration" : "Play narration");
-  const ready = Boolean(beat.audioUrl || narrationManifest.get(beat.id)?.audioUrl);
+  const ready = Boolean(beat.audioUrl || narrationManifest.get(narrationKey(beat))?.audioUrl);
   if (!narrationGenerating) {
     narrationStatus.textContent = ready
       ? `${beat.speaker || "Narrator"} ready`
@@ -702,9 +704,22 @@ async function speakCurrentBeat() {
   }
   narrationEnabled = true;
   const beat = normalizeBeat(currentPage().beats[beatIndex]);
+  const expectedStorybookId = storybookId();
+  const expectedSceneId = currentPage()?.id || "";
+  const expectedBeatId = beat.id;
+  const requestToken = ++narrationRequestToken;
   try {
     const audioBeat = await ensureBeatAudio(beat, pageIndex, beatIndex);
+    if (
+      requestToken !== narrationRequestToken
+      || expectedStorybookId !== storybookId()
+      || expectedSceneId !== (currentPage()?.id || "")
+      || expectedBeatId !== normalizeBeat(currentPage()?.beats?.[beatIndex]).id
+    ) return;
     narrationAudio.src = audioBeat.audioUrl;
+    narrationAudio.dataset.storybookId = expectedStorybookId;
+    narrationAudio.dataset.sceneId = expectedSceneId;
+    narrationAudio.dataset.beatId = expectedBeatId;
     narrationAudio.volume = Number(document.querySelector("#narrationVolume").value) / 100;
     await narrationAudio.play();
     narrationStatus.textContent = `${beat.speaker || "Narrator"} speaking`;
@@ -719,8 +734,14 @@ async function speakCurrentBeat() {
 }
 
 function stopNarration() {
+  narrationRequestToken += 1;
   narrationAudio.pause();
   narrationAudio.currentTime = 0;
+  narrationAudio.removeAttribute("src");
+  narrationAudio.removeAttribute("data-storybook-id");
+  narrationAudio.removeAttribute("data-scene-id");
+  narrationAudio.removeAttribute("data-beat-id");
+  narrationAudio.load();
   highlightedWordIndex = -1;
   const page = currentPage();
   if (page?.beats?.[beatIndex]) renderBeatText(normalizeBeat(page.beats[beatIndex]));
@@ -831,10 +852,18 @@ async function prepareStorybook() {
 }
 
 async function hydrateNarrationManifest() {
+  narrationManifest.clear();
   const response = await fetch(`/api/storybook-narration?storybookId=${encodeURIComponent(storybookId())}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok) throw new Error(data.error || "Narration preparation could not begin.");
-  (data.beats || []).forEach((beat) => narrationManifest.set(beat.beatId, beat));
+  for (const audioBeat of data.beats || []) {
+    const page = pages.find((item) => item.id === audioBeat.sceneId);
+    const beat = page?.beats?.find((item) => item.id === audioBeat.beatId);
+    if (!beat || Number(audioBeat.generationVersion || 1) < 3) continue;
+    const expectedHash = await expectedAudioHash(beat);
+    if (audioBeat.audioHash !== expectedHash) continue;
+    narrationManifest.set(narrationKey(beat), audioBeat);
+  }
 }
 
 function setPreparationProgress(percent, title, description) {
@@ -876,8 +905,14 @@ async function generateStorybookNarration() {
 }
 
 async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = null) {
-  const cached = narrationManifest.get(beat.id);
-  if (cached?.audioUrl && Number(cached.generationVersion || 1) >= 3) return cached;
+  const cacheKey = narrationKey(beat);
+  const cached = narrationManifest.get(cacheKey);
+  if (
+    cached?.audioUrl
+    && Number(cached.generationVersion || 1) >= 3
+    && cached.storybookId === storybookId()
+    && cached.audioHash === await expectedAudioHash(beat)
+  ) return cached;
   if (DEMO_MODE) throw new Error("Narration unavailable in demo mode.");
   const sceneNumber = Number(sceneOverride?.sceneNumber || sceneIndex + 1);
   const sceneId = sceneOverride?.sceneId || beat.sceneId || pages[sceneIndex]?.id || `scene-${sceneNumber}`;
@@ -900,7 +935,10 @@ async function ensureBeatAudio(beat, sceneIndex, beatPosition, sceneOverride = n
   if (!response.ok || !data.ok || !data.beat?.audioUrl) {
     throw new Error(data.error || "Narration unavailable");
   }
-  narrationManifest.set(beat.id, data.beat);
+  if (data.beat.storybookId !== storybookId() || data.beat.audioHash !== await expectedAudioHash(beat)) {
+    throw new Error("Narration did not match this story beat. Please try again.");
+  }
+  narrationManifest.set(cacheKey, data.beat);
   attachAudioToBeat(beat);
   return data.beat;
 }
@@ -932,7 +970,7 @@ function formatRetryTime(seconds) {
 }
 
 function attachAudioToBeat(beat) {
-  const audioBeat = narrationManifest.get(beat.id);
+  const audioBeat = narrationManifest.get(narrationKey(beat));
   if (!audioBeat || Number(audioBeat.generationVersion || 1) < 3) return beat;
   beat.audioUrl = audioBeat.audioUrl;
   beat.durationMs = audioBeat.durationMs;
@@ -945,10 +983,59 @@ function attachAudioToBeat(beat) {
 }
 
 function storybookId() {
-  const source = readJsonStorage("oprealm_ai_storybook_source");
-  return String(project.storybookId || source.storybookId || `storybook-${project.id || "local"}`)
+  return String(project.storybookId || `storybook-${project.id || "local"}-${storyIdentity(project)}`)
     .replace(/[^A-Za-z0-9_.:-]/g, "-")
     .slice(0, 120);
+}
+
+function ensureCurrentStorybookIdentity() {
+  const identity = storyIdentity(project);
+  const expectedId = `storybook-${project.id || "local"}-${identity}`;
+  if (project.storybookIdentity === identity && project.storybookId === expectedId) return;
+  project.storybookIdentity = identity;
+  project.storybookId = expectedId;
+  narrationManifest.clear();
+  localStorage.setItem(STORYBOARD_KEY, JSON.stringify(project));
+  localStorage.setItem("oprealm_ai_storybook_source", JSON.stringify({
+    projectId: project.id || "",
+    storybookId: expectedId,
+    storybookIdentity: identity,
+    createdAt: new Date().toISOString(),
+  }));
+}
+
+function storyIdentity(value) {
+  const source = JSON.stringify({
+    projectId: value.id || "",
+    title: value.storyDraft?.title || value.title || "",
+    characters: (value.characters || []).map((character) => ({
+      id: character.id || "",
+      name: character.name || "",
+      type: character.characterType || character.type || "",
+    })),
+    scenes: (value.scenes || []).map((scene) => ({
+      id: scene.id || "",
+      title: scene.title || "",
+      text: scene.storyExcerpt || scene.passage || scene.prompt || "",
+    })),
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+function narrationKey(beat) {
+  return `${beat.sceneId || currentPage()?.id || "scene"}:${beat.id || "beat"}`;
+}
+
+async function expectedAudioHash(beat) {
+  const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
+  const source = `v3\n${clean(beat.text)}\n${String(beat.voiceId || "").trim()}\n${clean(beat.deliveryDirection)}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function branchKey(page, choice) {
@@ -1101,6 +1188,21 @@ function bindControls() {
       ? '<span aria-hidden="true">&#10005;</span> Exit Fullscreen'
       : '<span aria-hidden="true">&#9974;</span> Fullscreen';
   });
+  window.addEventListener("pagehide", stopNarration);
+  window.addEventListener("storage", (event) => {
+    if (event.key !== STORYBOARD_KEY || !event.newValue) return;
+    try {
+      const updatedProject = JSON.parse(event.newValue);
+      if (storyIdentity(updatedProject) !== storyIdentity(project)) {
+        stopNarration();
+        narrationManifest.clear();
+        narrationStatus.textContent = "Story changed in another tab. Reload to continue.";
+        narrationStatus.classList.add("is-error");
+      }
+    } catch {
+      stopNarration();
+    }
+  });
 }
 
 function updateTextHighlight() {
@@ -1142,6 +1244,7 @@ function restartStory() {
   storyRunState = decisionEngine.createRunState(pages[0]?.id || "");
   playerState = "playing_beat";
   localStorage.removeItem(PLAYER_STATE_KEY);
+  localStorage.removeItem(`${PLAYER_STATE_KEY}:${storybookId()}`);
   if (sceneChanged) playSceneTransition();
   renderPlayer({ sceneChanged });
 }
@@ -1158,7 +1261,7 @@ function closeDrawers() {
 
 function restorePlayerState() {
   if (DEMO_MODE) return;
-  const state = readJsonStorage(PLAYER_STATE_KEY);
+  const state = readJsonStorage(`${PLAYER_STATE_KEY}:${storybookId()}`);
   pageIndex = Math.max(0, Math.min(pages.length - 1, Number(state.pageIndex || 0)));
   beatIndex = Math.max(0, Number(state.beatIndex || 0));
   storyRunState = decisionEngine.normalizeRunState(state.storyRunState, pages[pageIndex]?.id || "");
@@ -1169,7 +1272,7 @@ function savePlayerState() {
   storyRunState.currentSceneId = currentPage()?.id || pages[pageIndex]?.id || "";
   storyRunState.currentBeatIndex = beatIndex;
   storyRunState.playerState = playerState;
-  localStorage.setItem(PLAYER_STATE_KEY, JSON.stringify({ pageIndex, beatIndex, storyRunState }));
+  localStorage.setItem(`${PLAYER_STATE_KEY}:${storybookId()}`, JSON.stringify({ pageIndex, beatIndex, storyRunState }));
 }
 
 function setPlayerState(nextState) {
