@@ -35,12 +35,13 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Confirm user has workspace membership.
 - Confirm viewer role is read-only for mutations.
 - Create or update a workspace-scoped Brand record.
-- Confirm website URL format if provided; do not fetch it in Phase 3.
+- Confirm website URL format if provided.
 - Create BrandSource records for manual notes, URLs, uploaded files, logos, product images, videos, testimonials, FAQs, ads, or social references.
+- In Phase 4, website/source URL records may be safely ingested server-side to store readable text and metadata.
 - Confirm linked asset IDs belong to the same workspace.
 - Create or read the editable Brand Brain placeholder.
 - Confirm Brand Brain `sourceIds` and `visualIdentity.logoAssetIds` reference the same brand/workspace.
-- Do not charge tokens, crawl sites, transcribe media, or run AI extraction in Phase 3.
+- Do not charge tokens, crawl beyond the submitted URL/redirects, transcribe media, or run AI extraction in Phase 4.
 - Later phases create ContentMachineRun records, token quotes, social checks, and generation workflow state.
 
 ## Example

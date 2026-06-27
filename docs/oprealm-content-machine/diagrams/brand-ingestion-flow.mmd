@@ -1,10 +1,12 @@
 flowchart TD
-  A[First input and sources] --> B[Create BrandSource records]
-  B --> C[Fetch website pages]
-  C --> D[Parse uploads and transcripts]
-  D --> E[Extract offer audience CTAs proof tone visuals]
-  E --> F[Create Brand Brain draft]
-  F --> G[Brand Brain QA]
-  G --> H{Pass?}
-  H -- Yes --> I[approved_for_generation]
-  H -- No --> J[needs_review]
+  A[User adds website/source URL] --> B[Create or update BrandSource]
+  B --> C[Create BrandIngestionAttempt]
+  C --> D[Validate URL and redirects]
+  D --> E{Safe target?}
+  E -- No --> F[Mark source and attempt failed]
+  E -- Yes --> G[Fetch with timeout and size limit]
+  G --> H[Extract title metadata links and readable text]
+  H --> I[Store raw_text metadata_json last_ingested_at]
+  I --> J[Mark attempt succeeded and source active]
+  J --> K[Show source preview]
+  K --> L[User can re-ingest later]

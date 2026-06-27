@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": true,
-  "title": "BrandSource",
+  "title": "BrandIngestionAttempt",
   "required": [
     "id",
     "workspaceId",
     "brandId",
+    "sourceId",
     "createdByUserId",
-    "sourceType",
     "status",
     "createdAt"
   ],
@@ -25,60 +25,49 @@
       "type": "string",
       "minLength": 1
     },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1
+    },
     "createdByUserId": {
       "type": "string",
       "minLength": 1
     },
-    "sourceType": {
+    "status": {
       "enum": [
-        "website_page",
-        "manual_note",
-        "uploaded_document",
-        "source_video",
-        "product_image",
-        "logo",
-        "testimonial",
-        "faq",
-        "existing_ad",
-        "competitor_reference",
-        "youtube_url",
-        "social_profile",
-        "other"
+        "queued",
+        "running",
+        "succeeded",
+        "failed"
       ]
     },
     "sourceUrl": {
       "type": "string"
     },
-    "assetId": {
+    "finalUrl": {
+      "type": "string"
+    },
+    "httpStatus": {
+      "type": "number"
+    },
+    "contentType": {
       "type": "string"
     },
     "title": {
       "type": "string"
     },
-    "rawText": {
+    "errorMessage": {
       "type": "string"
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true
     },
-    "status": {
-      "enum": [
-        "pending",
-        "ingesting",
-        "active",
-        "archived",
-        "failed"
-      ]
-    },
-    "lastIngestedAt": {
+    "startedAt": {
       "type": "string",
       "format": "date-time"
     },
-    "lastIngestionAttemptId": {
-      "type": "string"
-    },
-    "archivedAt": {
+    "completedAt": {
       "type": "string",
       "format": "date-time"
     },

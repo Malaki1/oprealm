@@ -33,9 +33,19 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Keep viewer role read-only.
 - Do not crawl websites, fetch YouTube transcripts, transcribe files, run AI extraction, queue media work, or charge tokens in Phase 3.
 
-## Deferred Ingestion Workflow
+## Phase 4 Brand Ingestion
 
-Later phases may queue `brand-ingest-worker`, fetch pages, parse documents, transcribe audio/video, extract structured brand fields, create retrieval chunks, run Brand Brain QA, and mark approval states. Those behaviors are intentionally outside Phase 3.
+- Safely fetch exact website/source URLs with server-side URL validation, redirect validation, content-type limits, timeouts, and response-size caps.
+- Extract page title, meta description, canonical URL, headings, readable body text, links, same-domain links, external links, fetch duration, and ingestion timestamp.
+- Store extracted source material on BrandSource `raw_text` and `metadata_json`.
+- Create a BrandIngestionAttempt record for every ingest or re-ingest attempt.
+- Update BrandSource status through pending, ingesting, active, failed, and archived states.
+- Allow users with write roles to re-ingest existing source URLs.
+- Do not populate Brand Brain fields, run LLM summarisation, create embeddings, crawl sites broadly, transcribe media, generate campaigns, or charge tokens in this phase.
+
+## Deferred Brand Brain Extraction Workflow
+
+Later phases may parse documents, transcribe audio/video, extract structured brand fields from stored source material, create retrieval chunks, run Brand Brain QA, and mark approval states. Those behaviors are intentionally outside Phase 4.
 
 ## Required Object Shape
 
@@ -43,4 +53,4 @@ See [schemas/brand-brain.schema.json](schemas/brand-brain.schema.json).
 
 ## Failure Handling
 
-Phase 3 failures are request-level validation errors: invalid URLs, invalid JSON, invalid source types, missing required manual note text, missing required asset links, viewer writes, and cross-workspace references. Future website, parse, and transcription retries belong to the deferred ingestion workflow.
+Phase 3 failures are request-level validation errors: invalid URLs, invalid JSON, invalid source types, missing required manual note text, missing required asset links, viewer writes, and cross-workspace references. Phase 4 website/source URL ingestion failures are stored as failed BrandIngestionAttempt records and visible BrandSource failed states. Future AI extraction, parse, and transcription retries belong to the deferred Brand Brain extraction workflow.

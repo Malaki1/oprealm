@@ -12,6 +12,7 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - missing_input: ask for required business/source data.
 - brand_reference_error: sourceIds and logoAssetIds must reference records in the same brand/workspace.
 - brand_source_validation: invalid source type, URL, metadata JSON, manual note text, or required asset link.
+- brand_ingestion_fetch: website/source URL fetch, redirect, size, content-type, timeout, or extraction failed and must be recorded on the attempt.
 - cross_workspace_reference: block brand, source, brain, or asset references across workspace boundaries.
 - qa_blocker: revision or human override required.
 - provider_retryable: retry with backoff.

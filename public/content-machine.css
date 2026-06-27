@@ -674,12 +674,52 @@ select option {
   gap: 12px;
 }
 
+.cm-source-card-ingesting {
+  border-color: rgba(32, 215, 255, 0.34);
+}
+
+.cm-source-card-failed {
+  border-color: rgba(255, 101, 130, 0.42);
+}
+
 .cm-source-card header,
 .cm-source-card footer {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+}
+
+.cm-source-preview {
+  margin: 0;
+  color: #dff8ff;
+  line-height: 1.65;
+}
+
+.cm-source-metadata {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(145, 197, 255, 0.14);
+  border-radius: 14px;
+  color: var(--cm-muted);
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 0.86rem;
+}
+
+.cm-source-error {
+  color: #ffb8c5;
+}
+
+.cm-check-label {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+}
+
+.cm-check-label input {
+  width: auto;
 }
 
 .cm-source-card code,

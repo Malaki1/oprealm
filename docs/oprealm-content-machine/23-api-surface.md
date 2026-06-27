@@ -27,6 +27,9 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Brand Sources | GET /api/brands/:brandId/sources/:sourceId | Read a source record after brand/workspace authorization. |
 | Brand Sources | PATCH /api/brands/:brandId/sources/:sourceId | Update stored source metadata, raw text, URL, asset link, or status. |
 | Brand Sources | DELETE /api/brands/:brandId/sources/:sourceId | Archive a source record. |
+| Brand Source Ingestion | POST /api/brands/:brandId/sources/:sourceId/ingest | Safely fetch a website/source URL, extract readable text and metadata, and update the source record. |
+| Brand Source Ingestion | POST /api/brands/:brandId/sources/:sourceId/reingest | Create a new ingestion attempt for an existing source URL. |
+| Brand Source Ingestion | GET /api/brands/:brandId/sources/:sourceId/ingestion-attempts | List ingestion attempt history for a source after workspace authorization. |
 | Brand Brain | GET /api/brands/:brandId/brain | Read or lazily create the editable Brand Brain placeholder. |
 | Brand Brain | PUT /api/brands/:brandId/brain | Edit placeholder Brand Brain JSON, including sourceIds and visual identity asset references. |
 | Campaigns | POST /api/campaigns | Create campaign strategy from Brand Brain and business goal. |

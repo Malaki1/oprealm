@@ -105,4 +105,8 @@ draft, active, archived.
 
 ## Brand Source States
 
-pending, active, archived, failed.
+pending, ingesting, active, archived, failed.
+
+## Brand Ingestion Attempt States
+
+queued, running, succeeded, failed.

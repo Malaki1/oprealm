@@ -17,7 +17,7 @@ export const BRAND_SOURCE_TYPES = [
   "social_profile",
   "other",
 ];
-export const BRAND_SOURCE_STATUSES = ["pending", "active", "archived", "failed"];
+export const BRAND_SOURCE_STATUSES = ["pending", "ingesting", "active", "archived", "failed"];
 export const BRAND_READ_ROLES = ["owner", "admin", "member", "viewer", "client", "friend"];
 export const BRAND_WRITE_ROLES = ["owner", "admin", "member", "client", "friend"];
 
@@ -65,6 +65,8 @@ export async function ensureBrandFoundationSchema(env) {
       raw_text TEXT,
       metadata_json TEXT NOT NULL DEFAULT '{}',
       status TEXT NOT NULL DEFAULT 'active',
+      last_ingested_at TEXT,
+      last_ingestion_attempt_id TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       archived_at TEXT,
@@ -77,6 +79,8 @@ export async function ensureBrandFoundationSchema(env) {
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_brand_sources_brand_status ON brand_sources(brand_id, status)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_brand_sources_workspace ON brand_sources(workspace_id, status)").run();
   await db.prepare("CREATE INDEX IF NOT EXISTS idx_brand_sources_asset ON brand_sources(asset_id)").run();
+  await addColumnIfMissing(db, "brand_sources", "last_ingested_at TEXT");
+  await addColumnIfMissing(db, "brand_sources", "last_ingestion_attempt_id TEXT");
 
   await db.prepare(`
     CREATE TABLE IF NOT EXISTS brand_brains (
@@ -259,6 +263,8 @@ export function createD1BrandStore(db) {
             raw_text = ?,
             metadata_json = ?,
             status = ?,
+            last_ingested_at = ?,
+            last_ingestion_attempt_id = ?,
             updated_at = datetime('now'),
             archived_at = CASE WHEN ? = 'archived' THEN COALESCE(archived_at, datetime('now')) ELSE NULL END
         WHERE id = ?
@@ -270,6 +276,8 @@ export function createD1BrandStore(db) {
         next.raw_text || null,
         next.metadata_json,
         next.status,
+        next.last_ingested_at || null,
+        next.last_ingestion_attempt_id || null,
         next.status,
         id,
       ).run();
@@ -813,6 +821,8 @@ function shapeBrandSource(row) {
     rawText: row.raw_text || null,
     metadata: parseStoredObject(row.metadata_json),
     status: row.status,
+    lastIngestedAt: row.last_ingested_at || null,
+    lastIngestionAttemptId: row.last_ingestion_attempt_id || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     archivedAt: row.archived_at || null,
@@ -986,6 +996,15 @@ function clone(value) {
 function requiredDb(env) {
   if (!env?.OPREALM_DB) throw httpError("OPRealm database is not connected.", 500);
   return env.OPREALM_DB;
+}
+
+async function addColumnIfMissing(db, table, columnSql) {
+  const columnName = columnSql.split(/\s+/)[0];
+  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+  const columns = result.results || [];
+  if (!columns.some((column) => column.name === columnName)) {
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${columnSql}`).run();
+  }
 }
 
 function httpError(message, status) {
