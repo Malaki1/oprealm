@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Private OPREALM Content Machine foundation dashboard for brands, Brand Brain, sources, assets and token wallet state." />
+    <meta name="description" content="Private OPREALM Content Machine dashboard for teaching OPREALM existing brands, sources, assets and credit state." />
     <title>OPREALM Content Machine</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/content-machine.css?v=1" />
+    <link rel="stylesheet" href="/content-machine.css?v=2" />
     <script src="/account-nav.js?v=1" defer></script>
-    <script src="/content-machine.js?v=1" defer></script>
+    <script src="/content-machine.js?v=2" defer></script>
   </head>
   <body class="content-machine-body">
     <header class="cm-topbar">
@@ -53,8 +53,8 @@
         <section class="cm-hero">
           <div>
             <p class="cm-eyebrow">Private marketing operations dashboard</p>
-            <h1>Build campaign-ready business memory before generation starts.</h1>
-            <p>Manage workspaces, token wallet state, brand foundations, creative source records and Brand Brain placeholders without crawling, AI extraction or media spend.</p>
+            <h1>Teach OPREALM the brand before it creates anything.</h1>
+            <p>Upload existing logos, product images, reference assets and source links so the Content Machine starts from real brand evidence instead of inventing from scratch.</p>
           </div>
           <aside class="cm-hero-card">
             <span>System mode</span>
@@ -150,10 +150,10 @@
           <div class="cm-section-head">
             <div>
               <p class="cm-eyebrow">Brands</p>
-              <h2>Campaign-ready business foundations</h2>
-              <p>Create and manage the business memory that later campaign, QA and media systems will use.</p>
+              <h2>Existing brand evidence library</h2>
+              <p>Add the real brand first: logos, product images, pages, testimonials and notes become the approved memory for later campaign, QA and media systems.</p>
             </div>
-            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Create Brand</button>
+            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Add Existing Brand</button>
           </div>
 
           <div class="cm-toolbar">
@@ -177,42 +177,58 @@
           <article class="cm-card cm-form-card" id="createBrandPanel">
             <div class="cm-card-head">
               <div>
-                <p class="cm-eyebrow">Create brand</p>
-                <h3>Foundation profile</h3>
-                <p>Grouped setup for business basics, offer, voice and visual identity placeholders.</p>
+                <p class="cm-eyebrow">Add existing brand</p>
+                <h3>Upload brand evidence</h3>
+                <p>Start with the real materials the business already uses. Manual fields are optional context, not a request to invent the brand.</p>
               </div>
             </div>
             <form class="cm-form-grid" id="brandForm">
               <fieldset>
-                <legend>Step 1: Business basics</legend>
+                <legend>Step 1: Identify the existing brand</legend>
                 <label>Brand name <input name="name" required maxlength="120" /></label>
                 <label>Website <input name="website" type="url" placeholder="https://example.com" /></label>
                 <label>Industry <input name="industry" maxlength="160" /></label>
                 <label>Business type <input name="businessType" maxlength="160" /></label>
               </fieldset>
               <fieldset>
-                <legend>Step 2: Offer and audience</legend>
+                <legend>Step 2: Upload real brand assets</legend>
+                <label class="cm-file-field">Logos, product images or brand references
+                  <input id="brandAssetFiles" name="brandAssetFiles" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" multiple />
+                  <span>PNG, JPG, WEBP, GIF or SVG. Files are stored privately in the selected workspace and linked as brand sources.</span>
+                </label>
+                <label>Default asset role
+                  <select name="assetUploadType">
+                    <option value="logo">Logo / brand mark</option>
+                    <option value="product_image">Product image</option>
+                    <option value="image">General brand reference</option>
+                  </select>
+                </label>
+                <label>Existing source URLs <textarea name="sourceUrls" rows="4" placeholder="One URL per line: website pages, socials, examples, previous ads"></textarea></label>
+                <div class="cm-upload-preview" id="brandUploadPreview">No brand files selected yet.</div>
+              </fieldset>
+              <fieldset>
+                <legend>Step 3: Optional business context</legend>
                 <label>Product or service <textarea name="productOrService" rows="3"></textarea></label>
                 <label>Offer <textarea name="offer" rows="3"></textarea></label>
                 <label>Primary CTA <input name="primaryCTA" placeholder="Book a strategy call" /></label>
                 <label>Target audience <textarea name="targetAudience" rows="3"></textarea></label>
               </fieldset>
               <fieldset>
-                <legend>Step 3: Brand voice</legend>
+                <legend>Step 4: Existing voice and rules</legend>
                 <label>Tone of voice <textarea name="toneOfVoice" rows="3"></textarea></label>
                 <label>Brand words <textarea name="brandWords" rows="3" placeholder="One per line or comma separated"></textarea></label>
                 <label>Avoid words <textarea name="avoidWords" rows="3" placeholder="One per line or comma separated"></textarea></label>
                 <label>Notes <textarea name="notes" rows="4"></textarea></label>
               </fieldset>
               <fieldset>
-                <legend>Step 4: Visual identity placeholder</legend>
+                <legend>Step 5: Visual identity notes</legend>
                 <label>Colours <textarea name="colours" rows="3" placeholder="#111827, #8b5cf6"></textarea></label>
                 <label>Fonts <textarea name="fonts" rows="3" placeholder="Inter, Sora"></textarea></label>
-                <label>Logo asset IDs <textarea name="logoAssetIds" rows="3" placeholder="Paste same-workspace asset IDs if available"></textarea></label>
+                <label>Existing logo asset IDs <textarea name="logoAssetIds" rows="3" placeholder="Optional: paste existing workspace asset IDs"></textarea></label>
               </fieldset>
               <div class="cm-form-actions">
-                <button class="cm-button cm-button-primary" type="submit">Create Brand</button>
-                <p class="cm-form-note">Website and URL source fields are stored only. Phase 3 does not crawl, transcribe or run AI extraction.</p>
+                <button class="cm-button cm-button-primary" type="submit">Save Existing Brand</button>
+                <p class="cm-form-note">Uploads and URLs are stored as source evidence now. Visual analysis and AI extraction stay locked until the later learning phase.</p>
               </div>
             </form>
           </article>
@@ -229,9 +245,9 @@
           </div>
 
           <div class="cm-empty-state" id="brandDetailEmpty">
-            <h3>Create your first brand to start building the Content Machine</h3>
-            <p>Brand detail panels unlock after a real brand record exists in the selected workspace.</p>
-            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Create Brand</button>
+            <h3>Add your first existing brand to start building the Content Machine</h3>
+            <p>Upload real logos, product images and source links so the brand record starts from approved evidence.</p>
+            <button class="cm-button cm-button-primary" type="button" data-scroll-target="createBrandPanel">Add Existing Brand</button>
           </div>
 
           <div class="cm-detail-grid" id="brandDetailPanel" hidden>
@@ -305,7 +321,7 @@
               <div class="cm-card-head">
                 <div>
                   <h3>Creative source library</h3>
-                  <p>Add manual notes, URL records and same-workspace asset links.</p>
+                  <p>Add manual notes, URL records, uploaded logos and same-workspace asset links.</p>
                 </div>
               </div>
               <form class="cm-form-grid cm-compact-form" id="sourceForm">
@@ -330,7 +346,7 @@
               <div class="cm-card-head">
                 <div>
                   <h3>Workspace assets</h3>
-                  <p>Same-workspace asset IDs can be linked to sources and visual identity.</p>
+                  <p>Uploaded brand files are private workspace assets and can be linked to sources and visual identity.</p>
                 </div>
               </div>
               <div class="cm-list" id="assetList"></div>

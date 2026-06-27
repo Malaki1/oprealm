@@ -66,6 +66,7 @@ function bindUi() {
   $("#brandUpdateForm")?.addEventListener("submit", updateBrand);
   $("#brainForm")?.addEventListener("submit", updateBrain);
   $("#sourceForm")?.addEventListener("submit", createSource);
+  $("#brandAssetFiles")?.addEventListener("change", renderBrandUploadPreview);
   $("#brandSearch")?.addEventListener("input", renderBrands);
   $("#brandStatusFilter")?.addEventListener("change", async () => {
     await loadWorkspaceData();
@@ -292,7 +293,7 @@ function renderBrands() {
   });
   $("#brandGrid").innerHTML = brands.length
     ? brands.map((brand) => brandCardHtml(brand)).join("")
-    : `<div class="cm-empty-state"><h3>Create your first brand to start building the Content Machine</h3><p>Brand profiles become the approved memory for later campaign strategy and QA.</p></div>`;
+    : `<div class="cm-empty-state"><h3>Add your first existing brand to start building the Content Machine</h3><p>Upload logos, images and source links so later campaign strategy and QA starts from approved evidence.</p></div>`;
 }
 
 function brandCardHtml(brand) {
@@ -369,15 +370,19 @@ function renderSourceList() {
         </footer>
       </article>
     `).join("")
-    : emptyHtml("No source records yet.", "Add a manual note, URL record or same-workspace asset link.");
+    : emptyHtml("No source records yet.", "Upload brand files, add URLs, or attach same-workspace assets.");
 }
 
 function renderAssets() {
   const list = $("#assetList");
   if (!list) return;
   list.innerHTML = cmState.assets.length
-    ? cmState.assets.map((asset) => rowHtml(asset.title, `${asset.assetType} - ${asset.visibility}`, `<code>${escapeHtml(asset.id)}</code>`)).join("")
-    : emptyHtml("No assets in this workspace yet.", "Create assets through the Asset Library, then link their IDs to brand sources or visual identity.");
+    ? cmState.assets.map((asset) => rowHtml(
+      asset.title,
+      `${asset.assetType} - ${asset.visibility}`,
+      `<div class="cm-row-actions"><code>${escapeHtml(asset.id)}</code>${asset.thumbnailUrl ? `<a class="cm-button cm-button-secondary" href="${escapeHtml(asset.thumbnailUrl)}" target="_blank" rel="noreferrer">Preview</a>` : ""}</div>`,
+    )).join("")
+    : emptyHtml("No brand assets in this workspace yet.", "Upload logos or product images while adding an existing brand.");
   renderAssetOptions();
 }
 
@@ -434,15 +439,22 @@ async function createBrand(event) {
   event.preventDefault();
   const form = event.currentTarget;
   if (!cmState.selectedWorkspaceId) return setStatus("Create or select a workspace before creating a brand.", "error");
-  await submitAction("Creating brand foundation...", async () => {
+  await submitAction("Saving existing brand evidence...", async () => {
     const data = brandFormPayload(form);
+    const raw = formDataObject(form);
+    const files = selectedBrandFiles(form);
+    const sourceUrls = splitList(raw.sourceUrls);
     const result = await api("/api/brands", { method: "POST", body: { workspaceId: cmState.selectedWorkspaceId, ...data } });
+    const uploadedAssets = await uploadBrandAssets(result.brand, files, raw.assetUploadType);
+    const sourceCount = await attachBrandEvidenceSources(result.brand, uploadedAssets, sourceUrls);
+    await updateBrandBrainLogos(result.brand, uploadedAssets, splitList(raw.logoAssetIds));
     cmState.selectedBrandId = result.brand.id;
     localStorage.setItem("oprealm_content_brand", result.brand.id);
     form.reset();
+    renderBrandUploadPreview();
     await loadWorkspaceData();
     renderAll();
-    return "Brand created with a Brand Brain placeholder.";
+    return `Brand saved with ${uploadedAssets.length} uploaded asset${uploadedAssets.length === 1 ? "" : "s"} and ${sourceCount} source record${sourceCount === 1 ? "" : "s"}.`;
   });
 }
 
@@ -598,7 +610,137 @@ function brandFormPayload(form) {
 }
 
 function formDataObject(form) {
-  return Object.fromEntries([...new FormData(form).entries()].map(([key, value]) => [key, String(value || "").trim()]));
+  return Object.fromEntries([...new FormData(form).entries()]
+    .filter(([, value]) => !(typeof File !== "undefined" && value instanceof File))
+    .map(([key, value]) => [key, String(value || "").trim()]));
+}
+
+function selectedBrandFiles(form) {
+  const input = $("#brandAssetFiles", form);
+  return input?.files ? [...input.files].filter((file) => file.size > 0) : [];
+}
+
+function renderBrandUploadPreview() {
+  const preview = $("#brandUploadPreview");
+  const input = $("#brandAssetFiles");
+  if (!preview || !input) return;
+  const files = input.files ? [...input.files].filter((file) => file.size > 0) : [];
+  preview.innerHTML = files.length
+    ? files.map((file) => `<span>${escapeHtml(file.name)} <b>${formatBytes(file.size)}</b></span>`).join("")
+    : "No brand files selected yet.";
+}
+
+async function uploadBrandAssets(brand, files, assetUploadType = "logo") {
+  const uploaded = [];
+  for (const file of files) {
+    validateBrandAssetFile(file);
+    const dataUrl = await fileToDataUrl(file);
+    const assetType = inferAssetType(file, assetUploadType);
+    const result = await api("/api/assets", {
+      method: "POST",
+      body: {
+        workspaceId: cmState.selectedWorkspaceId,
+        brandId: brand.id,
+        assetType,
+        title: file.name.replace(/\.[^.]+$/, "") || file.name,
+        fileName: file.name,
+        dataUrl,
+        visibility: "private",
+        metadata: {
+          source: "brand_onboarding_upload",
+          brandId: brand.id,
+          originalFileName: file.name,
+        },
+      },
+    });
+    uploaded.push(result.asset);
+  }
+  return uploaded;
+}
+
+async function attachBrandEvidenceSources(brand, uploadedAssets, sourceUrls) {
+  let count = 0;
+  for (const asset of uploadedAssets) {
+    await api(`/api/brands/${encodeURIComponent(brand.id)}/sources`, {
+      method: "POST",
+      body: {
+        sourceType: sourceTypeForAsset(asset),
+        assetId: asset.id,
+        title: asset.title,
+        metadata: { source: "brand_onboarding_upload" },
+      },
+    });
+    count += 1;
+  }
+  for (const sourceUrl of sourceUrls) {
+    await api(`/api/brands/${encodeURIComponent(brand.id)}/sources`, {
+      method: "POST",
+      body: {
+        sourceType: sourceTypeForUrl(sourceUrl),
+        sourceUrl,
+        title: sourceTitleForUrl(sourceUrl),
+        metadata: { source: "brand_onboarding_url" },
+      },
+    });
+    count += 1;
+  }
+  return count;
+}
+
+async function updateBrandBrainLogos(brand, uploadedAssets, existingLogoAssetIds = []) {
+  const logoAssetIds = [
+    ...existingLogoAssetIds,
+    ...uploadedAssets.filter((asset) => asset.assetType === "logo").map((asset) => asset.id),
+  ];
+  const uniqueLogoAssetIds = [...new Set(logoAssetIds.filter(Boolean))];
+  if (!uniqueLogoAssetIds.length) return;
+  await api(`/api/brands/${encodeURIComponent(brand.id)}/brain`, {
+    method: "PUT",
+    body: { visualIdentity: { logoAssetIds: uniqueLogoAssetIds } },
+  });
+}
+
+function validateBrandAssetFile(file) {
+  const allowed = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
+  if (!allowed.has(file.type)) throw new Error(`${file.name} is not a supported image. Use PNG, JPG, WEBP, GIF or SVG.`);
+  if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} is larger than 8 MB.`);
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+}
+
+function inferAssetType(file, fallback = "logo") {
+  const name = String(file.name || "").toLowerCase();
+  if (fallback === "product_image" || name.includes("product")) return "product_image";
+  if (fallback === "image") return "image";
+  return "logo";
+}
+
+function sourceTypeForAsset(asset) {
+  if (asset.assetType === "logo") return "logo";
+  if (asset.assetType === "product_image") return "product_image";
+  return "uploaded_document";
+}
+
+function sourceTypeForUrl(value) {
+  const text = String(value || "").toLowerCase();
+  if (text.includes("youtube.com") || text.includes("youtu.be")) return "youtube_url";
+  if (text.includes("facebook.com") || text.includes("instagram.com") || text.includes("linkedin.com") || text.includes("tiktok.com")) return "social_profile";
+  return "website_page";
+}
+
+function sourceTitleForUrl(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "Brand source URL";
+  }
 }
 
 function fillForm(form, data) {
@@ -675,6 +817,13 @@ function formatDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function escapeHtml(value) {

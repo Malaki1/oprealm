@@ -494,6 +494,14 @@ select option {
   align-items: center;
 }
 
+.cm-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
 .cm-list-row strong,
 .cm-source-card strong,
 .cm-pack-card strong {
@@ -605,6 +613,47 @@ select option {
   padding: 0 8px;
   color: #8ff0ff;
   font-weight: 900;
+}
+
+.cm-file-field span,
+.cm-upload-preview {
+  color: var(--cm-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.cm-file-field input[type="file"] {
+  padding: 16px;
+  border-style: dashed;
+  background: rgba(32, 215, 255, 0.055);
+}
+
+.cm-upload-preview {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid rgba(145, 197, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.cm-upload-preview span {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #dff8ff;
+  background: rgba(143, 92, 255, 0.18);
+}
+
+.cm-upload-preview b {
+  color: var(--cm-muted);
+  font-size: 0.78rem;
 }
 
 .cm-form-actions,
