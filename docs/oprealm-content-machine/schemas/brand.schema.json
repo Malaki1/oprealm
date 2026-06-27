@@ -6,7 +6,10 @@
   "required": [
     "id",
     "workspaceId",
+    "createdByUserId",
     "name",
+    "status",
+    "brandJson",
     "createdAt"
   ],
   "properties": {
@@ -18,14 +21,51 @@
       "type": "string",
       "minLength": 1
     },
+    "createdByUserId": {
+      "type": "string",
+      "minLength": 1
+    },
     "name": {
       "type": "string"
     },
-    "websiteUrl": {
+    "website": {
       "type": "string"
     },
     "industry": {
       "type": "string"
+    },
+    "businessType": {
+      "type": "string"
+    },
+    "productOrService": {
+      "type": "string"
+    },
+    "offer": {
+      "type": "string"
+    },
+    "primaryCTA": {
+      "type": "string"
+    },
+    "targetAudience": {
+      "type": "string"
+    },
+    "toneOfVoice": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "active",
+        "archived"
+      ]
+    },
+    "brandJson": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "archivedAt": {
+      "type": "string",
+      "format": "date-time"
     },
     "createdAt": {
       "type": "string",

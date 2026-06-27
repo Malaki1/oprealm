@@ -11,7 +11,8 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Which scheduling layer first? | Determines OAuth and calendar architecture. | Start with manual export, then one connector. |
 | Which first paid customer workflow? | Narrows MVP surface. | UGC Ad Pack plus Monthly Social Calendar. |
 | Which provider stack for video? | Controls cost and QA detail. | Adapter interface first; provider choice per task. |
-| How many friend/client roles? | Affects permissions. | owner, admin, editor, reviewer, viewer. |
+| How many friend/client roles? | Affects permissions. | Use owner, admin, member, viewer, client, and friend for the foundation runtime. |
+| When does URL crawling begin? | Determines crawler safety and retry design. | Deferred until Brand Brain source ingestion worker phase. |
 | What is initial token pricing? | Affects margins. | Model with provider-cost records before public pricing. |
 | Which Stripe payment methods are enabled? | Delayed payment methods may need additional webhook events. | Start with one-time Checkout payment mode and credit paid completed sessions. |
 | Which analytics metrics are MVP? | Avoids overbuilding. | views, watch time, CTR, engagement, leads where available. |

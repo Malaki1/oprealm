@@ -17,10 +17,18 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Friend Invites | POST /api/workspaces/:workspaceId/invites | Owner/admin route to create a friend/client invite with optional token grant. |
 | Friend Invites | POST /api/invites/:inviteId/accept | Accept a pending invite, create membership, and apply any grant once. |
 | Friend Invites | POST /api/invites/:inviteId/revoke | Owner/admin route to revoke a pending invite. |
-| Brands | POST /api/brands | Create a brand shell for ingestion. |
-| Brand Sources | POST /api/brands/:brandId/sources | Attach website URLs, files, videos, testimonials, or notes. |
-| Brand Brain | POST /api/brands/:brandId/brand-brain/ingest | Queue Brand Brain ingestion. |
-| Brand Brain | PUT /api/brand-brains/:brandBrainId | Edit and approve extracted Brand Brain fields. |
+| Brands | GET /api/brands?workspaceId=:workspaceId | List active brands visible through workspace membership. |
+| Brands | POST /api/brands | Create a workspace-scoped brand foundation record and default Brand Brain placeholder. |
+| Brands | GET /api/brands/:brandId | Read a brand after workspace membership authorization. |
+| Brands | PATCH /api/brands/:brandId | Update editable brand profile fields and brand_json. |
+| Brands | DELETE /api/brands/:brandId | Archive a brand record without deleting source or brain history. |
+| Brand Sources | GET /api/brands/:brandId/sources | List non-archived source records for a brand. |
+| Brand Sources | POST /api/brands/:brandId/sources | Attach manual notes, URLs, uploaded assets, logos, product images, videos, testimonials, FAQs, ads, or social references. |
+| Brand Sources | GET /api/brands/:brandId/sources/:sourceId | Read a source record after brand/workspace authorization. |
+| Brand Sources | PATCH /api/brands/:brandId/sources/:sourceId | Update stored source metadata, raw text, URL, asset link, or status. |
+| Brand Sources | DELETE /api/brands/:brandId/sources/:sourceId | Archive a source record. |
+| Brand Brain | GET /api/brands/:brandId/brain | Read or lazily create the editable Brand Brain placeholder. |
+| Brand Brain | PUT /api/brands/:brandId/brain | Edit placeholder Brand Brain JSON, including sourceIds and visual identity asset references. |
 | Campaigns | POST /api/campaigns | Create campaign strategy from Brand Brain and business goal. |
 | Creative Briefs | POST /api/campaigns/:campaignId/creative-brief | Generate a campaign creative brief. |
 | Creative Briefs | GET /api/campaigns/:campaignId/creative-brief | Read the active creative brief. |

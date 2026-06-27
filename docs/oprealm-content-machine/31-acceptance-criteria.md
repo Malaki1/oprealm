@@ -14,7 +14,12 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - Verified Stripe checkout.session.completed webhooks credit purchase tokens exactly once.
 - Duplicate Stripe Event IDs and duplicate Checkout Session IDs do not double-credit wallets.
 - Invalid Stripe signatures and invalid metadata never credit wallets.
-- Brand ingestion produces editable Brand Brain.
+- Users can create, list, read, update, and archive workspace-scoped brands.
+- Users can create BrandSource records for manual notes, URLs, and same-workspace asset links without crawling or transcription.
+- Brand Brain placeholders can be read and edited with validated `sourceIds` and `visualIdentity.logoAssetIds`.
+- Viewer role can read brand foundation records but cannot mutate them.
+- Cross-workspace brand, source, brain, and asset access is blocked.
+- Brand ingestion produces editable Brand Brain in a later phase.
 - Creative Brief and Campaign Strategy are generated and QA reviewed.
 - Token quote and reservation happen before generation spend.
 - Content Blueprint creates Content Atoms.

@@ -12,9 +12,9 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | workspaces | Business, friend, or client containers for brands, assets, runs, tokens, and approvals. |
 | workspace_members | Scoped user membership and role records for workspaces. |
 | friend_invites | Tokenized access invitations for collaborators or clients. |
-| brands | Business identities connected to Brand Brain, sources, design systems, campaigns, and assets. |
-| brand_sources | Website pages, uploaded documents, logos, videos, testimonials, ads, and notes used for ingestion. |
-| brand_brains | Approved business memory: offer, audience, CTAs, proof points, objections, tone, and visual identity. |
+| brands | Workspace-scoped business identities connected to Brand Brain, source records, visual identity references, campaigns, and assets. |
+| brand_sources | Workspace-scoped source records for URLs, notes, uploaded files, logos, product images, videos, testimonials, FAQs, ads, and competitor references. |
+| brand_brains | Editable workspace-scoped business memory placeholder: offer, audience, CTAs, proof points, objections, tone, source references, and visual identity. |
 | brand_design_systems | Lightweight brand design rules for colors, fonts, logos, thumbnails, captions, and video style. |
 | business_goals | Objective, audience, offer, CTA, platforms, cadence, and content mix for a campaign. |
 | creative_briefs | Campaign-level operating brief used by generation and QA agents. |
