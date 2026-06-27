@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "additionalProperties": true,
-  "title": "TokenWallet",
+  "title": "WorkspaceMember",
   "required": [
     "id",
+    "workspaceId",
     "userId",
-    "balance",
-    "reservedBalance",
+    "role",
     "createdAt"
   ],
   "properties": {
@@ -15,24 +15,29 @@
       "type": "string",
       "minLength": 1
     },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1
+    },
     "userId": {
       "type": "string",
       "minLength": 1
     },
-    "balance": {
-      "type": "number"
+    "role": {
+      "enum": [
+        "owner",
+        "admin",
+        "member",
+        "viewer",
+        "client",
+        "friend"
+      ]
     },
-    "reservedBalance": {
-      "type": "number"
+    "email": {
+      "type": "string"
     },
-    "lifetimePurchased": {
-      "type": "number"
-    },
-    "lifetimeSpent": {
-      "type": "number"
-    },
-    "currency": {
-      "const": "OPREALM_TOKEN"
+    "displayName": {
+      "type": "string"
     },
     "createdAt": {
       "type": "string",

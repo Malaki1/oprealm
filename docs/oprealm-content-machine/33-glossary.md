@@ -17,6 +17,6 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Pre-Video Gate | Hard approval gate before expensive video media jobs. |
 | Static Keyframe | Low-cost preview frame used to catch visual problems before motion generation. |
 | Token | Internal usage credit, not a blockchain asset. |
-| Reservation | Protected hold against token wallet before cost capture. |
+| Reservation | Protected hold against token wallet before provider spend. |
 | Scheduling Layer | Abstraction for calendar uploads, schedule, publish, retries, and platform IDs. |
 | Manual Export Mode | Downloadable package path when social accounts are not connected. |

@@ -4,7 +4,7 @@
 - [ ] Wallet exists
 - [ ] Quote generated
 - [ ] Reservation created
-- [ ] Low-cost spend captured
+- [ ] Low-cost spend recorded
 - [ ] Video spend gated
 - [ ] Provider cost recorded
 - [ ] Refund/release handled

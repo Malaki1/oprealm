@@ -10,6 +10,7 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | --- | --- |
 | users | Authenticated people who can own or access workspaces. |
 | workspaces | Business, friend, or client containers for brands, assets, runs, tokens, and approvals. |
+| workspace_members | Scoped user membership and role records for workspaces. |
 | friend_invites | Tokenized access invitations for collaborators or clients. |
 | brands | Business identities connected to Brand Brain, sources, design systems, campaigns, and assets. |
 | brand_sources | Website pages, uploaded documents, logos, videos, testimonials, ads, and notes used for ingestion. |
@@ -33,9 +34,9 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | social_accounts | Connected or manually represented platform accounts. |
 | publishing_attempts | Idempotent platform posting attempts with status, errors, platform IDs, and URLs. |
 | analytics_records | Performance snapshots normalized by platform, hook, angle, CTA, content type, and posting time. |
-| token_wallets | Available, reserved, spent, granted, and refunded internal usage credits. |
-| token_transactions | Ledger entries for purchases, grants, reservations, captures, refunds, releases, and adjustments. |
-| token_reservations | Protected token holds for planned work and provider jobs. |
+| token_wallets | User token balances with available, reserved, purchased, and spent totals. |
+| token_transactions | Ledger entries for purchases, admin grants, reservations, reservation releases, spends, refunds, and adjustments. |
+| token_reservations | Protected token holds for planned work and provider jobs, including spend, release, and refund totals. |
 | token_packs | Purchasable or grantable internal credit bundles. |
 | provider_cost_records | Actual provider cost and margin data for admin reporting. |
 

@@ -11,7 +11,7 @@ OPREALM Content Machine needs repeatable implementation guidance for future Code
 
 ## Decision
 
-Tokens are internal credits with wallet, ledger, reserve, capture, release, and refund.
+Tokens are internal credits with wallet, ledger, reservation, spend, release, and refund.
 
 ## Consequences
 

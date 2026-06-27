@@ -23,9 +23,15 @@
       "type": "string"
     },
     "role": {
-      "type": "string"
+      "enum": [
+        "admin",
+        "member",
+        "viewer",
+        "client",
+        "friend"
+      ]
     },
-    "tokenGrant": {
+    "tokenGrantAmount": {
       "type": "number"
     },
     "status": {
@@ -36,11 +42,30 @@
         "revoked"
       ]
     },
+    "invitedByUserId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptedByUserId": {
+      "type": "string"
+    },
     "expiresAt": {
       "type": "string",
       "format": "date-time"
     },
+    "acceptedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revokedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
     "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
       "type": "string",
       "format": "date-time"
     }

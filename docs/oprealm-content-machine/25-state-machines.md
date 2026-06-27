@@ -93,4 +93,4 @@ queued, running, provider_pending, succeeded, failed_retryable, failed_terminal,
 
 ## Token Reservation States
 
-quoted, reserved, partially_captured, captured, released, refunded, expired, cancelled.
+created, reserved, partially_spent, spent, released, refunded, failed.

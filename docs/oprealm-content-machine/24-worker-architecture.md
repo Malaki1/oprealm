@@ -23,4 +23,4 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 
 ## Worker Rules
 
-Workers must be idempotent, safe to retry, explicit about token capture/refund/release, and must write durable status for UI polling.
+Workers must be idempotent, safe to retry, explicit about token spend/refund/release, and must write durable status for UI polling.

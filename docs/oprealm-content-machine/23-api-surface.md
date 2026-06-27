@@ -8,7 +8,15 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 
 | Group | Endpoint | Purpose |
 | --- | --- | --- |
-| Auth and Workspaces | POST /api/workspaces | Create or select a workspace. |
+| Workspaces | GET /api/workspaces | List workspaces visible to the signed-in user. |
+| Workspaces | POST /api/workspaces | Create a workspace and owner membership. |
+| Workspaces | GET /api/workspaces/:workspaceId | Read a workspace after membership authorization. |
+| Workspace Members | GET /api/workspaces/:workspaceId/members | List workspace members. |
+| Workspace Members | POST /api/workspaces/:workspaceId/members | Owner/admin route to add a member by user ID or email. |
+| Friend Invites | GET /api/workspaces/:workspaceId/invites | Owner/admin route to list workspace invites. |
+| Friend Invites | POST /api/workspaces/:workspaceId/invites | Owner/admin route to create a friend/client invite with optional token grant. |
+| Friend Invites | POST /api/invites/:inviteId/accept | Accept a pending invite, create membership, and apply any grant once. |
+| Friend Invites | POST /api/invites/:inviteId/revoke | Owner/admin route to revoke a pending invite. |
 | Brands | POST /api/brands | Create a brand shell for ingestion. |
 | Brand Sources | POST /api/brands/:brandId/sources | Attach website URLs, files, videos, testimonials, or notes. |
 | Brand Brain | POST /api/brands/:brandId/brand-brain/ingest | Queue Brand Brain ingestion. |
@@ -32,14 +40,25 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Creative QA | POST /api/content-atoms/:contentAtomId/approve-for-video | Mark approved_for_video when gates pass. |
 | Creative QA | POST /api/content-atoms/:contentAtomId/override-qa | Log manual override with reason. |
 | Media Jobs | POST /api/media-jobs | Queue media generation only when prerequisites are met. |
-| Assets | GET /api/assets | List workspace asset library. |
+| Assets | GET /api/assets | List active workspace asset records visible to the signed-in user. |
+| Assets | POST /api/assets | Create a source or generated asset record. |
+| Assets | GET /api/assets/:assetId | Read an asset after workspace authorization. |
+| Assets | PATCH /api/assets/:assetId | Update asset metadata, title, storage URL, thumbnail, or visibility. |
+| Assets | DELETE /api/assets/:assetId | Archive an asset record without removing its storage object. |
 | Calendar | POST /api/calendar-items | Create calendar draft. |
 | Approval | POST /api/calendar-items/:calendarItemId/approval-events | Approve, reject, request changes, or override. |
 | Publishing | POST /api/calendar-items/:calendarItemId/schedule | Schedule approved item. |
 | Publishing | GET /api/publishing-attempts/:attemptId | Read publish attempt status. |
 | Analytics | POST /api/analytics/sync | Queue analytics sync for connected accounts. |
-| Tokens | GET /api/token-wallets/:workspaceId | Read wallet balance and reservations. |
-| Tokens | POST /api/token-wallets/:workspaceId/top-up | Create token top-up checkout. |
+| Billing | GET /api/billing/wallet | Read or create the signed-in user's token wallet. |
+| Billing | GET /api/billing/transactions | List signed-in user's token ledger entries. |
+| Billing | GET /api/billing/token-packs | List active token packs. |
+| Billing | POST /api/billing/reservations | Reserve available tokens for planned work. |
+| Billing | POST /api/billing/reservations/:reservationId/spend | Spend from an active reservation. |
+| Billing | POST /api/billing/reservations/:reservationId/release | Release unused reserved tokens. |
+| Billing | POST /api/billing/reservations/:reservationId/refund | Refund a reservation and reverse spent totals where needed. |
+| Admin | POST /api/admin/users/:userId/grant-tokens | Grant tokens to a user with an admin bearer secret. |
+| Admin | GET /api/admin/token-transactions | Read recent token ledger entries with user context. |
 | Admin | GET /api/admin/provider-costs | Review provider cost and margin records. |
 
 ## Route Rules

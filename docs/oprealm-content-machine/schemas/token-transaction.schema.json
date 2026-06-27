@@ -5,7 +5,8 @@
   "title": "TokenTransaction",
   "required": [
     "id",
-    "workspaceId",
+    "userId",
+    "walletId",
     "type",
     "amount",
     "createdAt"
@@ -15,20 +16,21 @@
       "type": "string",
       "minLength": 1
     },
-    "workspaceId": {
+    "userId": {
       "type": "string",
       "minLength": 1
     },
     "walletId": {
-      "type": "string"
+      "type": "string",
+      "minLength": 1
     },
     "type": {
       "enum": [
         "purchase",
-        "grant",
-        "reserve",
-        "capture",
-        "release",
+        "admin_grant",
+        "reservation",
+        "reservation_release",
+        "spend",
         "refund",
         "adjustment"
       ]
@@ -36,14 +38,27 @@
     "amount": {
       "type": "number"
     },
-    "reservationId": {
+    "balanceAfter": {
+      "type": "number"
+    },
+    "reservedBalanceAfter": {
+      "type": "number"
+    },
+    "relatedReservationId": {
       "type": "string"
     },
-    "mediaJobId": {
+    "relatedMediaJobId": {
       "type": "string"
     },
-    "reason": {
+    "stripeCheckoutSessionId": {
       "type": "string"
+    },
+    "stripePaymentIntentId": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
     },
     "createdAt": {
       "type": "string",

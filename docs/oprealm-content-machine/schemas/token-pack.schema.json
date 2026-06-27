@@ -6,9 +6,9 @@
   "required": [
     "id",
     "name",
-    "tokenAmount",
+    "tokens",
     "priceCents",
-    "status"
+    "currency"
   ],
   "properties": {
     "id": {
@@ -18,7 +18,7 @@
     "name": {
       "type": "string"
     },
-    "tokenAmount": {
+    "tokens": {
       "type": "number"
     },
     "priceCents": {
@@ -27,11 +27,12 @@
     "currency": {
       "type": "string"
     },
-    "status": {
-      "enum": [
-        "active",
-        "archived"
-      ]
+    "active": {
+      "type": "boolean"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
     },
     "createdAt": {
       "type": "string",

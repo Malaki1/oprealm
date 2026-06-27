@@ -23,11 +23,15 @@
     },
     "type": {
       "enum": [
+        "personal",
         "business",
         "friend",
         "client",
-        "internal"
+        "admin"
       ]
+    },
+    "role": {
+      "type": "string"
     },
     "createdAt": {
       "type": "string",

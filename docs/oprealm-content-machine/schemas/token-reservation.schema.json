@@ -5,9 +5,10 @@
   "title": "TokenReservation",
   "required": [
     "id",
-    "workspaceId",
+    "userId",
+    "walletId",
     "status",
-    "amount",
+    "amountReserved",
     "createdAt"
   ],
   "properties": {
@@ -15,42 +16,53 @@
       "type": "string",
       "minLength": 1
     },
-    "workspaceId": {
+    "userId": {
       "type": "string",
       "minLength": 1
     },
-    "runId": {
-      "type": "string"
-    },
-    "campaignId": {
-      "type": "string"
-    },
-    "mediaJobId": {
-      "type": "string"
+    "walletId": {
+      "type": "string",
+      "minLength": 1
     },
     "status": {
       "enum": [
-        "quoted",
+        "created",
         "reserved",
-        "partially_captured",
-        "captured",
+        "partially_spent",
+        "spent",
         "released",
         "refunded",
-        "expired",
-        "cancelled"
+        "failed"
       ]
     },
-    "amount": {
+    "amountReserved": {
       "type": "number"
     },
-    "protectedVideoReserve": {
-      "type": "boolean"
+    "amountSpent": {
+      "type": "number"
     },
-    "expiresAt": {
+    "amountReleased": {
+      "type": "number"
+    },
+    "amountRefunded": {
+      "type": "number"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
       "type": "string",
       "format": "date-time"
     },
-    "createdAt": {
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
       "type": "string",
       "format": "date-time"
     }
