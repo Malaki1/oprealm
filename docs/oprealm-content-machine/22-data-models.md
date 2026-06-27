@@ -38,6 +38,7 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | token_transactions | Ledger entries for purchases, admin grants, reservations, reservation releases, spends, refunds, and adjustments. |
 | token_reservations | Protected token holds for planned work and provider jobs, including spend, release, and refund totals. |
 | token_packs | Purchasable or grantable internal credit bundles. |
+| stripe_webhook_events | Verified Stripe webhook receipts used to process token purchases idempotently. |
 | provider_cost_records | Actual provider cost and margin data for admin reporting. |
 
 ## Schema Directory

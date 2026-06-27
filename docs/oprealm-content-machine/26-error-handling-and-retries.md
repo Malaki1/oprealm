@@ -13,6 +13,11 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 - qa_blocker: revision or human override required.
 - provider_retryable: retry with backoff.
 - provider_terminal: fail job and release/refund unused reserve.
+- stripe_checkout_error: do not credit wallet; show checkout creation failure.
+- stripe_invalid_signature: reject webhook and do not persist or credit.
+- stripe_duplicate_event: return success without duplicate credit.
+- stripe_duplicate_checkout_session: return success without duplicate credit.
+- stripe_metadata_failure: record failed webhook and do not credit.
 - rate_limited: retry after provider/window reset.
 - publishing_duplicate_guard: do not post again; surface existing attempt.
 - analytics_unavailable: retry later without blocking completed publishing.

@@ -455,6 +455,15 @@ export function createD1FoundationStore(db) {
       `).bind(userId, limit).all();
       return rows.results || [];
     },
+    async getPurchaseTransactionByStripeCheckoutSessionId(checkoutSessionId) {
+      return db.prepare(`
+        SELECT *
+        FROM token_transactions
+        WHERE type = 'purchase'
+          AND stripe_checkout_session_id = ?
+        LIMIT 1
+      `).bind(checkoutSessionId).first();
+    },
     async insertReservation(row) {
       await db.prepare(`
         INSERT INTO token_reservations (
@@ -494,6 +503,9 @@ export function createD1FoundationStore(db) {
       const rows = await db.prepare("SELECT * FROM token_packs WHERE active = 1 ORDER BY tokens ASC").all();
       return rows.results || [];
     },
+    async getTokenPack(id) {
+      return db.prepare("SELECT * FROM token_packs WHERE id = ? LIMIT 1").bind(id).first();
+    },
     async listAllTransactions(limit = 100) {
       const rows = await db.prepare(`
         SELECT token_transactions.*, web_users.email, web_users.display_name
@@ -503,6 +515,63 @@ export function createD1FoundationStore(db) {
         LIMIT ?
       `).bind(limit).all();
       return rows.results || [];
+    },
+    async getStripeWebhookEvent(stripeEventId) {
+      return db.prepare("SELECT * FROM stripe_webhook_events WHERE stripe_event_id = ? LIMIT 1").bind(stripeEventId).first();
+    },
+    async insertStripeWebhookEvent(row) {
+      await db.prepare(`
+        INSERT OR IGNORE INTO stripe_webhook_events (
+          id, stripe_event_id, event_type, status, checkout_session_id, payment_intent_id,
+          user_id, token_pack_id, tokens, payload_json, error_message, processed_at, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      `).bind(
+        row.id,
+        row.stripe_event_id,
+        row.event_type,
+        row.status || "received",
+        row.checkout_session_id || null,
+        row.payment_intent_id || null,
+        row.user_id || null,
+        row.token_pack_id || null,
+        Number.isFinite(Number(row.tokens)) ? Number(row.tokens) : null,
+        row.payload_json,
+        row.error_message || null,
+        row.processed_at || null,
+      ).run();
+      return this.getStripeWebhookEvent(row.stripe_event_id);
+    },
+    async updateStripeWebhookEvent(stripeEventId, updates) {
+      const existing = await this.getStripeWebhookEvent(stripeEventId);
+      if (!existing) return null;
+      const next = { ...existing, ...updates };
+      await db.prepare(`
+        UPDATE stripe_webhook_events
+        SET status = ?,
+            checkout_session_id = ?,
+            payment_intent_id = ?,
+            user_id = ?,
+            token_pack_id = ?,
+            tokens = ?,
+            payload_json = ?,
+            error_message = ?,
+            processed_at = ?,
+            updated_at = datetime('now')
+        WHERE stripe_event_id = ?
+      `).bind(
+        next.status,
+        next.checkout_session_id || null,
+        next.payment_intent_id || null,
+        next.user_id || null,
+        next.token_pack_id || null,
+        Number.isFinite(Number(next.tokens)) ? Number(next.tokens) : null,
+        next.payload_json,
+        next.error_message || null,
+        next.processed_at || null,
+        stripeEventId,
+      ).run();
+      return this.getStripeWebhookEvent(stripeEventId);
     },
   };
 }
@@ -518,9 +587,11 @@ export function createMemoryFoundationStore(seed = {}) {
     transactions: new Map(),
     reservations: new Map(),
     tokenPacks: new Map(DEFAULT_TOKEN_PACKS.map((pack) => [pack.id, { ...pack }])),
+    stripeWebhookEvents: new Map(),
   };
   for (const row of seed.workspaces || []) state.workspaces.set(row.id, { ...row });
   for (const row of seed.workspaceMembers || []) state.workspaceMembers.set(`${row.workspace_id}:${row.user_id}`, { ...row });
+  for (const row of seed.tokenPacks || []) state.tokenPacks.set(row.id, { ...row });
   return {
     state,
     async transaction(callback) {
@@ -644,6 +715,12 @@ export function createMemoryFoundationStore(seed = {}) {
         .reverse()
         .map(clone);
     },
+    async getPurchaseTransactionByStripeCheckoutSessionId(checkoutSessionId) {
+      return clone([...state.transactions.values()].find((transaction) => (
+        transaction.type === "purchase"
+          && transaction.stripe_checkout_session_id === checkoutSessionId
+      )));
+    },
     async insertReservation(row) {
       const stored = stamp({
         ...row,
@@ -666,8 +743,37 @@ export function createMemoryFoundationStore(seed = {}) {
     async listTokenPacks() {
       return [...state.tokenPacks.values()].filter((pack) => Number(pack.active) === 1).sort((a, b) => a.tokens - b.tokens).map(clone);
     },
+    async getTokenPack(id) {
+      return clone(state.tokenPacks.get(id));
+    },
     async listAllTransactions(limit = 100) {
       return [...state.transactions.values()].slice(-limit).reverse().map(clone);
+    },
+    async getStripeWebhookEvent(stripeEventId) {
+      return clone(state.stripeWebhookEvents.get(stripeEventId));
+    },
+    async insertStripeWebhookEvent(row) {
+      if (state.stripeWebhookEvents.has(row.stripe_event_id)) return clone(state.stripeWebhookEvents.get(row.stripe_event_id));
+      const stored = stamp({
+        ...row,
+        status: row.status || "received",
+        checkout_session_id: row.checkout_session_id || null,
+        payment_intent_id: row.payment_intent_id || null,
+        user_id: row.user_id || null,
+        token_pack_id: row.token_pack_id || null,
+        tokens: Number.isFinite(Number(row.tokens)) ? Number(row.tokens) : null,
+        error_message: row.error_message || null,
+        processed_at: row.processed_at || null,
+      });
+      state.stripeWebhookEvents.set(stored.stripe_event_id, stored);
+      return clone(stored);
+    },
+    async updateStripeWebhookEvent(stripeEventId, updates) {
+      const existing = state.stripeWebhookEvents.get(stripeEventId);
+      if (!existing) return null;
+      const stored = stamp({ ...existing, ...updates });
+      state.stripeWebhookEvents.set(stripeEventId, stored);
+      return clone(stored);
     },
   };
 }
@@ -693,12 +799,18 @@ export function createFoundationServices(store) {
     getWallet: (userId) => getWallet(store, userId),
     listTransactions: (userId, limit) => listTransactions(store, userId, limit),
     adminGrantTokens: (userId, amount, reason, adminUserId, metadata) => adminGrantTokens(store, userId, amount, reason, adminUserId, metadata),
+    creditPurchaseTokens: (input) => creditPurchaseTokens(store, input),
+    getPurchaseTransactionByStripeCheckoutSessionId: (checkoutSessionId) => getPurchaseTransactionByStripeCheckoutSessionId(store, checkoutSessionId),
     reserveTokens: (userId, amount, metadata) => reserveTokens(store, userId, amount, metadata),
     spendReservedTokens: (reservationId, amount, metadata, userId) => spendReservedTokens(store, reservationId, amount, metadata, userId),
     releaseReservation: (reservationId, metadata, userId) => releaseReservation(store, reservationId, metadata, userId),
     refundReservation: (reservationId, metadata, userId) => refundReservation(store, reservationId, metadata, userId),
     listTokenPacks: async () => (await store.listTokenPacks()).map(shapeTokenPack),
+    getTokenPack: (id) => getTokenPack(store, id),
     listAllTransactions: async (limit) => (await store.listAllTransactions(clampInt(limit, 1, 200))).map(shapeAdminTransaction),
+    getStripeWebhookEvent: (stripeEventId) => getStripeWebhookEvent(store, stripeEventId),
+    recordStripeWebhookEvent: (input) => recordStripeWebhookEvent(store, input),
+    updateStripeWebhookEvent: (stripeEventId, updates) => updateStripeWebhookEvent(store, stripeEventId, updates),
   };
 }
 
@@ -907,6 +1019,17 @@ export async function listTransactions(store, userId, limit = 100) {
   return (await store.listTransactions(cleanId(userId), clampInt(limit, 1, 200))).map(shapeTransaction);
 }
 
+export async function getTokenPack(store, tokenPackId) {
+  const pack = await store.getTokenPack(cleanId(tokenPackId));
+  if (!pack) throw httpError("Token pack not found.", 404);
+  return shapeTokenPack(pack);
+}
+
+export async function getPurchaseTransactionByStripeCheckoutSessionId(store, checkoutSessionId) {
+  const cleanCheckoutSessionId = cleanId(checkoutSessionId);
+  return shapeTransaction(await store.getPurchaseTransactionByStripeCheckoutSessionId(cleanCheckoutSessionId));
+}
+
 export async function adminGrantTokens(store, userId, amount, reason = "", adminUserId = "system", metadata = {}) {
   const cleanUserId = cleanId(userId);
   const tokens = cleanTokenAmount(amount);
@@ -923,6 +1046,46 @@ export async function adminGrantTokens(store, userId, amount, reason = "", admin
     metadata: { reason: cleanText(reason || "Admin token grant", 240), adminUserId: cleanId(adminUserId) || "system", ...safeMetadata(metadata) },
   });
   return { wallet: shapeWallet(nextWallet), transaction: shapeTransaction(transaction) };
+}
+
+export async function creditPurchaseTokens(store, input = {}) {
+  const cleanUserId = cleanId(input.userId || input.user_id);
+  const tokens = cleanTokenAmount(input.amount ?? input.tokens);
+  const checkoutSessionId = cleanId(input.stripeCheckoutSessionId || input.stripe_checkout_session_id);
+  const paymentIntentId = cleanOptionalId(input.stripePaymentIntentId || input.stripe_payment_intent_id);
+  const metadata = safeMetadata(input.metadata || {});
+
+  return store.transaction(async (tx) => {
+    const existingTransaction = await tx.getPurchaseTransactionByStripeCheckoutSessionId(checkoutSessionId);
+    if (existingTransaction) {
+      return {
+        wallet: shapeWallet(await tx.getWallet(cleanUserId)),
+        transaction: shapeTransaction(existingTransaction),
+        duplicate: true,
+      };
+    }
+
+    const user = await tx.getUserById(cleanUserId);
+    if (!user) throw httpError("User not found.", 404);
+
+    const wallet = await getOrCreateWalletRow(tx, cleanUserId);
+    const nextWallet = await tx.updateWallet({
+      ...wallet,
+      balance: wallet.balance + tokens,
+      lifetime_purchased: wallet.lifetime_purchased + tokens,
+    });
+    const transaction = await recordTransaction(tx, nextWallet, {
+      type: "purchase",
+      amount: tokens,
+      stripeCheckoutSessionId: checkoutSessionId,
+      stripePaymentIntentId: paymentIntentId,
+      metadata: {
+        source: "stripe_checkout",
+        ...metadata,
+      },
+    });
+    return { wallet: shapeWallet(nextWallet), transaction: shapeTransaction(transaction), duplicate: false };
+  });
 }
 
 export async function reserveTokens(store, userId, amount, metadata = {}) {
@@ -1048,6 +1211,46 @@ export async function refundReservation(store, reservationId, metadata = {}, use
     });
     return { wallet: shapeWallet(nextWallet), reservation: shapeReservation(nextReservation), transaction: shapeTransaction(transaction) };
   });
+}
+
+export async function getStripeWebhookEvent(store, stripeEventId) {
+  const cleanStripeEventId = cleanId(stripeEventId);
+  return shapeStripeWebhookEvent(await store.getStripeWebhookEvent(cleanStripeEventId));
+}
+
+export async function recordStripeWebhookEvent(store, input = {}) {
+  const stripeEventId = cleanId(input.stripeEventId || input.stripe_event_id);
+  const eventType = requireMinText(input.eventType || input.event_type, "Stripe event type", 3, 160);
+  const payloadJson = cleanPayloadJson(input.payloadJson || input.payload_json);
+  return shapeStripeWebhookEvent(await store.insertStripeWebhookEvent({
+    id: crypto.randomUUID(),
+    stripe_event_id: stripeEventId,
+    event_type: eventType,
+    status: enumValue(input.status || "received", ["received", "processed", "ignored", "failed"], "received"),
+    checkout_session_id: cleanOptionalId(input.checkoutSessionId || input.checkout_session_id),
+    payment_intent_id: cleanOptionalId(input.paymentIntentId || input.payment_intent_id),
+    user_id: cleanOptionalId(input.userId || input.user_id),
+    token_pack_id: cleanOptionalId(input.tokenPackId || input.token_pack_id),
+    tokens: Number.isFinite(Number(input.tokens)) ? Math.trunc(Number(input.tokens)) : null,
+    payload_json: payloadJson,
+    error_message: cleanOptionalLongText(input.errorMessage || input.error_message),
+    processed_at: input.processedAt || input.processed_at || null,
+  }));
+}
+
+export async function updateStripeWebhookEvent(store, stripeEventId, updates = {}) {
+  const cleanStripeEventId = cleanId(stripeEventId);
+  const next = {};
+  if ("status" in updates) next.status = enumValue(updates.status, ["received", "processed", "ignored", "failed"], "received");
+  if ("checkoutSessionId" in updates || "checkout_session_id" in updates) next.checkout_session_id = cleanOptionalId(updates.checkoutSessionId || updates.checkout_session_id);
+  if ("paymentIntentId" in updates || "payment_intent_id" in updates) next.payment_intent_id = cleanOptionalId(updates.paymentIntentId || updates.payment_intent_id);
+  if ("userId" in updates || "user_id" in updates) next.user_id = cleanOptionalId(updates.userId || updates.user_id);
+  if ("tokenPackId" in updates || "token_pack_id" in updates) next.token_pack_id = cleanOptionalId(updates.tokenPackId || updates.token_pack_id);
+  if ("tokens" in updates) next.tokens = Number.isFinite(Number(updates.tokens)) ? Math.trunc(Number(updates.tokens)) : null;
+  if ("payloadJson" in updates || "payload_json" in updates) next.payload_json = cleanPayloadJson(updates.payloadJson || updates.payload_json);
+  if ("errorMessage" in updates || "error_message" in updates) next.error_message = cleanOptionalLongText(updates.errorMessage || updates.error_message);
+  if ("processedAt" in updates || "processed_at" in updates) next.processed_at = updates.processedAt || updates.processed_at || null;
+  return shapeStripeWebhookEvent(await store.updateStripeWebhookEvent(cleanStripeEventId, next));
 }
 
 async function recordTransaction(store, wallet, input) {
@@ -1257,6 +1460,8 @@ function shapeTransaction(row) {
     reservedBalanceAfter: Number(row.reserved_balance_after ?? row.reservedBalanceAfter ?? 0),
     relatedReservationId: row.related_reservation_id || row.relatedReservationId || null,
     relatedMediaJobId: row.related_media_job_id || row.relatedMediaJobId || null,
+    stripeCheckoutSessionId: row.stripe_checkout_session_id || row.stripeCheckoutSessionId || null,
+    stripePaymentIntentId: row.stripe_payment_intent_id || row.stripePaymentIntentId || null,
     metadata: parseMetadata(row.metadata_json ?? row.metadata),
     createdAt: row.created_at || row.createdAt,
   };
@@ -1285,6 +1490,24 @@ function shapeTokenPack(row) {
   };
 }
 
+function shapeStripeWebhookEvent(row) {
+  return row && {
+    id: row.id,
+    stripeEventId: row.stripe_event_id,
+    eventType: row.event_type,
+    status: row.status,
+    checkoutSessionId: row.checkout_session_id || null,
+    paymentIntentId: row.payment_intent_id || null,
+    userId: row.user_id || null,
+    tokenPackId: row.token_pack_id || null,
+    tokens: Number.isFinite(Number(row.tokens)) ? Number(row.tokens) : null,
+    errorMessage: row.error_message || null,
+    processedAt: row.processed_at || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function requiredDb(env) {
   if (!env?.OPREALM_DB) throw httpError("OPRealm database is not connected.", 500);
   return env.OPREALM_DB;
@@ -1303,6 +1526,25 @@ function cleanId(value) {
 function cleanOptionalId(value) {
   const text = cleanText(value || "", 160);
   return text || null;
+}
+
+function cleanOptionalLongText(value) {
+  const text = cleanText(value || "", 1000);
+  return text || null;
+}
+
+function cleanPayloadJson(value) {
+  const text = String(value || "").trim();
+  if (!text) throw httpError("Stripe webhook payload is required.", 400);
+  if (new TextEncoder().encode(text).length > 256 * 1024) {
+    throw httpError("Stripe webhook payload is too large.", 413);
+  }
+  try {
+    JSON.parse(text);
+  } catch {
+    throw httpError("Stripe webhook payload must be JSON.", 400);
+  }
+  return text;
 }
 
 function cleanAssetUrl(value) {

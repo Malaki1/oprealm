@@ -19,3 +19,20 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 ## Ledger Types
 
 purchase, admin_grant, reservation, reservation_release, spend, refund, adjustment.
+
+## Stripe Token Top-Ups
+
+- Users buy server-defined active token packs through Stripe Checkout in one-time `payment` mode.
+- `POST /api/billing/token-topup` accepts only `tokenPackId`; token amounts and prices always come from the server token pack.
+- Checkout Sessions carry reconciliation metadata: userId, tokenPackId, tokens, and source.
+- Wallets are credited only from verified Stripe webhooks, never from the checkout creation route.
+- `POST /api/webhooks/stripe` verifies the raw request body with `STRIPE_WEBHOOK_SECRET` before parsing JSON.
+- Successful `checkout.session.completed` events create `purchase` transactions, increase `balance` and `lifetimePurchased`, and do not change `reservedBalance`.
+- Duplicate Stripe Event IDs and duplicate Checkout Session IDs must not double-credit wallets.
+- Required server-only environment values are `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `APP_URL`; default token-pack currency is AUD unless changed in the database.
+
+## Stripe Top-Up Diagrams
+
+- [Checkout flow](diagrams/stripe-token-topup-flow.mmd)
+- [Webhook crediting flow](diagrams/stripe-webhook-crediting-flow.mmd)
+- [Token purchase state machine](diagrams/token-purchase-state-machine.mmd)

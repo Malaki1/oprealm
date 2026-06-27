@@ -53,10 +53,12 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Billing | GET /api/billing/wallet | Read or create the signed-in user's token wallet. |
 | Billing | GET /api/billing/transactions | List signed-in user's token ledger entries. |
 | Billing | GET /api/billing/token-packs | List active token packs. |
+| Billing | POST /api/billing/token-topup | Create a Stripe Checkout Session for an active token pack. |
 | Billing | POST /api/billing/reservations | Reserve available tokens for planned work. |
 | Billing | POST /api/billing/reservations/:reservationId/spend | Spend from an active reservation. |
 | Billing | POST /api/billing/reservations/:reservationId/release | Release unused reserved tokens. |
 | Billing | POST /api/billing/reservations/:reservationId/refund | Refund a reservation and reverse spent totals where needed. |
+| Webhooks | POST /api/webhooks/stripe | Verify Stripe signatures and credit token purchases exactly once. |
 | Admin | POST /api/admin/users/:userId/grant-tokens | Grant tokens to a user with an admin bearer secret. |
 | Admin | GET /api/admin/token-transactions | Read recent token ledger entries with user context. |
 | Admin | GET /api/admin/provider-costs | Review provider cost and margin records. |

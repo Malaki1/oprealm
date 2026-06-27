@@ -11,19 +11,20 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | 1 | Docs source-of-truth and AGENTS.md | none |
 | 2 | Workspace/user/friend-invite foundation | PR 1 |
 | 3 | Token wallet ledger and reservations | PR 2 |
-| 4 | Asset library base and source uploads | PR 2 |
-| 5 | Brand Brain source ingestion | PR 4 |
-| 6 | Creative Brief and Campaign Engine | PR 5 |
-| 7 | Content Machine Run orchestration | PR 6 |
-| 8 | Agency QA schemas, workers, scorecards | PR 7 |
-| 9 | Revision engine and low-cost generation loop | PR 8 |
-| 10 | Pre-video gate enforcement | PR 8 |
-| 11 | Media generation adapter | PR 10 |
-| 12 | UGC Ad Pack | PR 11 |
-| 13 | Product Creative Pack | PR 11 |
-| 14 | YouTube Content Pack | PR 11 |
-| 15 | Calendar and approval | PR 12-14 |
-| 16 | Manual export | PR 15 |
-| 17 | Publishing connector 1 | PR 15 |
-| 18 | Analytics feedback | PR 17 |
-| 19 | Admin cost/revenue dashboard | PR 3, PR 11, PR 18 |
+| 4 | Stripe token top-ups | PR 3 |
+| 5 | Asset library base and source uploads | PR 2 |
+| 6 | Brand Brain source ingestion | PR 5 |
+| 7 | Creative Brief and Campaign Engine | PR 6 |
+| 8 | Content Machine Run orchestration | PR 7 |
+| 9 | Agency QA schemas, workers, scorecards | PR 8 |
+| 10 | Revision engine and low-cost generation loop | PR 9 |
+| 11 | Pre-video gate enforcement | PR 9 |
+| 12 | Media generation adapter | PR 11 |
+| 13 | UGC Ad Pack | PR 12 |
+| 14 | Product Creative Pack | PR 12 |
+| 15 | YouTube Content Pack | PR 12 |
+| 16 | Calendar and approval | PR 13-15 |
+| 17 | Manual export | PR 16 |
+| 18 | Publishing connector 1 | PR 16 |
+| 19 | Analytics feedback | PR 18 |
+| 20 | Admin cost/revenue dashboard | PR 3, PR 12, PR 19 |

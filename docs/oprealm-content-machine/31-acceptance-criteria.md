@@ -9,6 +9,11 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 ## System Criteria
 
 - OPREALM can create a Content Machine Run from required first input.
+- Authenticated users can buy active token packs through Stripe Checkout.
+- Stripe checkout creation never credits wallets directly.
+- Verified Stripe checkout.session.completed webhooks credit purchase tokens exactly once.
+- Duplicate Stripe Event IDs and duplicate Checkout Session IDs do not double-credit wallets.
+- Invalid Stripe signatures and invalid metadata never credit wallets.
 - Brand ingestion produces editable Brand Brain.
 - Creative Brief and Campaign Strategy are generated and QA reviewed.
 - Token quote and reservation happen before generation spend.

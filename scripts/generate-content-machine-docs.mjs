@@ -205,6 +205,7 @@ const entities = [
   ["token_transactions", "Ledger entries for purchases, admin grants, reservations, reservation releases, spends, refunds, and adjustments."],
   ["token_reservations", "Protected token holds for planned work and provider jobs, including spend, release, and refund totals."],
   ["token_packs", "Purchasable or grantable internal credit bundles."],
+  ["stripe_webhook_events", "Verified Stripe webhook receipts used to process token purchases idempotently."],
   ["provider_cost_records", "Actual provider cost and margin data for admin reporting."],
 ];
 
@@ -254,10 +255,12 @@ const apiGroups = [
   ["Billing", "GET /api/billing/wallet", "Read or create the signed-in user's token wallet."],
   ["Billing", "GET /api/billing/transactions", "List signed-in user's token ledger entries."],
   ["Billing", "GET /api/billing/token-packs", "List active token packs."],
+  ["Billing", "POST /api/billing/token-topup", "Create a Stripe Checkout Session for an active token pack."],
   ["Billing", "POST /api/billing/reservations", "Reserve available tokens for planned work."],
   ["Billing", "POST /api/billing/reservations/:reservationId/spend", "Spend from an active reservation."],
   ["Billing", "POST /api/billing/reservations/:reservationId/release", "Release unused reserved tokens."],
   ["Billing", "POST /api/billing/reservations/:reservationId/refund", "Refund a reservation and reverse spent totals where needed."],
+  ["Webhooks", "POST /api/webhooks/stripe", "Verify Stripe signatures and credit token purchases exactly once."],
   ["Admin", "POST /api/admin/users/:userId/grant-tokens", "Grant tokens to a user with an admin bearer secret."],
   ["Admin", "GET /api/admin/token-transactions", "Read recent token ledger entries with user context."],
   ["Admin", "GET /api/admin/provider-costs", "Review provider cost and margin records."],
@@ -750,6 +753,16 @@ ${mdList(["Cheap upstream work is allowed before video generation.", "Expensive 
 ## Ledger Types
 
 purchase, admin_grant, reservation, reservation_release, spend, refund, adjustment.
+
+## Stripe Token Top-Ups
+
+${mdList(["Users buy server-defined active token packs through Stripe Checkout in one-time `payment` mode.", "`POST /api/billing/token-topup` accepts only `tokenPackId`; token amounts and prices always come from the server token pack.", "Checkout Sessions carry reconciliation metadata: userId, tokenPackId, tokens, and source.", "Wallets are credited only from verified Stripe webhooks, never from the checkout creation route.", "`POST /api/webhooks/stripe` verifies the raw request body with `STRIPE_WEBHOOK_SECRET` before parsing JSON.", "Successful `checkout.session.completed` events create `purchase` transactions, increase `balance` and `lifetimePurchased`, and do not change `reservedBalance`.", "Duplicate Stripe Event IDs and duplicate Checkout Session IDs must not double-credit wallets.", "Required server-only environment values are `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and `APP_URL`; default token-pack currency is AUD unless changed in the database."])}
+
+## Stripe Top-Up Diagrams
+
+- [Checkout flow](diagrams/stripe-token-topup-flow.mmd)
+- [Webhook crediting flow](diagrams/stripe-webhook-crediting-flow.mmd)
+- [Token purchase state machine](diagrams/token-purchase-state-machine.mmd)
 `);
 
   write("docs/oprealm-content-machine/17-calendar-and-approval.md", `${generatedWarning}
@@ -873,13 +886,17 @@ queued, running, provider_pending, succeeded, failed_retryable, failed_terminal,
 ## Token Reservation States
 
 created, reserved, partially_spent, spent, released, refunded, failed.
+
+## Token Purchase States
+
+checkout_requested, checkout_created, payment_pending, checkout_completed, webhook_received, signature_verified, idempotency_checked, wallet_credited, transaction_recorded, processed, rejected_pack_missing, rejected_pack_inactive, rejected_invalid_signature, ignored_unsupported_event, failed_missing_metadata, ignored_duplicate.
 `);
 
   write("docs/oprealm-content-machine/26-error-handling-and-retries.md", `${generatedWarning}
 ${docHeader("Error Handling And Retries", "Failures must be recoverable, visible, and financially correct.")}
 ## Categories
 
-${mdList(["validation_error: user or request must change.", "missing_input: ask for required business/source data.", "qa_blocker: revision or human override required.", "provider_retryable: retry with backoff.", "provider_terminal: fail job and release/refund unused reserve.", "rate_limited: retry after provider/window reset.", "publishing_duplicate_guard: do not post again; surface existing attempt.", "analytics_unavailable: retry later without blocking completed publishing."])}
+${mdList(["validation_error: user or request must change.", "missing_input: ask for required business/source data.", "qa_blocker: revision or human override required.", "provider_retryable: retry with backoff.", "provider_terminal: fail job and release/refund unused reserve.", "stripe_checkout_error: do not credit wallet; show checkout creation failure.", "stripe_invalid_signature: reject webhook and do not persist or credit.", "stripe_duplicate_event: return success without duplicate credit.", "stripe_duplicate_checkout_session: return success without duplicate credit.", "stripe_metadata_failure: record failed webhook and do not credit.", "rate_limited: retry after provider/window reset.", "publishing_duplicate_guard: do not post again; surface existing attempt.", "analytics_unavailable: retry later without blocking completed publishing."])}
 
 ## QA Failure
 
@@ -901,7 +918,7 @@ Admin views must support user/workspace lookup, token grants, provider costs, gr
 ${docHeader("Security And Secrets", "Provider secrets, OAuth tokens, and business assets require strict server-side handling.")}
 ## Rules
 
-${mdList(["Never expose provider API keys to clients.", "Store OAuth tokens encrypted or in platform secret storage.", "Authorize every workspace-scoped read/write.", "Default assets to private workspace access.", "Separate approval, QA, and moderation concepts.", "Log manual overrides and admin grants.", "Avoid storing unnecessary raw secrets in analytics or logs."])}
+${mdList(["Never expose provider API keys to clients.", "Keep `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` server-only.", "Stripe webhooks do not require user auth, but must verify the raw body and Stripe-Signature header before parsing JSON.", "Checkout creation requires an authenticated user and accepts only server-defined active token packs.", "Users cannot self-credit tokens; wallet purchase credits come only from verified webhooks.", "Store OAuth tokens encrypted or in platform secret storage.", "Authorize every workspace-scoped read/write.", "Default assets to private workspace access.", "Separate approval, QA, and moderation concepts.", "Log manual overrides and admin grants.", "Avoid storing unnecessary raw secrets in analytics or logs."])}
 `);
 
   write("docs/oprealm-content-machine/29-implementation-roadmap.md", `${generatedWarning}
@@ -909,18 +926,19 @@ ${docHeader("Implementation Roadmap", "Build OPREALM Content Machine phase by ph
 ${table(["Phase", "Name", "Goal"], [
   ["0", "Documentation Source of Truth", "Create canonical docs, schemas, diagrams, ADRs, checklists, AGENTS.md, and Notion action plan."],
   ["1", "Foundation", "Users, workspaces, friend invites, assets, token wallets."],
-  ["2", "Brand Brain", "Website/source ingestion, extraction, editable Brand Brain."],
-  ["3", "Creative Brief + Campaign Engine", "Goals, briefs, angles, hooks, blueprints."],
-  ["4", "Agency QA Layer", "Review agents, scorecards, revision loop, pre-video approval."],
-  ["5", "Media Generation Adapter", "Selected provider adapters behind OPREALM job rules."],
-  ["6", "UGC Ad Pack", "Scripts, storyboards, keyframes, videos, captions, drafts."],
-  ["7", "Product Creative Pack", "Product media, carousel frames, ad variants."],
-  ["8", "YouTube Content Pack", "Titles, scripts, thumbnails, Shorts, metadata."],
-  ["9", "Calendar + Approval", "Drafts, approvals, bulk approvals, schedule states."],
-  ["10", "Manual Export Mode", "Export packages before connector completion."],
-  ["11", "Publishing Connectors", "YouTube, Instagram/Facebook, TikTok, LinkedIn."],
-  ["12", "Analytics Feedback", "Pull metrics, score winners, generate more like this."],
-  ["13", "Admin Revenue Dashboard", "Token revenue, provider costs, gross margin, grants."],
+  ["2", "Stripe Token Top-Ups", "Checkout Sessions, verified webhooks, purchase ledger credits, and idempotency."],
+  ["3", "Brand Foundation", "Brands, brand sources, source linking, and editable Brand Brain placeholder."],
+  ["4", "Creative Brief + Campaign Engine", "Goals, briefs, angles, hooks, blueprints."],
+  ["5", "Agency QA Layer", "Review agents, scorecards, revision loop, pre-video approval."],
+  ["6", "Media Generation Adapter", "Selected provider adapters behind OPREALM job rules."],
+  ["7", "UGC Ad Pack", "Scripts, storyboards, keyframes, videos, captions, drafts."],
+  ["8", "Product Creative Pack", "Product media, carousel frames, ad variants."],
+  ["9", "YouTube Content Pack", "Titles, scripts, thumbnails, Shorts, metadata."],
+  ["10", "Calendar + Approval", "Drafts, approvals, bulk approvals, schedule states."],
+  ["11", "Manual Export Mode", "Export packages before connector completion."],
+  ["12", "Publishing Connectors", "YouTube, Instagram/Facebook, TikTok, LinkedIn."],
+  ["13", "Analytics Feedback", "Pull metrics, score winners, generate more like this."],
+  ["14", "Admin Revenue Dashboard", "Token revenue, provider costs, gross margin, grants."],
 ])}
 `);
 
@@ -930,22 +948,23 @@ ${table(["PR", "Scope", "Depends on"], [
   ["1", "Docs source-of-truth and AGENTS.md", "none"],
   ["2", "Workspace/user/friend-invite foundation", "PR 1"],
   ["3", "Token wallet ledger and reservations", "PR 2"],
-  ["4", "Asset library base and source uploads", "PR 2"],
-  ["5", "Brand Brain source ingestion", "PR 4"],
-  ["6", "Creative Brief and Campaign Engine", "PR 5"],
-  ["7", "Content Machine Run orchestration", "PR 6"],
-  ["8", "Agency QA schemas, workers, scorecards", "PR 7"],
-  ["9", "Revision engine and low-cost generation loop", "PR 8"],
-  ["10", "Pre-video gate enforcement", "PR 8"],
-  ["11", "Media generation adapter", "PR 10"],
-  ["12", "UGC Ad Pack", "PR 11"],
-  ["13", "Product Creative Pack", "PR 11"],
-  ["14", "YouTube Content Pack", "PR 11"],
-  ["15", "Calendar and approval", "PR 12-14"],
-  ["16", "Manual export", "PR 15"],
-  ["17", "Publishing connector 1", "PR 15"],
-  ["18", "Analytics feedback", "PR 17"],
-  ["19", "Admin cost/revenue dashboard", "PR 3, PR 11, PR 18"],
+  ["4", "Stripe token top-ups", "PR 3"],
+  ["5", "Asset library base and source uploads", "PR 2"],
+  ["6", "Brand Brain source ingestion", "PR 5"],
+  ["7", "Creative Brief and Campaign Engine", "PR 6"],
+  ["8", "Content Machine Run orchestration", "PR 7"],
+  ["9", "Agency QA schemas, workers, scorecards", "PR 8"],
+  ["10", "Revision engine and low-cost generation loop", "PR 9"],
+  ["11", "Pre-video gate enforcement", "PR 9"],
+  ["12", "Media generation adapter", "PR 11"],
+  ["13", "UGC Ad Pack", "PR 12"],
+  ["14", "Product Creative Pack", "PR 12"],
+  ["15", "YouTube Content Pack", "PR 12"],
+  ["16", "Calendar and approval", "PR 13-15"],
+  ["17", "Manual export", "PR 16"],
+  ["18", "Publishing connector 1", "PR 16"],
+  ["19", "Analytics feedback", "PR 18"],
+  ["20", "Admin cost/revenue dashboard", "PR 3, PR 12, PR 19"],
 ])}
 `);
 
@@ -953,7 +972,7 @@ ${table(["PR", "Scope", "Depends on"], [
 ${docHeader("Acceptance Criteria", "These criteria define done for the OPREALM Content Machine build.")}
 ## System Criteria
 
-${mdList(["OPREALM can create a Content Machine Run from required first input.", "Brand ingestion produces editable Brand Brain.", "Creative Brief and Campaign Strategy are generated and QA reviewed.", "Token quote and reservation happen before generation spend.", "Content Blueprint creates Content Atoms.", "A generated video job cannot start until creative QA passes.", "UGC script is reviewed before storyboarding.", "Storyboard is reviewed before keyframes.", "Static keyframe is reviewed before image-to-video generation.", "Creative review produces numeric scorecard and structured findings.", "Revision Planner can turn findings into change instructions.", "OPREALM can revise low-cost assets before video generation.", "Blocker findings block video generation.", "Manual override is available with audit logging.", "QA status appears in the Content Machine Run UI.", "Post-render QA runs before calendar draft approval.", "Pre-publish QA runs before scheduled publishing.", "Publishing retries cannot create duplicate posts.", "Analytics feeds next-batch recommendations."])}
+${mdList(["OPREALM can create a Content Machine Run from required first input.", "Authenticated users can buy active token packs through Stripe Checkout.", "Stripe checkout creation never credits wallets directly.", "Verified Stripe checkout.session.completed webhooks credit purchase tokens exactly once.", "Duplicate Stripe Event IDs and duplicate Checkout Session IDs do not double-credit wallets.", "Invalid Stripe signatures and invalid metadata never credit wallets.", "Brand ingestion produces editable Brand Brain.", "Creative Brief and Campaign Strategy are generated and QA reviewed.", "Token quote and reservation happen before generation spend.", "Content Blueprint creates Content Atoms.", "A generated video job cannot start until creative QA passes.", "UGC script is reviewed before storyboarding.", "Storyboard is reviewed before keyframes.", "Static keyframe is reviewed before image-to-video generation.", "Creative review produces numeric scorecard and structured findings.", "Revision Planner can turn findings into change instructions.", "OPREALM can revise low-cost assets before video generation.", "Blocker findings block video generation.", "Manual override is available with audit logging.", "QA status appears in the Content Machine Run UI.", "Post-render QA runs before calendar draft approval.", "Pre-publish QA runs before scheduled publishing.", "Publishing retries cannot create duplicate posts.", "Analytics feeds next-batch recommendations."])}
 `);
 
   write("docs/oprealm-content-machine/32-open-questions.md", `${generatedWarning}
@@ -964,6 +983,7 @@ ${table(["Question", "Why it matters", "Current leaning"], [
   ["Which provider stack for video?", "Controls cost and QA detail.", "Adapter interface first; provider choice per task."],
   ["How many friend/client roles?", "Affects permissions.", "owner, admin, editor, reviewer, viewer."],
   ["What is initial token pricing?", "Affects margins.", "Model with provider-cost records before public pricing."],
+  ["Which Stripe payment methods are enabled?", "Delayed payment methods may need additional webhook events.", "Start with one-time Checkout payment mode and credit paid completed sessions."],
   ["Which analytics metrics are MVP?", "Avoids overbuilding.", "views, watch time, CTR, engagement, leads where available."],
 ])}
 `);
@@ -1040,6 +1060,7 @@ const schemas = {
   "token-transaction.schema.json": schema("TokenTransaction", ["id", "userId", "walletId", "type", "amount", "createdAt"], { id, userId: id, walletId: id, type: { enum: ["purchase", "admin_grant", "reservation", "reservation_release", "spend", "refund", "adjustment"] }, amount: num, balanceAfter: num, reservedBalanceAfter: num, relatedReservationId: str, relatedMediaJobId: str, stripeCheckoutSessionId: str, stripePaymentIntentId: str, metadata: obj, createdAt: date }),
   "token-reservation.schema.json": schema("TokenReservation", ["id", "userId", "walletId", "status", "amountReserved", "createdAt"], { id, userId: id, walletId: id, status: { enum: ["created", "reserved", "partially_spent", "spent", "released", "refunded", "failed"] }, amountReserved: num, amountSpent: num, amountReleased: num, amountRefunded: num, reason: str, metadata: obj, createdAt: date, updatedAt: date, completedAt: date }),
   "token-pack.schema.json": schema("TokenPack", ["id", "name", "tokens", "priceCents", "currency"], { id, name: str, tokens: num, priceCents: num, currency: str, active: bool, metadata: obj, createdAt: date }),
+  "stripe-webhook-event.schema.json": schema("StripeWebhookEvent", ["id", "stripeEventId", "eventType", "status", "payloadJson", "createdAt"], { id, stripeEventId: id, eventType: str, status: { enum: ["received", "processed", "ignored", "failed"] }, checkoutSessionId: str, paymentIntentId: str, userId: str, tokenPackId: str, tokens: num, payloadJson: str, errorMessage: str, processedAt: date, createdAt: date, updatedAt: date }),
   "provider-cost-record.schema.json": schema("ProviderCostRecord", ["id", "workspaceId", "provider", "costCents", "createdAt"], { id, workspaceId: id, mediaJobId: str, provider: str, model: str, operation: str, costCents: num, tokensCharged: num, marginCents: num, createdAt: date }),
 };
 
@@ -1301,6 +1322,58 @@ function writeDiagrams() {
   released --> [*]
   refunded --> [*]
   failed --> [*]`,
+    "stripe-token-topup-flow.mmd": `flowchart TD
+  A[User selects token pack] --> B[POST /api/billing/token-topup]
+  B --> C[Require authenticated user]
+  C --> D[Load active token pack]
+  D --> E{Pack active?}
+  E -- No --> F[Reject request]
+  E -- Yes --> G[Create Stripe Checkout Session]
+  G --> H[Return checkoutUrl]
+  H --> I[User pays in Stripe Checkout]
+  I --> J[Stripe emits checkout.session.completed]
+  J --> K[POST /api/webhooks/stripe]
+  K --> L[Verify raw-body signature]
+  L --> M[Idempotency checks]
+  M --> N[Credit wallet exactly once]
+  N --> O[Create purchase transaction]`,
+    "stripe-webhook-crediting-flow.mmd": `flowchart TD
+  A[Stripe webhook received] --> B[Read raw body]
+  B --> C[Read Stripe-Signature header]
+  C --> D{Signature valid?}
+  D -- No --> E[Reject; no wallet credit]
+  D -- Yes --> F[Parse Stripe event]
+  F --> G{Event already processed?}
+  G -- Yes --> H[Return 200; no duplicate credit]
+  G -- No --> I{Event type checkout.session.completed?}
+  I -- No --> J[Record ignored; return 200]
+  I -- Yes --> K[Validate session metadata]
+  K --> L{Metadata valid?}
+  L -- No --> M[Record failed; no wallet credit]
+  L -- Yes --> N{Checkout session already credited?}
+  N -- Yes --> O[Mark processed; return 200]
+  N -- No --> P[Credit wallet via token service]
+  P --> Q[Create purchase transaction]
+  Q --> R[Mark webhook processed]
+  R --> S[Return 200]`,
+    "token-purchase-state-machine.mmd": `stateDiagram-v2
+  [*] --> checkout_requested
+  checkout_requested --> checkout_created
+  checkout_created --> payment_pending
+  payment_pending --> checkout_completed
+  checkout_completed --> webhook_received
+  webhook_received --> signature_verified
+  signature_verified --> idempotency_checked
+  idempotency_checked --> wallet_credited
+  wallet_credited --> transaction_recorded
+  transaction_recorded --> processed
+  processed --> [*]
+  checkout_requested --> rejected_pack_missing
+  checkout_requested --> rejected_pack_inactive
+  webhook_received --> rejected_invalid_signature
+  signature_verified --> ignored_unsupported_event
+  signature_verified --> failed_missing_metadata
+  idempotency_checked --> ignored_duplicate`,
   };
 
   for (const [file, content] of Object.entries(diagrams)) {

@@ -1,0 +1,19 @@
+flowchart TD
+  A[Stripe webhook received] --> B[Read raw body]
+  B --> C[Read Stripe-Signature header]
+  C --> D{Signature valid?}
+  D -- No --> E[Reject; no wallet credit]
+  D -- Yes --> F[Parse Stripe event]
+  F --> G{Event already processed?}
+  G -- Yes --> H[Return 200; no duplicate credit]
+  G -- No --> I{Event type checkout.session.completed?}
+  I -- No --> J[Record ignored; return 200]
+  I -- Yes --> K[Validate session metadata]
+  K --> L{Metadata valid?}
+  L -- No --> M[Record failed; no wallet credit]
+  L -- Yes --> N{Checkout session already credited?}
+  N -- Yes --> O[Mark processed; return 200]
+  N -- No --> P[Credit wallet via token service]
+  P --> Q[Create purchase transaction]
+  Q --> R[Mark webhook processed]
+  R --> S[Return 200]

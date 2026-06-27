@@ -13,4 +13,5 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | Which provider stack for video? | Controls cost and QA detail. | Adapter interface first; provider choice per task. |
 | How many friend/client roles? | Affects permissions. | owner, admin, editor, reviewer, viewer. |
 | What is initial token pricing? | Affects margins. | Model with provider-cost records before public pricing. |
+| Which Stripe payment methods are enabled? | Delayed payment methods may need additional webhook events. | Start with one-time Checkout payment mode and credit paid completed sessions. |
 | Which analytics metrics are MVP? | Avoids overbuilding. | views, watch time, CTR, engagement, leads where available. |

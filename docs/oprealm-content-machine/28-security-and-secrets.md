@@ -9,6 +9,10 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 ## Rules
 
 - Never expose provider API keys to clients.
+- Keep `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` server-only.
+- Stripe webhooks do not require user auth, but must verify the raw body and Stripe-Signature header before parsing JSON.
+- Checkout creation requires an authenticated user and accepts only server-defined active token packs.
+- Users cannot self-credit tokens; wallet purchase credits come only from verified webhooks.
 - Store OAuth tokens encrypted or in platform secret storage.
 - Authorize every workspace-scoped read/write.
 - Default assets to private workspace access.

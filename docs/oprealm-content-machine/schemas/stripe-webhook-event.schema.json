@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": true,
+  "title": "StripeWebhookEvent",
+  "required": [
+    "id",
+    "stripeEventId",
+    "eventType",
+    "status",
+    "payloadJson",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stripeEventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "eventType": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "received",
+        "processed",
+        "ignored",
+        "failed"
+      ]
+    },
+    "checkoutSessionId": {
+      "type": "string"
+    },
+    "paymentIntentId": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    },
+    "tokenPackId": {
+      "type": "string"
+    },
+    "tokens": {
+      "type": "number"
+    },
+    "payloadJson": {
+      "type": "string"
+    },
+    "errorMessage": {
+      "type": "string"
+    },
+    "processedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

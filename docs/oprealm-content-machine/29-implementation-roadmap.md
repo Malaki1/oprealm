@@ -10,15 +10,16 @@ Canonical source: [00-source-of-truth.md](00-source-of-truth.md).
 | --- | --- | --- |
 | 0 | Documentation Source of Truth | Create canonical docs, schemas, diagrams, ADRs, checklists, AGENTS.md, and Notion action plan. |
 | 1 | Foundation | Users, workspaces, friend invites, assets, token wallets. |
-| 2 | Brand Brain | Website/source ingestion, extraction, editable Brand Brain. |
-| 3 | Creative Brief + Campaign Engine | Goals, briefs, angles, hooks, blueprints. |
-| 4 | Agency QA Layer | Review agents, scorecards, revision loop, pre-video approval. |
-| 5 | Media Generation Adapter | Selected provider adapters behind OPREALM job rules. |
-| 6 | UGC Ad Pack | Scripts, storyboards, keyframes, videos, captions, drafts. |
-| 7 | Product Creative Pack | Product media, carousel frames, ad variants. |
-| 8 | YouTube Content Pack | Titles, scripts, thumbnails, Shorts, metadata. |
-| 9 | Calendar + Approval | Drafts, approvals, bulk approvals, schedule states. |
-| 10 | Manual Export Mode | Export packages before connector completion. |
-| 11 | Publishing Connectors | YouTube, Instagram/Facebook, TikTok, LinkedIn. |
-| 12 | Analytics Feedback | Pull metrics, score winners, generate more like this. |
-| 13 | Admin Revenue Dashboard | Token revenue, provider costs, gross margin, grants. |
+| 2 | Stripe Token Top-Ups | Checkout Sessions, verified webhooks, purchase ledger credits, and idempotency. |
+| 3 | Brand Foundation | Brands, brand sources, source linking, and editable Brand Brain placeholder. |
+| 4 | Creative Brief + Campaign Engine | Goals, briefs, angles, hooks, blueprints. |
+| 5 | Agency QA Layer | Review agents, scorecards, revision loop, pre-video approval. |
+| 6 | Media Generation Adapter | Selected provider adapters behind OPREALM job rules. |
+| 7 | UGC Ad Pack | Scripts, storyboards, keyframes, videos, captions, drafts. |
+| 8 | Product Creative Pack | Product media, carousel frames, ad variants. |
+| 9 | YouTube Content Pack | Titles, scripts, thumbnails, Shorts, metadata. |
+| 10 | Calendar + Approval | Drafts, approvals, bulk approvals, schedule states. |
+| 11 | Manual Export Mode | Export packages before connector completion. |
+| 12 | Publishing Connectors | YouTube, Instagram/Facebook, TikTok, LinkedIn. |
+| 13 | Analytics Feedback | Pull metrics, score winners, generate more like this. |
+| 14 | Admin Revenue Dashboard | Token revenue, provider costs, gross margin, grants. |
