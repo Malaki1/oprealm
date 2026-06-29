@@ -1,0 +1,21 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Malaki Aiono founder portfolio command center">
+  <rect width="1200" height="630" fill="#05070D"/>
+  <circle cx="948" cy="96" r="330" fill="url(#violet)" opacity=".55"/>
+  <circle cx="228" cy="484" r="320" fill="url(#blue)" opacity=".5"/>
+  <path d="M0 460C206 354 361 570 579 425C796 280 978 288 1200 168" stroke="url(#line)" stroke-width="2"/>
+  <g opacity=".5">
+    <path d="M0 110H1200M0 230H1200M0 350H1200M0 470H1200M170 0V630M370 0V630M570 0V630M770 0V630M970 0V630" stroke="white" stroke-opacity=".12"/>
+  </g>
+  <rect x="772" y="254" width="262" height="148" rx="22" fill="white" fill-opacity=".07" stroke="white" stroke-opacity=".16"/>
+  <rect x="822" y="294" width="162" height="10" rx="5" fill="#42F5D7"/>
+  <rect x="822" y="326" width="108" height="10" rx="5" fill="#35A7FF"/>
+  <rect x="822" y="358" width="134" height="10" rx="5" fill="#F6C65B"/>
+  <text x="96" y="225" fill="#F8FAFF" font-family="Inter, Arial, sans-serif" font-size="82" font-weight="800" letter-spacing="0">MALAKI AIONO</text>
+  <text x="100" y="304" fill="#B7C0D8" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="500">AI products. Automation systems. Digital ventures.</text>
+  <text x="100" y="384" fill="#42F5D7" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="700">I build digital systems that turn ideas into traction.</text>
+  <defs>
+    <radialGradient id="violet"><stop stop-color="#8A5CFF"/><stop offset="1" stop-color="#8A5CFF" stop-opacity="0"/></radialGradient>
+    <radialGradient id="blue"><stop stop-color="#35A7FF"/><stop offset="1" stop-color="#35A7FF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="line" x1="0" y1="460" x2="1200" y2="168"><stop stop-color="#35A7FF"/><stop offset=".55" stop-color="#8A5CFF"/><stop offset="1" stop-color="#F6C65B"/></linearGradient>
+  </defs>
+</svg>

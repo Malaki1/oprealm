@@ -1,0 +1,45 @@
+<svg width="980" height="300" viewBox="0 0 980 300" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Site Potential</title>
+  <desc id="desc">Transparent dark-mode Site Potential logo with a property pin and upward growth line.</desc>
+  <defs>
+    <linearGradient id="pinGradient" x1="88" y1="42" x2="242" y2="244" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E3678"/>
+      <stop offset="0.52" stop-color="#08275E"/>
+      <stop offset="1" stop-color="#061B42"/>
+    </linearGradient>
+    <linearGradient id="growthGradient" x1="74" y1="177" x2="243" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#46F7E3"/>
+      <stop offset="0.5" stop-color="#18C8D4"/>
+      <stop offset="1" stop-color="#35A7FF"/>
+    </linearGradient>
+    <linearGradient id="wordGradient" x1="332" y1="86" x2="850" y2="228" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="0.56" stop-color="#DDEBFF"/>
+      <stop offset="1" stop-color="#9FD7FF"/>
+    </linearGradient>
+    <filter id="softGlow" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.258 0 0 0 0 0.961 0 0 0 0 0.843 0 0 0 0.34 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
+    </filter>
+    <filter id="textGlow" x="-8%" y="-20%" width="116%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.8" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.208 0 0 0 0 0.655 0 0 0 0 1 0 0 0 0.28 0"/>
+      <feBlend in="SourceGraphic" mode="screen"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softGlow)">
+    <path d="M62 225L166 170L274 225L166 278L62 225Z" stroke="#9FD7FF" stroke-opacity="0.72" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M132 225L169 207L205 224" stroke="#46F7E3" stroke-opacity="0.78" stroke-width="7" stroke-linecap="round" stroke-dasharray="3 18"/>
+    <path d="M166 37C103 37 52 88 52 151C52 230 166 278 166 278C166 278 280 230 280 151C280 88 229 37 166 37ZM166 83C204 83 234 113 234 151C234 189 204 219 166 219C128 219 98 189 98 151C98 113 128 83 166 83Z" fill="url(#pinGradient)"/>
+    <path d="M78 180L145 125L188 162L254 96" stroke="url(#growthGradient)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M235 94H274V133" stroke="#35A7FF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#textGlow)">
+    <text x="344" y="136" fill="url(#wordGradient)" font-family="Inter, Arial, Helvetica, sans-serif" font-size="86" font-weight="850" letter-spacing="-2">Site</text>
+    <text x="345" y="231" fill="#DDEBFF" fill-opacity="0.94" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="330" letter-spacing="-3">Potential</text>
+    <circle cx="771" cy="139" r="9" fill="#46F7E3"/>
+  </g>
+</svg>

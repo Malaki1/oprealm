@@ -1,0 +1,40 @@
+{
+  "name": "scroll-symphony",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "wrangler pages dev out --compatibility-date=2026-06-20",
+    "deploy": "npm run build && wrangler pages deploy out --project-name malaki-aiono-scroll-symphony",
+    "lint": "eslint app src functions --max-warnings=0"
+  },
+  "dependencies": {
+    "@gsap/react": "latest",
+    "@hookform/resolvers": "latest",
+    "framer-motion": "latest",
+    "gsap": "latest",
+    "lenis": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-hook-form": "latest",
+    "three": "latest",
+    "zod": "latest",
+    "zustand": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "autoprefixer": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "postcss": "latest",
+    "tailwindcss": "^3.4.17",
+    "typescript": "latest",
+    "wrangler": "latest"
+  }
+}

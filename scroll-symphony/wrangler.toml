@@ -1,0 +1,9 @@
+name = "malaki-aiono-scroll-symphony"
+compatibility_date = "2026-06-20"
+pages_build_output_dir = "out"
+
+[vars]
+NEXT_PUBLIC_SITE_URL = "https://malakiaiono.com"
+
+[env.preview.vars]
+NEXT_PUBLIC_SITE_URL = "https://preview.malakiaiono.com"
